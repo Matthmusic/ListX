@@ -20,7 +20,7 @@ function createWindow() {
     minWidth: 1000,
     minHeight: 700,
     title: 'ListX - Gestion de documents',
-    icon: path.join(__dirname, '../src/assets/L.ico'),
+    icon: path.join(__dirname, '../build/icon.ico'),
     backgroundColor: '#0f172a',
     show: false,
     webPreferences: {
