@@ -101,6 +101,9 @@ export default function DocumentListingApp() {
   const [excelLogoBE, setExcelLogoBE] = useState(null);
   const [excelAfficherCategories, setExcelAfficherCategories] = useState(false);
 
+  // État pour la version de l'app
+  const [appVersion, setAppVersion] = useState('');
+
   const phases = ['DIAG', 'APS', 'APD', 'AVP', 'PRO', 'DCE', 'ACT', 'EXE'];
 
   // Fonction pour afficher une notification
@@ -1642,6 +1645,15 @@ export default function DocumentListingApp() {
     loadData();
   }, []);
 
+  // useEffect pour charger la version de l'app
+  useEffect(() => {
+    if (window.electronAPI) {
+      window.electronAPI.getAppVersion().then(version => {
+        setAppVersion(version);
+      });
+    }
+  }, []);
+
   // useEffect pour sauvegarder automatiquement les documents
   useEffect(() => {
     if (affaire && documents.length > 0) {
@@ -2469,6 +2481,13 @@ export default function DocumentListingApp() {
         )}
       </div>
       </div>
+
+      {/* Version de l'application */}
+      {appVersion && (
+        <div className="absolute bottom-2 right-4 text-xs text-gray-500 select-none">
+          v{appVersion}
+        </div>
+      )}
     </div>
   );
 }

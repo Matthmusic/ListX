@@ -1,7 +1,10 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, nativeTheme } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const isDev = process.env.NODE_ENV === 'development';
+
+// Forcer le thème sombre global
+nativeTheme.themeSource = 'dark';
 
 // Configuration de l'auto-updater
 autoUpdater.autoDownload = false;
@@ -17,8 +20,8 @@ function createWindow() {
     minWidth: 1000,
     minHeight: 700,
     title: 'ListX - Gestion de documents',
-    icon: path.join(__dirname, '../build/icon.ico'),
-    backgroundColor: '#1e3a8a',
+    icon: path.join(__dirname, '../src/assets/L.ico'),
+    backgroundColor: '#0f172a',
     show: false,
     webPreferences: {
       nodeIntegration: false,
@@ -26,6 +29,13 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js')
     }
   });
+
+  // Forcer le thème sombre de la barre de titre Windows (Windows 10/11)
+  if (process.platform === 'win32') {
+    // Utiliser l'API native Windows pour forcer le dark mode de la barre de titre
+    // DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+    mainWindow.setBackgroundColor('#0f172a');
+  }
 
   // Charger l'app
   if (isDev) {
