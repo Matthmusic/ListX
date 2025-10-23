@@ -17,6 +17,7 @@
     "electron:build:win": "npm run icon:generate && npm run build && electron-builder --win --publish never"
   },
   "dependencies": {
+    "electron-updater": "^6.6.2",
     "exceljs": "^4.4.0",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",
