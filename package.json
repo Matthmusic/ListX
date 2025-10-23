@@ -69,8 +69,7 @@
           ]
         }
       ],
-      "icon": "build/icon.png",
-      "publisherName": "Bureau d'Études"
+      "icon": "build/icon.png"
     },
     "nsis": {
       "oneClick": false,
