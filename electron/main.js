@@ -13,6 +13,17 @@ autoUpdater.autoInstallOnAppQuit = true;
 let mainWindow;
 let updateAvailable = false;
 
+// Fonction pour obtenir le chemin de l'icône selon l'environnement
+function getIconPath() {
+  if (isDev) {
+    // En développement, utiliser le chemin relatif
+    return path.join(__dirname, '../build/icon.ico');
+  } else {
+    // En production, utiliser le dossier resources
+    return path.join(process.resourcesPath, 'build', 'icon.ico');
+  }
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -20,7 +31,7 @@ function createWindow() {
     minWidth: 1000,
     minHeight: 700,
     title: 'ListX - Gestion de documents',
-    icon: path.join(__dirname, '../build/icon.ico'),
+    icon: getIconPath(),
     backgroundColor: '#0f172a',
     show: false,
     webPreferences: {
