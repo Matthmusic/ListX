@@ -1,0 +1,479 @@
+import { useState, useEffect } from 'react';
+import { Plus, Download, Trash2, FolderTree, GripVertical, Settings, X, Database, Save } from 'lucide-react';
+
+export default function DocumentListingApp() {
+  // Charger la dernière affaire et les paramètres depuis localStorage
+  const loadFromStorage = () => {
+    const lastAffaire = localStorage.getItem('lastAffaire') || '';
+    const savedUseRanges = localStorage.getItem('useRanges');
+    const savedRanges = localStorage.getItem('numberingRanges');
+
+    return {
+      lastAffaire,
+      useRanges: savedUseRanges ? JSON.parse(savedUseRanges) : true,
+      ranges: savedRanges ? JSON.parse(savedRanges) : {
+        'NDC': 1,
+        'PLN': 100,
+        'SYN': 200,
+        'SCH': 300,
+        'LST': 400
+      }
+    };
+  };
+
+  const initialData = loadFromStorage();
+
+  const [affaire, setAffaire] = useState(initialData.lastAffaire);
+  const [phase, setPhase] = useState('PRO');
+  const [nature, setNature] = useState('NDC');
+  const [indice, setIndice] = useState('A');
+  const [nom, setNom] = useState('');
+  const [documents, setDocuments] = useState([]);
+  const [draggedItem, setDraggedItem] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showAffairesList, setShowAffairesList] = useState(false);
+  const [useRanges, setUseRanges] = useState(initialData.useRanges);
+  const [affairesList, setAffairesList] = useState([]);
+
+  const phases = ['DIAG', 'APS', 'APD', 'AVP', 'PRO', 'DCE', 'ACT', 'EXE'];
+
+  const [numberingRanges, setNumberingRanges] = useState(initialData.ranges);
+
+  const natures = [
+    { code: 'NDC', label: 'Note de Calcul' },
+    { code: 'PLN', label: 'Plan' },
+    { code: 'SYN', label: 'Synoptique' },
+    { code: 'SCH', label: 'Schéma' },
+    { code: 'LST', label: 'Listing' }
+  ];
+
+  const getNextNumber = (natureCode) => {
+    if (useRanges) {
+      // Mode avec plages par nature
+      const docsOfType = documents.filter(d => d.nature === natureCode);
+      if (docsOfType.length === 0) {
+        return numberingRanges[natureCode].toString().padStart(4, '0');
+      }
+      const lastNum = Math.max(...docsOfType.map(d => parseInt(d.numero)));
+      return (lastNum + 1).toString().padStart(4, '0');
+    } else {
+      // Mode numérotation simple (01, 02, 03...)
+      const docsOfType = documents.filter(d => d.nature === natureCode);
+      return (docsOfType.length + 1).toString().padStart(2, '0');
+    }
+  };
+
+  const renumeroteDocuments = (docs) => {
+    if (useRanges) {
+      // Mode avec plages par nature
+      const grouped = docs.reduce((acc, doc) => {
+        if (!acc[doc.nature]) acc[doc.nature] = [];
+        acc[doc.nature].push(doc);
+        return acc;
+      }, {});
+
+      const renumbered = [];
+      Object.keys(grouped).forEach(natureCode => {
+        grouped[natureCode].forEach((doc, index) => {
+          const newNumero = (numberingRanges[natureCode] + index).toString().padStart(4, '0');
+          renumbered.push({
+            ...doc,
+            numero: newNumero,
+            nomComplet: `${doc.affaire}_${doc.phase}_${doc.nature}_${newNumero}_${doc.indice}_${doc.nom}`
+          });
+        });
+      });
+      return renumbered;
+    } else {
+      // Mode numérotation simple
+      const grouped = docs.reduce((acc, doc) => {
+        if (!acc[doc.nature]) acc[doc.nature] = [];
+        acc[doc.nature].push(doc);
+        return acc;
+      }, {});
+
+      const renumbered = [];
+      Object.keys(grouped).forEach(natureCode => {
+        grouped[natureCode].forEach((doc, index) => {
+          const newNumero = (index + 1).toString().padStart(2, '0');
+          renumbered.push({
+            ...doc,
+            numero: newNumero,
+            nomComplet: `${doc.affaire}_${doc.phase}_${doc.nature}_${newNumero}_${doc.indice}_${doc.nom}`
+          });
+        });
+      });
+      return renumbered;
+    }
+  };
+
+  const ajouterDocument = () => {
+    if (!affaire || !nom) {
+      alert('Veuillez renseigner l\'affaire et le nom du document');
+      return;
+    }
+
+    const numero = getNextNumber(nature);
+    const nomMaj = nom.toUpperCase();
+    const newDoc = {
+      id: Date.now(),
+      affaire,
+      phase,
+      nature,
+      numero,
+      indice,
+      nom: nomMaj,
+      nomComplet: `${affaire}_${phase}_${nature}_${numero}_${indice}_${nomMaj}`
+    };
+
+    setDocuments([...documents, newDoc]);
+    setNom('');
+  };
+
+  const supprimerDocument = (id) => {
+    const filtered = documents.filter(d => d.id !== id);
+    setDocuments(renumeroteDocuments(filtered));
+  };
+
+  const handleDragStart = (e, doc) => {
+    setDraggedItem(doc);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e, targetDoc) => {
+    e.preventDefault();
+
+    if (!draggedItem || draggedItem.id === targetDoc.id) return;
+
+    // Ne réorganiser que si même nature
+    if (draggedItem.nature !== targetDoc.nature) {
+      alert('Vous ne pouvez réorganiser que des documents de même nature !');
+      return;
+    }
+
+    const newDocs = [...documents];
+    const draggedIndex = newDocs.findIndex(d => d.id === draggedItem.id);
+    const targetIndex = newDocs.findIndex(d => d.id === targetDoc.id);
+
+    // Retirer l'élément drag
+    const [removed] = newDocs.splice(draggedIndex, 1);
+    // Insérer à la nouvelle position
+    newDocs.splice(targetIndex, 0, removed);
+
+    setDocuments(renumeroteDocuments(newDocs));
+    setDraggedItem(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+  };
+
+  const exporterCSV = () => {
+    const headers = ['Affaire', 'Phase', 'Nature', 'N° Document', 'Indice', 'Nom', 'Nom Complet Fichier'];
+    const rows = documents.map(d => [
+      d.affaire,
+      d.phase,
+      d.nature,
+      d.numero,
+      d.indice,
+      d.nom,
+      d.nomComplet
+    ]);
+
+    const csv = [
+      headers.join(';'),
+      ...rows.map(row => row.join(';'))
+    ].join('\n');
+
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `listing_${affaire}_${phase}_${Date.now()}.csv`;
+    link.click();
+  };
+
+  const genererArborescence = () => {
+    const grouped = documents.reduce((acc, doc) => {
+      if (!acc[doc.nature]) acc[doc.nature] = [];
+      acc[doc.nature].push(doc);
+      return acc;
+    }, {});
+
+    let arbo = `03 - ETUDES\\A - MOE\\${getPhaseFolder(phase)}\\@\\B - PIECES GRAPHIQUES\\\n`;
+
+    Object.keys(grouped).sort().forEach(nature => {
+      arbo += `├── ${nature}\\\n`;
+      grouped[nature].forEach(doc => {
+        arbo += `│   └── ${doc.nomComplet}\n`;
+      });
+    });
+
+    alert(arbo);
+  };
+
+  const getPhaseFolder = (p) => {
+    const mapping = {
+      'DIAG': '03 - DIAG',
+      'APS': '04 - APS',
+      'APD': '05 - APD',
+      'AVP': '06 - AVP',
+      'PRO': '07 - PRO',
+      'DCE': '08 - DCE',
+      'ACT': '09 - ACT'
+    };
+    return mapping[p] || '07 - PRO';
+  };
+
+  const toggleMode = () => {
+    const newMode = !useRanges;
+    setUseRanges(newMode);
+    // Renuméroter tous les documents existants
+    if (documents.length > 0) {
+      setDocuments(renumeroteDocuments(documents));
+    }
+  };
+
+  const updateRange = (natureCode, value) => {
+    setNumberingRanges({
+      ...numberingRanges,
+      [natureCode]: parseInt(value) || 0
+    });
+  };
+
+  const appliquerNouvellesPlages = () => {
+    if (documents.length > 0) {
+      setDocuments(renumeroteDocuments(documents));
+    }
+    setShowSettings(false);
+  };
+
+  // Grouper documents par nature pour affichage
+  const documentsGroupes = documents.reduce((acc, doc) => {
+    if (!acc[doc.nature]) acc[doc.nature] = [];
+    acc[doc.nature].push(doc);
+    return acc;
+  }, {});
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex justify-between items-center mb-2">
+          <h1 className="text-3xl font-bold text-gray-800">Générateur de Listing Documents</h1>
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 flex items-center gap-2"
+          >
+            <Settings size={18} />
+            Paramètres
+          </button>
+        </div>
+        <p className="text-gray-600 mb-8">Bureau d'Études - Pièces Graphiques</p>
+
+        {/* Panel Paramètres */}
+        {showSettings && (
+          <div className="bg-white rounded-lg shadow-lg p-6 mb-6 border-2 border-gray-300">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Paramètres de numérotation</h3>
+              <button onClick={() => setShowSettings(false)} className="text-gray-500 hover:text-gray-700">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={useRanges}
+                  onChange={toggleMode}
+                  className="w-5 h-5"
+                />
+                <div>
+                  <span className="font-medium">Utiliser des plages de numérotation par nature</span>
+                  <p className="text-sm text-gray-600">
+                    {useRanges
+                      ? 'Mode actif : chaque nature a sa propre plage (NDC: 0001-0099, PLN: 0100-0199, etc.)'
+                      : 'Mode désactivé : numérotation simple (01, 02, 03...) pour chaque nature'}
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            {useRanges && (
+              <div className="space-y-3">
+                <h4 className="font-medium text-gray-700">Configuration des plages :</h4>
+                {natures.map(n => (
+                  <div key={n.code} className="grid grid-cols-2 gap-4 items-center">
+                    <label className="text-sm font-medium text-gray-700">
+                      {n.code} - {n.label}
+                    </label>
+                    <input
+                      type="number"
+                      value={numberingRanges[n.code]}
+                      onChange={(e) => updateRange(n.code, e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-md"
+                      placeholder="Début de plage"
+                    />
+                  </div>
+                ))}
+                <button
+                  onClick={appliquerNouvellesPlages}
+                  className="w-full bg-green-600 text-white py-2 rounded-md hover:bg-green-700 mt-4"
+                >
+                  Appliquer et renuméroter
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">Ajouter un document</h2>
+
+          <div className="grid grid-cols-12 gap-4 mb-4">
+            <div className="col-span-12 md:col-span-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Affaire</label>
+              <input
+                type="text"
+                value={affaire}
+                onChange={(e) => setAffaire(e.target.value.toUpperCase())}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                placeholder="ex: ASELYS"
+              />
+            </div>
+
+            <div className="col-span-6 md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Phase</label>
+              <select
+                value={phase}
+                onChange={(e) => setPhase(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              >
+                {phases.map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="col-span-6 md:col-span-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Indice</label>
+              <input
+                type="text"
+                value={indice}
+                onChange={(e) => setIndice(e.target.value.toUpperCase())}
+                maxLength="1"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-center"
+                placeholder="A"
+              />
+            </div>
+
+            <div className="col-span-12 md:col-span-6">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nature</label>
+              <select
+                value={nature}
+                onChange={(e) => setNature(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              >
+                {natures.map(n => (
+                  <option key={n.code} value={n.code}>
+                    {n.code} - {n.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="col-span-12">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nom du document</label>
+              <input
+                type="text"
+                value={nom}
+                onChange={(e) => setNom(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                placeholder="ex: Bilan de Puissance"
+                onKeyPress={(e) => e.key === 'Enter' && ajouterDocument()}
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={ajouterDocument}
+            className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 flex items-center justify-center gap-2"
+          >
+            <Plus size={20} />
+            Ajouter le document
+          </button>
+        </div>
+
+        {documents.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Documents listés ({documents.length})</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={genererArborescence}
+                  className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center gap-2"
+                >
+                  <FolderTree size={18} />
+                  Voir arborescence
+                </button>
+                <button
+                  onClick={exporterCSV}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center gap-2"
+                >
+                  <Download size={18} />
+                  Exporter CSV
+                </button>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-4 bg-blue-50 p-3 rounded">
+              💡 <strong>Astuce:</strong> Glissez-déposez les documents pour les réorganiser. Les numéros se mettront à jour automatiquement !
+            </p>
+
+            {Object.keys(documentsGroupes).sort().map(natureCode => (
+              <div key={natureCode} className="mb-6">
+                <h3 className="font-semibold text-lg mb-2 text-gray-700 bg-gray-100 px-3 py-2 rounded">
+                  {natureCode} - {natures.find(n => n.code === natureCode)?.label}
+                </h3>
+                <div className="space-y-1">
+                  {documentsGroupes[natureCode].map(doc => (
+                    <div
+                      key={doc.id}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, doc)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, doc)}
+                      onDragEnd={handleDragEnd}
+                      className={`flex items-center gap-3 p-3 border rounded-md cursor-move hover:bg-gray-50 transition-colors ${
+                        draggedItem?.id === doc.id ? 'opacity-50 bg-blue-50' : 'bg-white'
+                      }`}
+                    >
+                      <GripVertical size={20} className="text-gray-400 flex-shrink-0" />
+                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium flex-shrink-0">
+                        {doc.nature}
+                      </span>
+                      <span className="font-mono text-gray-600 flex-shrink-0 font-semibold">{doc.numero}</span>
+                      <span className="bg-gray-100 px-2 py-1 rounded text-xs flex-shrink-0">{doc.indice}</span>
+                      <span className="flex-grow">{doc.nom}</span>
+                      <span className="text-xs text-gray-400 font-mono hidden md:block">{doc.nomComplet}</span>
+                      <button
+                        onClick={() => supprimerDocument(doc.id)}
+                        className="text-red-600 hover:text-red-800 flex-shrink-0"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
