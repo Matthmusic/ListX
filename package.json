@@ -1,7 +1,7 @@
 {
   "name": "listx",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Application de gestion et génération de listings de documents techniques",
   "author": "Bureau d'Études",
   "main": "electron/main.js",
@@ -51,6 +51,7 @@
   "build": {
     "appId": "com.bet.listx",
     "productName": "ListX",
+    "artifactName": "${productName}-Setup-${version}.${ext}",
     "copyright": "Copyright © 2025 Bureau d'Études",
     "directories": {
       "output": "release",
