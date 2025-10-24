@@ -1342,7 +1342,7 @@ export default function DocumentListingApp() {
           // Ajouter une bordure double en bas de chaque groupe de catégorie
           if (data.section === 'body' && exportAfficherCategories) {
             const rowData = tableData[data.row.index];
-            if (rowData.isLastOfCategory) {
+            if (rowData && rowData.isLastOfCategory) {
               // Dessiner une double ligne en bas
               const { x, y, width, height } = data.cell;
               doc.setDrawColor(0, 0, 0);
