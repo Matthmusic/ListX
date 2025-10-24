@@ -909,7 +909,7 @@ export default function DocumentListingApp() {
         const headerName = headers[headerIndex];
 
         // Largeurs spécifiques pour certaines colonnes
-        if (['PHASE', 'NATURE', 'N° DOC', 'FORMAT', 'INDICE'].includes(headerName)) {
+        if (['PHASE', 'NATURE', 'N° DOC', 'FORMAT', 'INDICE', 'LOT', 'ETAT', 'ZONE', 'NIVEAU'].includes(headerName)) {
           // Colonnes uniformes et réduites
           column.width = 10;
         } else if (headerName === 'NOM DU FICHIER') {
@@ -1174,7 +1174,7 @@ export default function DocumentListingApp() {
       }
       if (fieldsUsed.lot) {
         headers.push('LOT');
-        columnStyles[colIndex] = { cellWidth: 20, halign: 'center' };
+        columnStyles[colIndex] = { cellWidth: 15, halign: 'center' };
         colIndex++;
       }
       if (fieldsUsed.emetteur) {
@@ -1194,17 +1194,17 @@ export default function DocumentListingApp() {
 
       if (fieldsUsed.etat) {
         headers.push('ETAT');
-        columnStyles[colIndex] = { cellWidth: 20, halign: 'center' };
+        columnStyles[colIndex] = { cellWidth: 15, halign: 'center' };
         colIndex++;
       }
       if (fieldsUsed.zone) {
         headers.push('ZONE');
-        columnStyles[colIndex] = { cellWidth: 20, halign: 'center' };
+        columnStyles[colIndex] = { cellWidth: 15, halign: 'center' };
         colIndex++;
       }
       if (fieldsUsed.niveauCoupe) {
         headers.push('NIVEAU');
-        columnStyles[colIndex] = { cellWidth: 20, halign: 'center' };
+        columnStyles[colIndex] = { cellWidth: 15, halign: 'center' };
         colIndex++;
       }
 
