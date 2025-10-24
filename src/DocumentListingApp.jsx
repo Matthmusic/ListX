@@ -1209,8 +1209,8 @@ export default function DocumentListingApp() {
       }
 
       headers.push('FORMAT', 'INDICE', 'DESCRIPTION DU DOC', 'NOM DU FICHIER');
-      columnStyles[colIndex] = { cellWidth: 12, halign: 'center' };
-      columnStyles[colIndex + 1] = { cellWidth: 10, halign: 'center' };
+      columnStyles[colIndex] = { cellWidth: 15, halign: 'center' };
+      columnStyles[colIndex + 1] = { cellWidth: 13, halign: 'center' };
       columnStyles[colIndex + 2] = { cellWidth: 'auto' };
       columnStyles[colIndex + 3] = { cellWidth: 'auto' };
 
@@ -1303,7 +1303,7 @@ export default function DocumentListingApp() {
         body: tableData.map(d => d.rowData),
         theme: 'grid',
         styles: {
-          fontSize: 7,
+          fontSize: 6,
           cellPadding: 1.5,
           lineColor: [0, 0, 0],
           lineWidth: 0.1,
@@ -1314,7 +1314,7 @@ export default function DocumentListingApp() {
           textColor: [255, 255, 255],
           fontStyle: 'bold',
           halign: 'center',
-          fontSize: 8
+          fontSize: 7
         },
         columnStyles: columnStyles,
         didParseCell: function(data) {
@@ -1330,7 +1330,7 @@ export default function DocumentListingApp() {
               const color = categoryColors[rowData.nature] || [211, 211, 211];
               data.cell.styles.fillColor = color;
               data.cell.styles.fontStyle = 'bold';
-              data.cell.styles.fontSize = 8;
+              data.cell.styles.fontSize = 7;
               data.cell.styles.halign = 'left';
             } else {
               // Style normal pour les documents
