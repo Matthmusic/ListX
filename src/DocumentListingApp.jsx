@@ -74,6 +74,7 @@ export default function DocumentListingApp() {
   const [affairesList, setAffairesList] = useState([]);
   const [filteredAffaires, setFilteredAffaires] = useState([]);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({}); // Pour tracker les champs obligatoires vides
 
   // État pour les notifications
   const [notification, setNotification] = useState(null);
@@ -243,10 +244,22 @@ export default function DocumentListingApp() {
 
   const ajouterDocument = () => {
     // Validation des champs obligatoires
-    if (!affaire || !phase || !nature || !format || !indice || !nom) {
+    const errors = {};
+    if (!affaire) errors.affaire = true;
+    if (!phase) errors.phase = true;
+    if (!nature) errors.nature = true;
+    if (!format) errors.format = true;
+    if (!indice) errors.indice = true;
+    if (!nom) errors.nom = true;
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       showNotification('Veuillez renseigner tous les champs obligatoires (Affaire, Phase, Nature, Format, Indice, Nom)', 'error');
       return;
     }
+
+    // Réinitialiser les erreurs si tout est OK
+    setFieldErrors({});
 
     if (editingDocId) {
       // Mode modification
@@ -317,17 +330,17 @@ export default function DocumentListingApp() {
     const docToEdit = documents.find(d => d.id === id);
     if (docToEdit) {
       // Charger les données du document dans le formulaire
-      setAffaire(docToEdit.affaire);
-      setPhase(docToEdit.phase);
-      setLot(docToEdit.lot);
-      setEmetteur(docToEdit.emetteur);
-      setNature(docToEdit.nature);
-      setEtat(docToEdit.etat);
-      setNiveauCoupe(docToEdit.niveauCoupe);
-      setZone(docToEdit.zone);
-      setFormat(docToEdit.format);
-      setIndice(docToEdit.indice);
-      setNom(docToEdit.nom);
+      setAffaire(docToEdit.affaire || '');
+      setPhase(docToEdit.phase || '');
+      setLot(docToEdit.lot || '');
+      setEmetteur(docToEdit.emetteur || '');
+      setNature(docToEdit.nature || '');
+      setEtat(docToEdit.etat || '');
+      setNiveauCoupe(docToEdit.niveauCoupe || '');
+      setZone(docToEdit.zone || '');
+      setFormat(docToEdit.format || '');
+      setIndice(docToEdit.indice || '');
+      setNom(docToEdit.nom || '');
       setEditingDocId(id);
 
       // Faire défiler vers le formulaire
@@ -1569,6 +1582,10 @@ export default function DocumentListingApp() {
   const handleAffaireChange = (value) => {
     const upperValue = value.toUpperCase();
     setAffaire(upperValue);
+    // Réinitialiser l'erreur pour ce champ
+    if (fieldErrors.affaire) {
+      setFieldErrors(prev => ({ ...prev, affaire: false }));
+    }
 
     if (upperValue.length > 0) {
       const filtered = affairesList.filter(a =>
@@ -1972,8 +1989,8 @@ export default function DocumentListingApp() {
                       }
                     }}
                     onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
-                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs"
-                    placeholder="ASELYS"
+                    className={`w-full px-2 py-1.5 border rounded text-xs ${fieldErrors.affaire ? 'border-red-500' : 'border-gray-300'}`}
+                    placeholder="AFFAIRE"
                   />
                   {affaire && !affaireExiste() && (
                     <button
@@ -2005,8 +2022,11 @@ export default function DocumentListingApp() {
                 <label className="block text-xs font-medium text-gray-700 mb-1">Phase *</label>
                 <select
                   value={phase}
-                  onChange={(e) => setPhase(e.target.value)}
-                  className="w-full px-1 py-1.5 border border-gray-300 rounded text-xs"
+                  onChange={(e) => {
+                    setPhase(e.target.value);
+                    if (fieldErrors.phase) setFieldErrors(prev => ({ ...prev, phase: false }));
+                  }}
+                  className={`w-full px-1 py-1.5 border rounded text-xs ${fieldErrors.phase ? 'border-red-500' : 'border-gray-300'}`}
                 >
                   {phases.map(p => (
                     <option key={p} value={p}>{p}</option>
@@ -2035,7 +2055,7 @@ export default function DocumentListingApp() {
                   value={emetteur}
                   onChange={(e) => setEmetteur(e.target.value.toUpperCase())}
                   className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs"
-                  placeholder="BET"
+                  placeholder="CEAI"
                 />
               </div>
 
@@ -2044,8 +2064,11 @@ export default function DocumentListingApp() {
                 <label className="block text-xs font-medium text-gray-700 mb-1">Nature du doc. *</label>
                 <select
                   value={nature}
-                  onChange={(e) => setNature(e.target.value)}
-                  className="w-full px-1 py-1.5 border border-gray-300 rounded text-xs"
+                  onChange={(e) => {
+                    setNature(e.target.value);
+                    if (fieldErrors.nature) setFieldErrors(prev => ({ ...prev, nature: false }));
+                  }}
+                  className={`w-full px-1 py-1.5 border rounded text-xs ${fieldErrors.nature ? 'border-red-500' : 'border-gray-300'}`}
                 >
                   {natures.map(n => (
                     <option key={n} value={n.code}>
@@ -2100,8 +2123,11 @@ export default function DocumentListingApp() {
                 <label className="block text-xs font-medium text-gray-700 mb-1">Format *</label>
                 <select
                   value={format}
-                  onChange={(e) => setFormat(e.target.value)}
-                  className="w-full px-1 py-1.5 border border-gray-300 rounded text-xs"
+                  onChange={(e) => {
+                    setFormat(e.target.value);
+                    if (fieldErrors.format) setFieldErrors(prev => ({ ...prev, format: false }));
+                  }}
+                  className={`w-full px-1 py-1.5 border rounded text-xs ${fieldErrors.format ? 'border-red-500' : 'border-gray-300'}`}
                 >
                   <option value="">-</option>
                   {formats.map(f => (
@@ -2116,9 +2142,12 @@ export default function DocumentListingApp() {
                 <input
                   type="text"
                   value={indice}
-                  onChange={(e) => setIndice(e.target.value.toUpperCase())}
+                  onChange={(e) => {
+                    setIndice(e.target.value.toUpperCase());
+                    if (fieldErrors.indice) setFieldErrors(prev => ({ ...prev, indice: false }));
+                  }}
                   maxLength="1"
-                  className="w-full px-1 py-1.5 border border-gray-300 rounded text-center text-xs"
+                  className={`w-full px-1 py-1.5 border rounded text-center text-xs ${fieldErrors.indice ? 'border-red-500' : 'border-gray-300'}`}
                   placeholder="A"
                 />
               </div>
@@ -2130,9 +2159,12 @@ export default function DocumentListingApp() {
               <input
                 type="text"
                 value={nom}
-                onChange={(e) => setNom(e.target.value)}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
-                placeholder="ex: Bilan de Puissance"
+                onChange={(e) => {
+                  setNom(e.target.value.toUpperCase());
+                  if (fieldErrors.nom) setFieldErrors(prev => ({ ...prev, nom: false }));
+                }}
+                className={`w-full px-2 py-1.5 border rounded text-sm ${fieldErrors.nom ? 'border-red-500' : 'border-gray-300'}`}
+                placeholder="ex: BILAN DE PUISSANCE"
                 onKeyPress={(e) => e.key === 'Enter' && ajouterDocument()}
               />
             </div>
