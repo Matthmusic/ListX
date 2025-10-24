@@ -1209,8 +1209,8 @@ export default function DocumentListingApp() {
       }
 
       headers.push('FORMAT', 'INDICE', 'DESCRIPTION DU DOC', 'NOM DU FICHIER');
-      columnStyles[colIndex] = { cellWidth: 20, halign: 'center' };
-      columnStyles[colIndex + 1] = { cellWidth: 15, halign: 'center' };
+      columnStyles[colIndex] = { cellWidth: 12, halign: 'center' };
+      columnStyles[colIndex + 1] = { cellWidth: 10, halign: 'center' };
       columnStyles[colIndex + 2] = { cellWidth: 'auto' };
       columnStyles[colIndex + 3] = { cellWidth: 'auto' };
 
