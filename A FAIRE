@@ -1,0 +1,36 @@
+il faut que je modifie pas mal de chose :
+- enlever la colonne 1 de l'excel et du pdf 
+- verifie que tu nomme les colonnes du pdf comme dans l'excel
+- regrouper l'export en 1 seul bouton pour entrer dans la popup
+   - dans la popup on selectionne excel ou pdf pour export
+- garder dans les champs de texte les infos du dernier document ajouté
+- ajouter un bouton modifier sur les documents deja creer (a gauche du bouton supprimer sur chaque fichier).
+- corriger cette histoire d'icone qui ne veut pas se mettre en prod
+- dans la copie de l'arborescence n'inscrit pas les infos avant @
+- peut on faire en sorte que le glisser deposé anime un peu plus la liste, 
+  en gros que mette en etant en maintien du clic on voit les éléments 
+  changer de position en dessous
+- pour le moment j'aimerais enlever la barre d'option en haut de la fenetre je ne pense pas qu'elle serve.
+
+Analyse des fichiers .md
+✅ À GARDER (utiles et actualisés)
+README.md - Documentation principale du projet ✅
+VERSIONING.md - Système de versioning (créé aujourd'hui) ✅
+SECURITE.md - Documentation sur les protections ✅
+DEPLOIEMENT.md - Guide complet de déploiement ✅
+❌ OBSOLÈTES (redondants ou dépassés)
+_TOUT_EST_PRET.md - Redondant avec QUICKSTART et START_HERE ❌
+CHECKLIST.md - Redondant avec VOTRE_DEPLOIEMENT ❌
+ELECTRON_SETUP_COMPLETE.md - Historique, plus nécessaire ❌
+INSTRUCTIONS_AUTOCOMPLETE.md - Feature déjà implémentée ❌
+QUICKSTART.md - Redondant avec START_HERE ❌
+RESUME_CONFIGURATION.md - Redondant avec ELECTRON_SETUP_COMPLETE ❌
+START_HERE.md - Peut être fusionné dans README ❌
+VOTRE_DEPLOIEMENT.md - Redondant avec DEPLOIEMENT ❌
+🎯 Ma recommandation
+Garder uniquement :
+README.md - Doc principale
+VERSIONING.md - Système de versioning
+SECURITE.md - Sécurité
+DEPLOIEMENT.md - Guide de déploiement complet
+Supprimer les 8 autres qui sont redondants ou obsolètes. Tu veux que je nettoie tout ça ?
