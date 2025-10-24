@@ -19,8 +19,9 @@ function getIconPath() {
     // En développement, utiliser le chemin relatif
     return path.join(__dirname, '../build/icon.ico');
   } else {
-    // En production, utiliser le dossier resources
-    return path.join(process.resourcesPath, 'build', 'icon.ico');
+    // En production, l'icône est dans le dossier app ou à la racine de l'exe
+    // electron-builder gère automatiquement l'icône depuis build/icon.ico
+    return path.join(__dirname, '../build/icon.ico');
   }
 }
 

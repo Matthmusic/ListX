@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Download, Trash2, FolderTree, GripVertical, Settings, X, CheckCircle, AlertCircle, Info, FileText, ListOrdered, FileDown } from 'lucide-react';
+import { Plus, Download, Trash2, FolderTree, GripVertical, X, CheckCircle, AlertCircle, Info, FileText, ListOrdered, FileDown, Edit } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ExcelJS from 'exceljs';
@@ -68,7 +68,8 @@ export default function DocumentListingApp() {
   const [nom, setNom] = useState('');
   const [documents, setDocuments] = useState([]);
   const [draggedItem, setDraggedItem] = useState(null);
-  const [showSettings, setShowSettings] = useState(false);
+  const [dragOverItem, setDragOverItem] = useState(null); // Item survolé pendant le drag
+  const [editingDocId, setEditingDocId] = useState(null); // ID du document en cours de modification
   const [useRanges, setUseRanges] = useState(true);
   const [affairesList, setAffairesList] = useState([]);
   const [filteredAffaires, setFilteredAffaires] = useState([]);
@@ -84,6 +85,9 @@ export default function DocumentListingApp() {
   // État pour l'ordre des catégories
   const [categoriesOrder, setCategoriesOrder] = useState(['NOT', 'NDC', 'PLN', 'SYN', 'SCH', 'LST']);
   const [draggedCategory, setDraggedCategory] = useState(null);
+
+  // État pour la popup de choix d'export
+  const [showExportChoicePopup, setShowExportChoicePopup] = useState(false);
 
   // États pour l'export PDF
   const [showPdfPopup, setShowPdfPopup] = useState(false);
@@ -255,39 +259,92 @@ export default function DocumentListingApp() {
       return;
     }
 
-    const numero = getNextNumber(nature);
+    if (editingDocId) {
+      // Mode modification
+      const updatedDocs = documents.map(doc => {
+        if (doc.id === editingDocId) {
+          const updatedDoc = {
+            ...doc,
+            affaire: affaire.toUpperCase(),
+            phase: phase.toUpperCase(),
+            lot: lot.toUpperCase(),
+            emetteur: emetteur.toUpperCase(),
+            nature: nature.toUpperCase(),
+            etat: etat.toUpperCase(),
+            niveauCoupe: niveauCoupe.toUpperCase(),
+            zone: zone.toUpperCase(),
+            format,
+            indice: indice.toUpperCase(),
+            nom: nom.toUpperCase()
+          };
+          updatedDoc.nomComplet = genererNomComplet(updatedDoc, doc.numero);
+          return updatedDoc;
+        }
+        return doc;
+      });
 
-    const newDoc = {
-      id: Date.now(),
-      affaire: affaire.toUpperCase(),
-      phase: phase.toUpperCase(),
-      lot: lot.toUpperCase(),
-      emetteur: emetteur.toUpperCase(),
-      nature: nature.toUpperCase(),
-      etat: etat.toUpperCase(), // ACTUEL, PROJET ou vide
-      numero,
-      niveauCoupe: niveauCoupe.toUpperCase(),
-      zone: zone.toUpperCase(),
-      format,
-      indice: indice.toUpperCase(),
-      nom: nom.toUpperCase(),
-      nomComplet: '' // Sera généré par genererNomComplet
-    };
+      setDocuments(renumeroteDocuments(updatedDocs));
+      showNotification('Document modifié avec succès !', 'success');
+      setEditingDocId(null);
+    } else {
+      // Mode ajout
+      const numero = getNextNumber(nature);
 
-    // Générer le nom complet
-    newDoc.nomComplet = genererNomComplet(newDoc, numero);
+      const newDoc = {
+        id: Date.now(),
+        affaire: affaire.toUpperCase(),
+        phase: phase.toUpperCase(),
+        lot: lot.toUpperCase(),
+        emetteur: emetteur.toUpperCase(),
+        nature: nature.toUpperCase(),
+        etat: etat.toUpperCase(), // ACTUEL, PROJET ou vide
+        numero,
+        niveauCoupe: niveauCoupe.toUpperCase(),
+        zone: zone.toUpperCase(),
+        format,
+        indice: indice.toUpperCase(),
+        nom: nom.toUpperCase(),
+        nomComplet: '' // Sera généré par genererNomComplet
+      };
 
-    setDocuments([...documents, newDoc]);
+      // Générer le nom complet
+      newDoc.nomComplet = genererNomComplet(newDoc, numero);
 
-    // Notification de succès
-    showNotification(`Document "${newDoc.nomComplet}" ajouté avec succès !`, 'success');
+      setDocuments([...documents, newDoc]);
 
-    // Reset uniquement les champs non essentiels
-    setNom('');
-    setLot('');
-    setEmetteur('');
-    setNiveauCoupe('');
-    setZone('');
+      // Notification de succès
+      showNotification(`Document "${newDoc.nomComplet}" ajouté avec succès !`, 'success');
+    }
+
+    // Ne plus reset les champs - garder les infos du dernier document
+    // setNom('');
+    // setLot('');
+    // setEmetteur('');
+    // setNiveauCoupe('');
+    // setZone('');
+  };
+
+  const modifierDocument = (id) => {
+    const docToEdit = documents.find(d => d.id === id);
+    if (docToEdit) {
+      // Charger les données du document dans le formulaire
+      setAffaire(docToEdit.affaire);
+      setPhase(docToEdit.phase);
+      setLot(docToEdit.lot);
+      setEmetteur(docToEdit.emetteur);
+      setNature(docToEdit.nature);
+      setEtat(docToEdit.etat);
+      setNiveauCoupe(docToEdit.niveauCoupe);
+      setZone(docToEdit.zone);
+      setFormat(docToEdit.format);
+      setIndice(docToEdit.indice);
+      setNom(docToEdit.nom);
+      setEditingDocId(id);
+
+      // Faire défiler vers le formulaire
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      showNotification('Document chargé pour modification', 'info');
+    }
   };
 
   const supprimerDocument = (id) => {
@@ -300,13 +357,21 @@ export default function DocumentListingApp() {
     e.dataTransfer.effectAllowed = 'move';
   };
 
-  const handleDragOver = (e) => {
+  const handleDragOver = (e, targetDoc) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    if (targetDoc && draggedItem && targetDoc.id !== draggedItem.id) {
+      setDragOverItem(targetDoc);
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    setDragOverItem(null);
   };
 
   const handleDrop = (e, targetDoc) => {
     e.preventDefault();
+    setDragOverItem(null);
 
     if (!draggedItem || draggedItem.id === targetDoc.id) return;
 
@@ -328,6 +393,7 @@ export default function DocumentListingApp() {
 
   const handleDragEnd = () => {
     setDraggedItem(null);
+    setDragOverItem(null);
   };
 
   const exporterCSV = () => {
@@ -383,7 +449,7 @@ export default function DocumentListingApp() {
       };
 
       // Construire les en-têtes dynamiquement
-      const headers = ['N°'];
+      const headers = [];
       if (fieldsUsed.affaire) headers.push('AFFAIRE');
       if (fieldsUsed.phase) headers.push('PHASE');
       if (fieldsUsed.lot) headers.push('LOT');
@@ -701,7 +767,7 @@ export default function DocumentListingApp() {
           // Ajouter tous les documents de cette catégorie
           const docsOfCategory = documentsToExport.filter(doc => doc.nature === category);
           docsOfCategory.forEach((doc) => {
-            const rowData = [String(numeroLigne).padStart(2, '0')];
+            const rowData = [];
             if (fieldsUsed.affaire) rowData.push(doc.affaire || '');
             if (fieldsUsed.phase) rowData.push(doc.phase || '');
             if (fieldsUsed.lot) rowData.push(doc.lot || '');
@@ -757,19 +823,17 @@ export default function DocumentListingApp() {
       } else {
         // Sans catégories, afficher tous les documents directement
         documentsToExport.forEach((doc) => {
-          const rowData = [doc.numero];
-          // ETAT en position 2 si utilisé
-          if (fieldsUsed.etat) rowData.push(doc.etat || '');
-          // INDICE après ETAT
-          rowData.push(doc.indice || '');
+          const rowData = [];
           if (fieldsUsed.affaire) rowData.push(doc.affaire || '');
           if (fieldsUsed.phase) rowData.push(doc.phase || '');
           if (fieldsUsed.lot) rowData.push(doc.lot || '');
           if (fieldsUsed.emetteur) rowData.push(doc.emetteur || '');
           if (fieldsUsed.nature) rowData.push(doc.nature || '');
+          rowData.push(doc.numero);
+          if (fieldsUsed.etat) rowData.push(doc.etat || '');
           if (fieldsUsed.zone) rowData.push(doc.zone || '');
           if (fieldsUsed.niveauCoupe) rowData.push(doc.niveauCoupe || '');
-          rowData.push(doc.nom || '', doc.format || '');
+          rowData.push(doc.format || '', doc.indice || '', doc.nom || '', doc.nomComplet || '');
 
           // Couleur de fond selon la catégorie
           const bgColor = categoryColors[doc.nature] || 'FFFFFFFF';
@@ -856,7 +920,7 @@ export default function DocumentListingApp() {
         const headerName = headers[headerIndex];
 
         // Largeurs spécifiques pour certaines colonnes
-        if (['N°', 'PHASE', 'NATURE', 'N° DOC', 'FORMAT', 'INDICE'].includes(headerName)) {
+        if (['PHASE', 'NATURE', 'N° DOC', 'FORMAT', 'INDICE'].includes(headerName)) {
           // Colonnes uniformes et réduites
           column.width = 10;
         } else if (headerName === 'NOM DU FICHIER') {
@@ -1105,11 +1169,9 @@ export default function DocumentListingApp() {
       };
 
       // Construire les en-têtes de colonnes dynamiquement
-      const headers = ['N°'];
-      const columnStyles = {
-        0: { cellWidth: 12, halign: 'center' }
-      };
-      let colIndex = 1;
+      const headers = [];
+      const columnStyles = {};
+      let colIndex = 0;
 
       if (fieldsUsed.affaire) {
         headers.push('AFFAIRE');
@@ -1127,7 +1189,7 @@ export default function DocumentListingApp() {
         colIndex++;
       }
       if (fieldsUsed.emetteur) {
-        headers.push('EMETTEUR');
+        headers.push('ÉMETTEUR');
         columnStyles[colIndex] = { cellWidth: 25, halign: 'center' };
         colIndex++;
       }
@@ -1137,7 +1199,7 @@ export default function DocumentListingApp() {
         colIndex++;
       }
 
-      headers.push('N° DOCUMENT');
+      headers.push('N° DOC');
       columnStyles[colIndex] = { cellWidth: 30, halign: 'center' };
       colIndex++;
 
@@ -1184,8 +1246,6 @@ export default function DocumentListingApp() {
           'LST': 'Listing'
         };
 
-        let numeroLigne = 1;
-
         categoriesPresentes.forEach(category => {
           // Ajouter la ligne de catégorie
           const categoryLabel = `${category} - ${categoryLabels[category] || category}`;
@@ -1199,7 +1259,7 @@ export default function DocumentListingApp() {
           // Ajouter les documents de cette catégorie
           const docsOfCategory = documentsToExport.filter(doc => doc.nature === category);
           docsOfCategory.forEach((doc, index) => {
-            const rowData = [String(numeroLigne).padStart(2, '0')];
+            const rowData = [];
 
             if (fieldsUsed.affaire) rowData.push(doc.affaire || '');
             if (fieldsUsed.phase) rowData.push(doc.phase || '');
@@ -1214,7 +1274,6 @@ export default function DocumentListingApp() {
             if (fieldsUsed.niveauCoupe) rowData.push(doc.niveauCoupe || '');
 
             rowData.push(doc.format || '', doc.indice || 'A', doc.nom, doc.nomComplet);
-            numeroLigne++;
 
             tableData.push({
               rowData,
@@ -1227,8 +1286,7 @@ export default function DocumentListingApp() {
       } else {
         // Sans catégories
         tableData = documentsToExport.map((doc, index) => {
-          const numeroLigne = String(index + 1).padStart(2, '0');
-          const rowData = [numeroLigne];
+          const rowData = [];
 
           if (fieldsUsed.affaire) rowData.push(doc.affaire || '');
           if (fieldsUsed.phase) rowData.push(doc.phase || '');
@@ -1415,7 +1473,7 @@ export default function DocumentListingApp() {
       return acc;
     }, {});
 
-    let arbo = `03 - ETUDES\\A - MOE\\${getPhaseFolder(phase)}\\@\\B - PIECES GRAPHIQUES\\\n`;
+    let arbo = `B - PIECES GRAPHIQUES\\\n`;
 
     Object.keys(grouped).sort().forEach(nature => {
       arbo += `├── ${nature}\\\n`;
@@ -1767,6 +1825,58 @@ export default function DocumentListingApp() {
       )}
 
       {/* Popup Export PDF */}
+      {/* Popup de choix du format d'export */}
+      {showExportChoicePopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                <FileDown size={24} />
+                Choisir le format d'export
+              </h3>
+              <button
+                onClick={() => setShowExportChoicePopup(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {/* Bouton PDF */}
+              <button
+                onClick={() => {
+                  setShowExportChoicePopup(false);
+                  setShowPdfPopup(true);
+                }}
+                className="w-full bg-gradient-to-br from-rose-600 to-rose-700 text-white p-4 rounded-lg hover:from-rose-700 hover:to-rose-800 shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-3"
+              >
+                <img src={pdfIcon} alt="" className="w-12 h-12 drop-shadow-lg" />
+                <div className="text-left">
+                  <div className="font-semibold text-lg">Export PDF</div>
+                  <div className="text-sm opacity-90">Générer un fichier PDF</div>
+                </div>
+              </button>
+
+              {/* Bouton Excel */}
+              <button
+                onClick={() => {
+                  setShowExportChoicePopup(false);
+                  setShowExcelPopup(true);
+                }}
+                className="w-full bg-gradient-to-br from-teal-600 to-teal-700 text-white p-4 rounded-lg hover:from-teal-700 hover:to-teal-800 shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-3"
+              >
+                <img src={xlsIcon} alt="" className="w-12 h-12 drop-shadow-lg" />
+                <div className="text-left">
+                  <div className="font-semibold text-lg">Export Excel</div>
+                  <div className="text-sm opacity-90">Générer un fichier Excel</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showPdfPopup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4">
@@ -2022,74 +2132,6 @@ export default function DocumentListingApp() {
           <h1 className="text-3xl font-bold text-white">Générateur de Listing Documents</h1>
         </div>
 
-        {/* Panel Paramètres */}
-        {showSettings && (
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-6 border-2 border-gray-300">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Paramètres de numérotation</h3>
-              <button onClick={() => setShowSettings(false)} className="text-gray-500 hover:text-gray-700">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="mb-6">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={useRanges}
-                  onChange={toggleMode}
-                  className="w-5 h-5"
-                />
-                <div>
-                  <span className="font-medium">Utiliser des plages de numérotation par nature</span>
-                  <p className="text-sm text-gray-600">
-                    {useRanges
-                      ? 'Mode actif : numérotation basée sur la position (1er chiffre = catégorie, 2-3 chiffres = document). Ex: 101, 102, 201, 202...'
-                      : 'Mode désactivé : numérotation simple (01, 02, 03...) pour chaque nature'}
-                  </p>
-                </div>
-              </label>
-            </div>
-
-            {useRanges && (
-              <div className="space-y-3 bg-blue-50 p-4 rounded-md">
-                <h4 className="font-medium text-gray-700">Numérotation automatique par ordre d'apparition :</h4>
-                {documents.length > 0 ? (
-                  <div className="space-y-2">
-                    {(() => {
-                      // Obtenir les catégories uniques dans l'ordre d'apparition
-                      const categoriesPresentes = [];
-                      documents.forEach(doc => {
-                        if (!categoriesPresentes.includes(doc.nature)) {
-                          categoriesPresentes.push(doc.nature);
-                        }
-                      });
-                      return categoriesPresentes.map((natureCode, index) => {
-                        const categoryPosition = index + 1;
-                        const nature = natures.find(n => n.code === natureCode);
-                        return (
-                          <div key={natureCode} className="flex justify-between items-center text-sm bg-white px-3 py-2 rounded">
-                            <span className="font-medium">{categoryPosition}. {natureCode} - {nature?.label}</span>
-                            <span className="text-gray-600">{categoryPosition}01, {categoryPosition}02, {categoryPosition}03...</span>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-600 bg-white px-3 py-2 rounded">
-                    Aucun document pour le moment. Les catégories seront numérotées dans l'ordre où vous les créez.
-                  </p>
-                )}
-                <p className="text-xs text-gray-600 mt-2">
-                  💡 <strong>Format:</strong> 1er chiffre = ordre d'apparition de la catégorie, 2-3 chiffres = position du document dans sa catégorie.<br/>
-                  La première catégorie créée aura 1XX, la deuxième 2XX, etc.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h2 className="text-xl font-semibold mb-4">Ajouter un document</h2>
 
@@ -2279,13 +2321,25 @@ export default function DocumentListingApp() {
           <button
             onClick={ajouterDocument}
             className="w-full text-white py-2 rounded-md flex items-center justify-center gap-2 mt-4"
-            style={{ backgroundColor: '#1e3a8a' }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e40af'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1e3a8a'}
+            style={{ backgroundColor: editingDocId ? '#059669' : '#1e3a8a' }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = editingDocId ? '#047857' : '#1e40af'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = editingDocId ? '#059669' : '#1e3a8a'}
           >
-            <Plus size={20} />
-            Ajouter le document
+            {editingDocId ? <Edit size={20} /> : <Plus size={20} />}
+            {editingDocId ? 'Modifier le document' : 'Ajouter le document'}
           </button>
+          {editingDocId && (
+            <button
+              onClick={() => {
+                setEditingDocId(null);
+                showNotification('Modification annulée', 'info');
+              }}
+              className="w-full text-gray-700 bg-gray-200 hover:bg-gray-300 py-2 rounded-md flex items-center justify-center gap-2 mt-2"
+            >
+              <X size={20} />
+              Annuler la modification
+            </button>
+          )}
         </div>
 
         {documents.length > 0 && (
@@ -2349,11 +2403,16 @@ export default function DocumentListingApp() {
                       key={doc.id}
                       draggable
                       onDragStart={(e) => handleDragStart(e, doc)}
-                      onDragOver={handleDragOver}
+                      onDragOver={(e) => handleDragOver(e, doc)}
+                      onDragLeave={handleDragLeave}
                       onDrop={(e) => handleDrop(e, doc)}
                       onDragEnd={handleDragEnd}
-                      className={`flex items-center gap-3 p-3 border rounded-md cursor-move hover:bg-gray-50 transition-colors ${
-                        draggedItem?.id === doc.id ? 'opacity-50 bg-blue-50' : 'bg-white'
+                      className={`flex items-center gap-3 p-3 border rounded-md cursor-move hover:bg-gray-50 transition-all duration-200 ${
+                        draggedItem?.id === doc.id
+                          ? 'opacity-30 bg-blue-50 scale-95'
+                          : dragOverItem?.id === doc.id
+                            ? 'border-blue-500 border-2 bg-blue-50 scale-105 shadow-lg'
+                            : 'bg-white'
                       }`}
                     >
                       <GripVertical size={20} className="text-gray-400 flex-shrink-0" />
@@ -2378,8 +2437,16 @@ export default function DocumentListingApp() {
                       <span className="flex-grow">{doc.nom}</span>
                       <span className="text-xs text-gray-400 font-mono hidden md:block">{doc.nomComplet}</span>
                       <button
+                        onClick={() => modifierDocument(doc.id)}
+                        className="text-blue-600 hover:text-blue-800 flex-shrink-0"
+                        title="Modifier"
+                      >
+                        <Edit size={16} />
+                      </button>
+                      <button
                         onClick={() => supprimerDocument(doc.id)}
                         className="text-red-600 hover:text-red-800 flex-shrink-0"
+                        title="Supprimer"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -2455,26 +2522,15 @@ export default function DocumentListingApp() {
                   <FileDown size={24} className="text-gray-700" />
                   <span className="font-semibold text-sm text-gray-700">Export</span>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowPdfPopup(true)}
-                    className="group relative bg-gradient-to-br from-rose-600 to-rose-700 text-white flex-1 aspect-square rounded-lg hover:from-rose-700 hover:to-rose-800 shadow-md hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center gap-1 overflow-hidden"
-                    title="Export PDF"
-                  >
-                    <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-black/30 to-transparent"></div>
-                    <img src={pdfIcon} alt="" className="w-10 h-10 drop-shadow-lg relative z-10" />
-                    <span className="font-medium text-xs relative z-10">PDF</span>
-                  </button>
-                  <button
-                    onClick={() => setShowExcelPopup(true)}
-                    className="group relative bg-gradient-to-br from-teal-600 to-teal-700 text-white flex-1 aspect-square rounded-lg hover:from-teal-700 hover:to-teal-800 shadow-md hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center gap-1 overflow-hidden"
-                    title="Export Excel"
-                  >
-                    <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-black/30 to-transparent"></div>
-                    <img src={xlsIcon} alt="" className="w-10 h-10 drop-shadow-lg relative z-10" />
-                    <span className="font-medium text-xs relative z-10">Excel</span>
-                  </button>
-                </div>
+                <button
+                  onClick={() => setShowExportChoicePopup(true)}
+                  className="group relative bg-gradient-to-br from-indigo-600 to-indigo-700 text-white w-full aspect-square rounded-lg hover:from-indigo-700 hover:to-indigo-800 shadow-md hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center gap-1 overflow-hidden"
+                  title="Exporter"
+                >
+                  <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-black/30 to-transparent"></div>
+                  <FileDown size={40} className="drop-shadow-lg relative z-10" />
+                  <span className="font-medium text-xs relative z-10">Exporter</span>
+                </button>
               </div>
             </div>
           </div>
