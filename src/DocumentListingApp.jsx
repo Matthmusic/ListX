@@ -86,24 +86,13 @@ export default function DocumentListingApp() {
   const [categoriesOrder, setCategoriesOrder] = useState(['NOT', 'NDC', 'PLN', 'SYN', 'SCH', 'LST']);
   const [draggedCategory, setDraggedCategory] = useState(null);
 
-  // État pour la popup de choix d'export
-  const [showExportChoicePopup, setShowExportChoicePopup] = useState(false);
-
-  // États pour l'export PDF
-  const [showPdfPopup, setShowPdfPopup] = useState(false);
-  const [pdfNomProjet, setPdfNomProjet] = useState('');
-  const [pdfNomListe, setPdfNomListe] = useState('');
-  const [pdfLogoClient, setPdfLogoClient] = useState(null);
-  const [pdfLogoBE, setPdfLogoBE] = useState(null);
-  const [pdfAfficherCategories, setPdfAfficherCategories] = useState(false);
-
-  // États pour l'export Excel
-  const [showExcelPopup, setShowExcelPopup] = useState(false);
-  const [excelNomProjet, setExcelNomProjet] = useState('');
-  const [excelNomListe, setExcelNomListe] = useState('');
-  const [excelLogoClient, setExcelLogoClient] = useState(null);
-  const [excelLogoBE, setExcelLogoBE] = useState(null);
-  const [excelAfficherCategories, setExcelAfficherCategories] = useState(false);
+  // État pour la popup d'export unifiée
+  const [showExportPopup, setShowExportPopup] = useState(false);
+  const [exportNomProjet, setExportNomProjet] = useState('');
+  const [exportNomListe, setExportNomListe] = useState('');
+  const [exportLogoClient, setExportLogoClient] = useState(null);
+  const [exportLogoBE, setExportLogoBE] = useState(null);
+  const [exportAfficherCategories, setExportAfficherCategories] = useState(false);
 
   // État pour la version de l'app
   const [appVersion, setAppVersion] = useState('');
@@ -427,7 +416,7 @@ export default function DocumentListingApp() {
 
   const exporterExcel = async () => {
     // Validation
-    if (!excelNomProjet || !excelNomListe) {
+    if (!exportNomProjet || !exportNomListe) {
       showNotification('Veuillez renseigner le nom du projet et le nom de la liste', 'error');
       return;
     }
@@ -523,7 +512,7 @@ export default function DocumentListingApp() {
       let currentRow = 1 + ROW_OFFSET;
 
       // Zone Logo Client : Fusionner les 2 premières colonnes (C3:D3 après offset)
-      if (excelLogoClient) {
+      if (exportLogoClient) {
         worksheet.mergeCells(1 + ROW_OFFSET, 1 + COL_OFFSET, 1 + ROW_OFFSET, 2 + COL_OFFSET);
         const logoClientCell = worksheet.getCell(1 + ROW_OFFSET, 1 + COL_OFFSET);
         logoClientCell.alignment = {
@@ -537,11 +526,11 @@ export default function DocumentListingApp() {
           right: thickBorder
         };
 
-        const dimensions = await loadImage(excelLogoClient);
-        const logoClientBuffer = await excelLogoClient.arrayBuffer();
+        const dimensions = await loadImage(exportLogoClient);
+        const logoClientBuffer = await exportLogoClient.arrayBuffer();
         const logoClientId = workbook.addImage({
           buffer: logoClientBuffer,
-          extension: excelLogoClient.name.split('.').pop()
+          extension: exportLogoClient.name.split('.').pop()
         });
         worksheet.addImage(logoClientId, {
           tl: { col: COL_OFFSET + 0.5, row: ROW_OFFSET + 0.2 }, // Centré dans la zone fusionnée
@@ -565,7 +554,7 @@ export default function DocumentListingApp() {
       const titleEndCol = logoColIndex - 1; // S'arrête juste avant la colonne du logo BE
       worksheet.mergeCells(1 + ROW_OFFSET, titleStartCol, 1 + ROW_OFFSET, titleEndCol);
       const titleCell = worksheet.getCell(1 + ROW_OFFSET, titleStartCol);
-      titleCell.value = excelNomProjet.toUpperCase();
+      titleCell.value = exportNomProjet.toUpperCase();
       titleCell.font = {
         name: 'Cooper Black',
         size: 16,
@@ -584,7 +573,7 @@ export default function DocumentListingApp() {
       };
 
       // Zone Logo BE : Cellule unique dans la dernière colonne (NOM DU FICHIER) (100px x 100px)
-      if (excelLogoBE) {
+      if (exportLogoBE) {
         const logoBECell = worksheet.getCell(1 + ROW_OFFSET, logoColIndex);
         logoBECell.alignment = {
           vertical: 'middle',
@@ -598,15 +587,15 @@ export default function DocumentListingApp() {
         };
 
         // Charger l'image avec dimensions carrées (100x100)
-        const logoBEBuffer = await excelLogoBE.arrayBuffer();
+        const logoBEBuffer = await exportLogoBE.arrayBuffer();
         const logoBEId = workbook.addImage({
           buffer: logoBEBuffer,
-          extension: excelLogoBE.name.split('.').pop()
+          extension: exportLogoBE.name.split('.').pop()
         });
 
         // Calculer les dimensions pour un format carré de 100x100
         const img = new Image();
-        const imageData = await excelLogoBE.arrayBuffer();
+        const imageData = await exportLogoBE.arrayBuffer();
         const blob = new Blob([imageData]);
         const imgUrl = URL.createObjectURL(blob);
 
@@ -650,7 +639,7 @@ export default function DocumentListingApp() {
       // Ajouter le nom de la liste
       worksheet.mergeCells(currentRow, 1 + COL_OFFSET, currentRow, headers.length + COL_OFFSET);
       const subtitleCell = worksheet.getCell(currentRow, 1 + COL_OFFSET);
-      subtitleCell.value = excelNomListe.toUpperCase();
+      subtitleCell.value = exportNomListe.toUpperCase();
       subtitleCell.font = {
         name: 'Cooper Black',
         size: 12,
@@ -706,7 +695,7 @@ export default function DocumentListingApp() {
       currentRow++;
 
       // Ajouter les données
-      if (excelAfficherCategories) {
+      if (exportAfficherCategories) {
         // Grouper les documents par catégorie
         const categoriesPresentes = [];
         documentsToExport.forEach(doc => {
@@ -1050,10 +1039,10 @@ export default function DocumentListingApp() {
       });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `listing_${affaire}_${phase}_${Date.now()}.xlsx`;
+      link.download = `${exportNomProjet.replace(/\s/g, '_')}_${phase}_Liste.xlsx`;
       link.click();
 
-      setShowExcelPopup(false);
+      setShowExportPopup(false);
       showNotification('Export Excel réussi', 'success');
     } catch (error) {
       console.error('Erreur lors de la génération de l\'Excel:', error);
@@ -1079,7 +1068,7 @@ export default function DocumentListingApp() {
 
   // Fonction pour générer le PDF
   const genererPDF = async () => {
-    if (!pdfNomProjet || !pdfNomListe) {
+    if (!exportNomProjet || !exportNomListe) {
       showNotification('Veuillez renseigner le nom du projet et le nom de la liste', 'error');
       return;
     }
@@ -1108,8 +1097,8 @@ export default function DocumentListingApp() {
       });
 
       // Ajouter les logos si disponibles (sans étirement)
-      if (pdfLogoClient) {
-        const logoClientData = await imageToBase64(pdfLogoClient);
+      if (exportLogoClient) {
+        const logoClientData = await imageToBase64(exportLogoClient);
         const img = new Image();
         img.src = logoClientData;
         await new Promise((resolve) => {
@@ -1125,8 +1114,8 @@ export default function DocumentListingApp() {
         });
       }
 
-      if (pdfLogoBE) {
-        const logoBEData = await imageToBase64(pdfLogoBE);
+      if (exportLogoBE) {
+        const logoBEData = await imageToBase64(exportLogoBE);
         const img = new Image();
         img.src = logoBEData;
         await new Promise((resolve) => {
@@ -1146,7 +1135,7 @@ export default function DocumentListingApp() {
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(31, 78, 121); // Bleu foncé
-      doc.text(pdfNomProjet, pageWidth / 2, 20, { align: 'center' });
+      doc.text(exportNomProjet, pageWidth / 2, 20, { align: 'center' });
 
       // Sous-titre (nom de la liste)
       doc.setFontSize(12);
@@ -1154,7 +1143,7 @@ export default function DocumentListingApp() {
       doc.setTextColor(255, 255, 255);
       doc.setFillColor(100, 149, 237); // Bleu clair
       doc.rect(10, 32, pageWidth - 20, 8, 'F');
-      doc.text(pdfNomListe, pageWidth / 2, 37, { align: 'center' });
+      doc.text(exportNomListe, pageWidth / 2, 37, { align: 'center' });
 
       // Déterminer quels champs sont utilisés dans au moins un document
       const fieldsUsed = {
@@ -1228,7 +1217,7 @@ export default function DocumentListingApp() {
       // Préparer les données du tableau
       let tableData = [];
 
-      if (pdfAfficherCategories) {
+      if (exportAfficherCategories) {
         // Grouper par catégorie
         const categoriesPresentes = [];
         documentsToExport.forEach(doc => {
@@ -1351,7 +1340,7 @@ export default function DocumentListingApp() {
         },
         didDrawCell: function(data) {
           // Ajouter une bordure double en bas de chaque groupe de catégorie
-          if (data.section === 'body' && pdfAfficherCategories) {
+          if (data.section === 'body' && exportAfficherCategories) {
             const rowData = tableData[data.row.index];
             if (rowData.isLastOfCategory) {
               // Dessiner une double ligne en bas
@@ -1367,10 +1356,10 @@ export default function DocumentListingApp() {
       });
 
       // Sauvegarder le PDF
-      const fileName = `${pdfNomProjet.replace(/\s/g, '_')}_${phase}_Liste.pdf`;
+      const fileName = `${exportNomProjet.replace(/\s/g, '_')}_${phase}_Liste.pdf`;
       doc.save(fileName);
 
-      setShowPdfPopup(false);
+      setShowExportPopup(false);
       showNotification('PDF généré avec succès !', 'success');
     } catch (error) {
       console.error('Erreur génération PDF:', error);
@@ -1824,69 +1813,17 @@ export default function DocumentListingApp() {
         </div>
       )}
 
-      {/* Popup Export PDF */}
-      {/* Popup de choix du format d'export */}
-      {showExportChoicePopup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                <FileDown size={24} />
-                Choisir le format d'export
-              </h3>
-              <button
-                onClick={() => setShowExportChoicePopup(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {/* Bouton PDF */}
-              <button
-                onClick={() => {
-                  setShowExportChoicePopup(false);
-                  setShowPdfPopup(true);
-                }}
-                className="w-full bg-gradient-to-br from-rose-600 to-rose-700 text-white p-4 rounded-lg hover:from-rose-700 hover:to-rose-800 shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-3"
-              >
-                <img src={pdfIcon} alt="" className="w-12 h-12 drop-shadow-lg" />
-                <div className="text-left">
-                  <div className="font-semibold text-lg">Export PDF</div>
-                  <div className="text-sm opacity-90">Générer un fichier PDF</div>
-                </div>
-              </button>
-
-              {/* Bouton Excel */}
-              <button
-                onClick={() => {
-                  setShowExportChoicePopup(false);
-                  setShowExcelPopup(true);
-                }}
-                className="w-full bg-gradient-to-br from-teal-600 to-teal-700 text-white p-4 rounded-lg hover:from-teal-700 hover:to-teal-800 shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-3"
-              >
-                <img src={xlsIcon} alt="" className="w-12 h-12 drop-shadow-lg" />
-                <div className="text-left">
-                  <div className="font-semibold text-lg">Export Excel</div>
-                  <div className="text-sm opacity-90">Générer un fichier Excel</div>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showPdfPopup && (
+      {/* Popup d'export unifiée */}
+      {showExportPopup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                <img src={pdfIcon} alt="" className="w-6 h-6" />
-                Exporter la liste en PDF
+                <FileDown size={24} />
+                Exporter la liste
               </h3>
               <button
-                onClick={() => setShowPdfPopup(false)}
+                onClick={() => setShowExportPopup(false)}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <X size={24} />
@@ -1901,8 +1838,8 @@ export default function DocumentListingApp() {
                 </label>
                 <input
                   type="text"
-                  value={pdfNomProjet}
-                  onChange={(e) => setPdfNomProjet(e.target.value.toUpperCase())}
+                  value={exportNomProjet}
+                  onChange={(e) => setExportNomProjet(e.target.value.toUpperCase())}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   placeholder="Ex: HOTEL 3.14 CANNES"
                   style={{ textTransform: 'uppercase' }}
@@ -1916,8 +1853,8 @@ export default function DocumentListingApp() {
                 </label>
                 <input
                   type="text"
-                  value={pdfNomListe}
-                  onChange={(e) => setPdfNomListe(e.target.value.toUpperCase())}
+                  value={exportNomListe}
+                  onChange={(e) => setExportNomListe(e.target.value.toUpperCase())}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   placeholder="Ex: LISTE DES ANNEXES - PHASE DCE"
                   style={{ textTransform: 'uppercase' }}
@@ -1934,11 +1871,11 @@ export default function DocumentListingApp() {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => setPdfLogoClient(e.target.files[0])}
+                    onChange={(e) => setExportLogoClient(e.target.files[0])}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                   />
-                  {pdfLogoClient && (
-                    <p className="text-xs text-green-600 mt-1">✓ {pdfLogoClient.name}</p>
+                  {exportLogoClient && (
+                    <p className="text-xs text-green-600 mt-1">✓ {exportLogoClient.name}</p>
                   )}
                 </div>
 
@@ -1950,11 +1887,11 @@ export default function DocumentListingApp() {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => setPdfLogoBE(e.target.files[0])}
+                    onChange={(e) => setExportLogoBE(e.target.files[0])}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                   />
-                  {pdfLogoBE && (
-                    <p className="text-xs text-green-600 mt-1">✓ {pdfLogoBE.name}</p>
+                  {exportLogoBE && (
+                    <p className="text-xs text-green-600 mt-1">✓ {exportLogoBE.name}</p>
                   )}
                 </div>
               </div>
@@ -1963,12 +1900,12 @@ export default function DocumentListingApp() {
               <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-md">
                 <input
                   type="checkbox"
-                  id="pdfAfficherCategories"
-                  checked={pdfAfficherCategories}
-                  onChange={(e) => setPdfAfficherCategories(e.target.checked)}
+                  id="exportAfficherCategories"
+                  checked={exportAfficherCategories}
+                  onChange={(e) => setExportAfficherCategories(e.target.checked)}
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <label htmlFor="pdfAfficherCategories" className="text-sm font-medium text-gray-700 cursor-pointer">
+                <label htmlFor="exportAfficherCategories" className="text-sm font-medium text-gray-700 cursor-pointer">
                   Afficher les lignes de catégories (NOT, NDC, PLN, etc.)
                 </label>
               </div>
@@ -1977,149 +1914,31 @@ export default function DocumentListingApp() {
               <div className="bg-blue-50 p-3 rounded-md">
                 <p className="text-sm text-gray-700">
                   <Info className="inline mr-2" size={16} />
-                  Le PDF contiendra {documents.length} document{documents.length > 1 ? 's' : ''} au format paysage A4.
+                  L'export contiendra {documents.length} document{documents.length > 1 ? 's' : ''}.
                 </p>
               </div>
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
               <button
-                onClick={() => setShowPdfPopup(false)}
+                onClick={() => setShowExportPopup(false)}
                 className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
               >
                 Annuler
               </button>
               <button
                 onClick={genererPDF}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-gradient-to-br from-rose-600 to-rose-700 text-white rounded-md hover:from-rose-700 hover:to-rose-800 transition-colors flex items-center gap-2"
               >
-                <FileText size={18} />
-                Générer le PDF
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Popup Export Excel */}
-      {showExcelPopup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                <img src={xlsIcon} alt="" className="w-6 h-6" />
-                Exporter la liste en Excel
-              </h3>
-              <button
-                onClick={() => setShowExcelPopup(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {/* Nom du projet */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nom du projet *
-                </label>
-                <input
-                  type="text"
-                  value={excelNomProjet}
-                  onChange={(e) => setExcelNomProjet(e.target.value.toUpperCase())}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  placeholder="Ex: HOTEL 3.14 CANNES"
-                  style={{ textTransform: 'uppercase' }}
-                />
-              </div>
-
-              {/* Nom de la liste */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nom de la liste *
-                </label>
-                <input
-                  type="text"
-                  value={excelNomListe}
-                  onChange={(e) => setExcelNomListe(e.target.value.toUpperCase())}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  placeholder="Ex: LISTE DES ANNEXES - PHASE DCE"
-                  style={{ textTransform: 'uppercase' }}
-                />
-              </div>
-
-              {/* Logos */}
-              <div className="grid grid-cols-2 gap-4">
-                {/* Logo Client */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Logo Client (haut gauche)
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setExcelLogoClient(e.target.files[0])}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                  />
-                  {excelLogoClient && (
-                    <p className="text-xs text-green-600 mt-1">✓ {excelLogoClient.name}</p>
-                  )}
-                </div>
-
-                {/* Logo Bureau d'études */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Logo Bureau d'Études (haut droite)
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setExcelLogoBE(e.target.files[0])}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                  />
-                  {excelLogoBE && (
-                    <p className="text-xs text-green-600 mt-1">✓ {excelLogoBE.name}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Option affichage catégories */}
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-md">
-                <input
-                  type="checkbox"
-                  id="excelAfficherCategories"
-                  checked={excelAfficherCategories}
-                  onChange={(e) => setExcelAfficherCategories(e.target.checked)}
-                  className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
-                />
-                <label htmlFor="excelAfficherCategories" className="text-sm font-medium text-gray-700 cursor-pointer">
-                  Afficher les lignes de catégories (NOT, NDC, PLN, etc.)
-                </label>
-              </div>
-
-              {/* Info */}
-              <div className="bg-emerald-50 p-3 rounded-md">
-                <p className="text-sm text-gray-700">
-                  <Info className="inline mr-2" size={16} />
-                  Le fichier Excel contiendra {documents.length} document{documents.length > 1 ? 's' : ''} avec mise en forme complète.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setShowExcelPopup(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
-              >
-                Annuler
+                <img src={pdfIcon} alt="" className="w-5 h-5" />
+                Générer PDF
               </button>
               <button
                 onClick={exporterExcel}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-gradient-to-br from-teal-600 to-teal-700 text-white rounded-md hover:from-teal-700 hover:to-teal-800 transition-colors flex items-center gap-2"
               >
-                <FileText size={18} />
-                Générer l'Excel
+                <img src={xlsIcon} alt="" className="w-5 h-5" />
+                Générer Excel
               </button>
             </div>
           </div>
@@ -2523,13 +2342,13 @@ export default function DocumentListingApp() {
                   <span className="font-semibold text-sm text-gray-700">Export</span>
                 </div>
                 <button
-                  onClick={() => setShowExportChoicePopup(true)}
-                  className="group relative bg-gradient-to-br from-indigo-600 to-indigo-700 text-white w-full aspect-square rounded-lg hover:from-indigo-700 hover:to-indigo-800 shadow-md hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center gap-1 overflow-hidden"
+                  onClick={() => setShowExportPopup(true)}
+                  className="group relative bg-gradient-to-br from-indigo-600 to-indigo-700 text-white w-full rounded-lg hover:from-indigo-700 hover:to-indigo-800 shadow-md hover:shadow-lg transition-all duration-200 flex flex-row items-center justify-center gap-2 overflow-hidden p-3"
                   title="Exporter"
                 >
                   <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-black/30 to-transparent"></div>
-                  <FileDown size={40} className="drop-shadow-lg relative z-10" />
-                  <span className="font-medium text-xs relative z-10">Exporter</span>
+                  <FileDown size={24} className="drop-shadow-lg relative z-10" />
+                  <span className="font-medium text-sm relative z-10">Exporter</span>
                 </button>
               </div>
             </div>
