@@ -1169,12 +1169,12 @@ export default function DocumentListingApp() {
       }
       if (fieldsUsed.phase) {
         headers.push('PHASE');
-        columnStyles[colIndex] = { cellWidth: 20, halign: 'center' };
+        columnStyles[colIndex] = { cellWidth: 17, halign: 'center' };
         colIndex++;
       }
       if (fieldsUsed.lot) {
         headers.push('LOT');
-        columnStyles[colIndex] = { cellWidth: 15, halign: 'center' };
+        columnStyles[colIndex] = { cellWidth: 13.5, halign: 'center' };
         colIndex++;
       }
       if (fieldsUsed.emetteur) {
@@ -1189,7 +1189,7 @@ export default function DocumentListingApp() {
       }
 
       headers.push('N° DOC');
-      columnStyles[colIndex] = { cellWidth: 30, halign: 'center' };
+      columnStyles[colIndex] = { cellWidth: 15, halign: 'center' };
       colIndex++;
 
       if (fieldsUsed.etat) {
@@ -1306,7 +1306,8 @@ export default function DocumentListingApp() {
           fontSize: 7,
           cellPadding: 1.5,
           lineColor: [0, 0, 0],
-          lineWidth: 0.1
+          lineWidth: 0.1,
+          textColor: [0, 0, 0]
         },
         headStyles: {
           fillColor: [100, 149, 237],
