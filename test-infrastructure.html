@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Infrastructure Sprint 1</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 40px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      opacity: 0.9;
+      margin-bottom: 40px;
+    }
+
+    .section {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 30px;
+      margin-bottom: 30px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+
+    .section h2 {
+      font-size: 1.8rem;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .test-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .test-card {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 15px;
+      padding: 20px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+
+    .test-card:hover {
+      transform: translateY(-5px);
+      border-color: rgba(255, 255, 255, 0.5);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .test-card h3 {
+      font-size: 1.2rem;
+      margin-bottom: 10px;
+    }
+
+    .test-card p {
+      font-size: 0.9rem;
+      opacity: 0.8;
+      margin-bottom: 15px;
+    }
+
+    button {
+      background: rgba(255, 255, 255, 0.25);
+      border: 2px solid rgba(255, 255, 255, 0.5);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 600;
+      width: 100%;
+    }
+
+    button:hover {
+      background: rgba(255, 255, 255, 0.35);
+      transform: scale(1.05);
+    }
+
+    button:active {
+      transform: scale(0.95);
+    }
+
+    .result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      max-height: 300px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .result.success {
+      background: rgba(52, 211, 153, 0.2);
+      border: 1px solid rgba(52, 211, 153, 0.5);
+      display: block;
+    }
+
+    .result.error {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      display: block;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.2);
+      margin-left: 10px;
+    }
+
+    .status {
+      margin-top: 30px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      text-align: center;
+      font-size: 1.1rem;
+    }
+
+    .checkmark {
+      color: #34d399;
+      font-size: 1.5rem;
+    }
+
+    .xmark {
+      color: #ef4444;
+      font-size: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚀 Test Infrastructure Sprint 1</h1>
+    <p class="subtitle">Tests de l'infrastructure de base (modèles, gestionnaires, IPC)</p>
+
+    <!-- Section 1: Templates -->
+    <div class="section">
+      <h2>📄 Tests Templates<span class="badge">6 tests</span></h2>
+      <div class="test-grid">
+        <div class="test-card">
+          <h3>1. Créer un template</h3>
+          <p>Teste la création et sauvegarde d'un template</p>
+          <button onclick="testCreateTemplate()">Exécuter</button>
+          <div id="result-create-template" class="result"></div>
+        </div>
+
+        <div class="test-card">
+          <h3>2. Lister les templates</h3>
+          <p>Récupère tous les templates disponibles</p>
+          <button onclick="testListTemplates()">Exécuter</button>
+          <div id="result-list-templates" class="result"></div>
+        </div>
+
+        <div class="test-card">
+          <h3>3. Charger un template</h3>
+          <p>Charge un template par son ID</p>
+          <button onclick="testLoadTemplate()">Exécuter</button>
+          <div id="result-load-template" class="result"></div>
+        </div>
+
+        <div class="test-card">
+          <h3>4. Modifier un template</h3>
+          <p>Modifie les propriétés d'un template</p>
+          <button onclick="testUpdateTemplate()">Exécuter</button>
+          <div id="result-update-template" class="result"></div>
+        </div>
+
+        <div class="test-card">
+          <h3>5. Exporter un template</h3>
+          <p>Exporte un template en JSON</p>
+          <button onclick="testExportTemplate()">Exécuter</button>
+          <div id="result-export-template" class="result"></div>
+        </div>
+
+        <div class="test-card">
+          <h3>6. Supprimer un template</h3>
+          <p>Supprime un template (avec backup)</p>
+          <button onclick="testDeleteTemplate()">Exécuter</button>
+          <div id="result-delete-template" class="result"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: Projects -->
+    <div class="section">
+      <h2>📁 Tests Projets<span class="badge">5 tests</span></h2>
+      <div class="test-grid">
+        <div class="test-card">
+          <h3>1. Créer un projet</h3>
+          <p>Crée un nouveau projet à partir d'un template</p>
+          <button onclick="testCreateProject()">Exécuter</button>
+          <div id="result-create-project" class="result"></div>
+        </div>
+
+        <div class="test-card">
+          <h3>2. Lister les projets</h3>
+          <p>Récupère tous les projets disponibles</p>
+          <button onclick="testListProjects()">Exécuter</button>
+          <div id="result-list-projects" class="result"></div>
+        </div>
+
+        <div class="test-card">
+          <h3>3. Projets récents</h3>
+          <p>Récupère les 5 derniers projets ouverts</p>
+          <button onclick="testRecentsProjects()">Exécuter</button>
+          <div id="result-recents-projects" class="result"></div>
+        </div>
+
+        <div class="test-card">
+          <h3>4. Ajouter des documents</h3>
+          <p>Ajoute des documents à un projet</p>
+          <button onclick="testAddDocuments()">Exécuter</button>
+          <div id="result-add-documents" class="result"></div>
+        </div>
+
+        <div class="test-card">
+          <h3>5. Exporter un projet</h3>
+          <p>Exporte un projet en .listx</p>
+          <button onclick="testExportProject()">Exécuter</button>
+          <div id="result-export-project" class="result"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="status">
+      <strong>Status:</strong> Prêt pour les tests 🎯
+    </div>
+  </div>
+
+  <script type="module">
+    // Import des modèles
+    import { Template } from './src/models/Template.js';
+    import { Project } from './src/models/Project.js';
+    import { Field, createDefaultField, FIELD_TYPES } from './src/models/Field.js';
+
+    let testTemplateId = null;
+    let testProjectId = null;
+
+    window.testCreateTemplate = async function() {
+      const resultDiv = document.getElementById('result-create-template');
+      try {
+        // Créer un template de test
+        const template = new Template({
+          nom: 'Template Test Sprint 1',
+          description: 'Template créé automatiquement pour tester l\'infrastructure'
+        });
+
+        // Ajouter des champs
+        template.addField(createDefaultField(FIELD_TYPES.TEXT, 1));
+        template.addField(createDefaultField(FIELD_TYPES.SELECT, 2));
+        template.addField(createDefaultField(FIELD_TYPES.NUMBER, 3));
+
+        // Valider
+        const validation = template.validate();
+        if (!validation.valid) {
+          throw new Error('Validation échouée: ' + validation.errors.join(', '));
+        }
+
+        // Sauvegarder via IPC
+        await window.electronAPI.templates.save(template.toJSON());
+
+        testTemplateId = template.id;
+
+        resultDiv.className = 'result success';
+        resultDiv.innerHTML = `<span class="checkmark">✓</span> Template créé avec succès !<br><pre>${JSON.stringify(template.toJSON(), null, 2)}</pre>`;
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.innerHTML = `<span class="xmark">✗</span> Erreur: ${error.message}`;
+      }
+    };
+
+    window.testListTemplates = async function() {
+      const resultDiv = document.getElementById('result-list-templates');
+      try {
+        const templates = await window.electronAPI.templates.list();
+
+        resultDiv.className = 'result success';
+        resultDiv.innerHTML = `<span class="checkmark">✓</span> ${templates.length} template(s) trouvé(s)<br><pre>${JSON.stringify(templates, null, 2)}</pre>`;
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.innerHTML = `<span class="xmark">✗</span> Erreur: ${error.message}`;
+      }
+    };
+
+    window.testLoadTemplate = async function() {
+      const resultDiv = document.getElementById('result-load-template');
+      try {
+        if (!testTemplateId) {
+          throw new Error('Veuillez d\'abord créer un template (Test 1)');
+        }
+
+        const template = await window.electronAPI.templates.load(testTemplateId);
+
+        resultDiv.className = 'result success';
+        resultDiv.innerHTML = `<span class="checkmark">✓</span> Template chargé: ${template.nom}<br><pre>${JSON.stringify(template, null, 2)}</pre>`;
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.innerHTML = `<span class="xmark">✗</span> Erreur: ${error.message}`;
+      }
+    };
+
+    window.testUpdateTemplate = async function() {
+      const resultDiv = document.getElementById('result-update-template');
+      try {
+        if (!testTemplateId) {
+          throw new Error('Veuillez d\'abord créer un template (Test 1)');
+        }
+
+        const template = Template.fromJSON(await window.electronAPI.templates.load(testTemplateId));
+        template.nom = 'Template Test Modifié';
+        template.description = 'Description mise à jour';
+        template.updateModificationDate();
+
+        await window.electronAPI.templates.save(template.toJSON());
+
+        resultDiv.className = 'result success';
+        resultDiv.innerHTML = `<span class="checkmark">✓</span> Template mis à jour !<br>Nouveau nom: ${template.nom}`;
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.innerHTML = `<span class="xmark">✗</span> Erreur: ${error.message}`;
+      }
+    };
+
+    window.testExportTemplate = async function() {
+      const resultDiv = document.getElementById('result-export-template');
+      try {
+        if (!testTemplateId) {
+          throw new Error('Veuillez d\'abord créer un template (Test 1)');
+        }
+
+        const filePath = await window.electronAPI.templates.export(testTemplateId);
+
+        if (filePath) {
+          resultDiv.className = 'result success';
+          resultDiv.innerHTML = `<span class="checkmark">✓</span> Template exporté vers:<br>${filePath}`;
+        } else {
+          resultDiv.className = 'result error';
+          resultDiv.innerHTML = `<span class="xmark">✗</span> Export annulé`;
+        }
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.innerHTML = `<span class="xmark">✗</span> Erreur: ${error.message}`;
+      }
+    };
+
+    window.testDeleteTemplate = async function() {
+      const resultDiv = document.getElementById('result-delete-template');
+      try {
+        if (!testTemplateId) {
+          throw new Error('Veuillez d\'abord créer un template (Test 1)');
+        }
+
+        await window.electronAPI.templates.delete(testTemplateId);
+
+        resultDiv.className = 'result success';
+        resultDiv.innerHTML = `<span class="checkmark">✓</span> Template supprimé (backup créé automatiquement)`;
+        testTemplateId = null;
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.innerHTML = `<span class="xmark">✗</span> Erreur: ${error.message}`;
+      }
+    };
+
+    // Tests Projets
+    window.testCreateProject = async function() {
+      const resultDiv = document.getElementById('result-create-project');
+      try {
+        // Créer un template de base
+        const template = new Template({ nom: 'Template pour projet test' });
+        template.addField(createDefaultField(FIELD_TYPES.TEXT, 1));
+        await window.electronAPI.templates.save(template.toJSON());
+
+        // Créer un projet
+        const project = Project.fromTemplate('Projet Test Sprint 1', template);
+
+        // Sauvegarder
+        await window.electronAPI.projects.save(project.toJSON());
+
+        testProjectId = project.id;
+
+        resultDiv.className = 'result success';
+        resultDiv.innerHTML = `<span class="checkmark">✓</span> Projet créé avec succès !<br><pre>${JSON.stringify(project.toJSON(), null, 2)}</pre>`;
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.innerHTML = `<span class="xmark">✗</span> Erreur: ${error.message}`;
+      }
+    };
+
+    window.testListProjects = async function() {
+      const resultDiv = document.getElementById('result-list-projects');
+      try {
+        const projects = await window.electronAPI.projects.list();
+
+        resultDiv.className = 'result success';
+        resultDiv.innerHTML = `<span class="checkmark">✓</span> ${projects.length} projet(s) trouvé(s)<br><pre>${JSON.stringify(projects, null, 2)}</pre>`;
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.innerHTML = `<span class="xmark">✗</span> Erreur: ${error.message}`;
+      }
+    };
+
+    window.testRecentsProjects = async function() {
+      const resultDiv = document.getElementById('result-recents-projects');
+      try {
+        const recents = await window.electronAPI.projects.recents();
+
+        resultDiv.className = 'result success';
+        resultDiv.innerHTML = `<span class="checkmark">✓</span> ${recents.length} projet(s) récent(s)<br><pre>${JSON.stringify(recents, null, 2)}</pre>`;
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.innerHTML = `<span class="xmark">✗</span> Erreur: ${error.message}`;
+      }
+    };
+
+    window.testAddDocuments = async function() {
+      const resultDiv = document.getElementById('result-add-documents');
+      try {
+        if (!testProjectId) {
+          throw new Error('Veuillez d\'abord créer un projet (Test 1 Projets)');
+        }
+
+        const projectData = await window.electronAPI.projects.load(testProjectId);
+        const project = Project.fromJSON(projectData);
+
+        // Ajouter 3 documents
+        for (let i = 1; i <= 3; i++) {
+          project.addDocument({
+            id: Date.now() + i,
+            valeurs: { test: `Document ${i}` },
+            nomComplet: `DOC_${i}`,
+            numero: `${i}`
+          });
+        }
+
+        await window.electronAPI.projects.save(project.toJSON());
+
+        resultDiv.className = 'result success';
+        resultDiv.innerHTML = `<span class="checkmark">✓</span> 3 documents ajoutés !<br>Total: ${project.documents.length} documents`;
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.innerHTML = `<span class="xmark">✗</span> Erreur: ${error.message}`;
+      }
+    };
+
+    window.testExportProject = async function() {
+      const resultDiv = document.getElementById('result-export-project');
+      try {
+        if (!testProjectId) {
+          throw new Error('Veuillez d\'abord créer un projet (Test 1 Projets)');
+        }
+
+        const filePath = await window.electronAPI.projects.export(testProjectId);
+
+        if (filePath) {
+          resultDiv.className = 'result success';
+          resultDiv.innerHTML = `<span class="checkmark">✓</span> Projet exporté vers:<br>${filePath}`;
+        } else {
+          resultDiv.className = 'result error';
+          resultDiv.innerHTML = `<span class="xmark">✗</span> Export annulé`;
+        }
+      } catch (error) {
+        resultDiv.className = 'result error';
+        resultDiv.innerHTML = `<span class="xmark">✗</span> Erreur: ${error.message}`;
+      }
+    };
+
+    console.log('Script de test chargé. API Electron disponible:', !!window.electronAPI);
+  </script>
+</body>
+</html>

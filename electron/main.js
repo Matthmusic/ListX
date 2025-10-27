@@ -3,6 +3,11 @@ const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const isDev = process.env.NODE_ENV === 'development';
 
+// Gestionnaires de données
+const templateManager = require('./templateManager');
+const projectManager = require('./projectManager');
+const { loadDefaultTemplates } = require('./loadDefaultTemplates');
+
 // Forcer le thème sombre global
 nativeTheme.themeSource = 'dark';
 
@@ -100,7 +105,16 @@ if (!gotTheLock) {
     }
   });
 
-  app.whenReady().then(createWindow);
+  app.whenReady().then(async () => {
+    // Charger les templates par défaut au premier lancement
+    try {
+      await loadDefaultTemplates(templateManager);
+    } catch (error) {
+      console.error('[App] Erreur chargement templates par défaut:', error);
+    }
+
+    createWindow();
+  });
 }
 
 app.on('window-all-closed', () => {
@@ -197,6 +211,220 @@ ipcMain.on('check-for-updates', () => {
 // Obtenir la version actuelle
 ipcMain.handle('get-app-version', () => {
   return app.getVersion();
+});
+
+// ==============================
+// TEMPLATE MANAGEMENT IPC HANDLERS
+// ==============================
+
+// Lister tous les templates
+ipcMain.handle('templates:list', async () => {
+  try {
+    return await templateManager.listTemplates();
+  } catch (error) {
+    console.error('[IPC] Erreur templates:list:', error);
+    throw error;
+  }
+});
+
+// Charger un template
+ipcMain.handle('templates:load', async (event, templateId) => {
+  try {
+    return await templateManager.loadTemplate(templateId);
+  } catch (error) {
+    console.error('[IPC] Erreur templates:load:', error);
+    throw error;
+  }
+});
+
+// Sauvegarder un template
+ipcMain.handle('templates:save', async (event, template) => {
+  try {
+    // Créer un backup avant sauvegarde si le template existe
+    const exists = await templateManager.templateExists(template.id);
+    if (exists) {
+      await templateManager.createBackup(template.id);
+    }
+    return await templateManager.saveTemplate(template);
+  } catch (error) {
+    console.error('[IPC] Erreur templates:save:', error);
+    throw error;
+  }
+});
+
+// Supprimer un template
+ipcMain.handle('templates:delete', async (event, templateId) => {
+  try {
+    // Créer un backup avant suppression
+    await templateManager.createBackup(templateId);
+    return await templateManager.deleteTemplate(templateId);
+  } catch (error) {
+    console.error('[IPC] Erreur templates:delete:', error);
+    throw error;
+  }
+});
+
+// Importer un template
+ipcMain.handle('templates:import', async () => {
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Importer un template',
+      filters: [
+        { name: 'Templates ListX', extensions: ['json'] },
+        { name: 'Tous les fichiers', extensions: ['*'] }
+      ],
+      properties: ['openFile']
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+
+    return await templateManager.importTemplate(result.filePaths[0]);
+  } catch (error) {
+    console.error('[IPC] Erreur templates:import:', error);
+    throw error;
+  }
+});
+
+// Exporter un template
+ipcMain.handle('templates:export', async (event, templateId) => {
+  try {
+    const template = await templateManager.loadTemplate(templateId);
+    const defaultName = `template_${template.nom.replace(/\s+/g, '_')}_v${template.version}.json`;
+
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Exporter le template',
+      defaultPath: defaultName,
+      filters: [
+        { name: 'Templates ListX', extensions: ['json'] },
+        { name: 'Tous les fichiers', extensions: ['*'] }
+      ]
+    });
+
+    if (result.canceled || !result.filePath) {
+      return null;
+    }
+
+    await templateManager.exportTemplate(templateId, result.filePath);
+    return result.filePath;
+  } catch (error) {
+    console.error('[IPC] Erreur templates:export:', error);
+    throw error;
+  }
+});
+
+// ==============================
+// PROJECT MANAGEMENT IPC HANDLERS
+// ==============================
+
+// Lister tous les projets
+ipcMain.handle('projects:list', async () => {
+  try {
+    return await projectManager.listProjects();
+  } catch (error) {
+    console.error('[IPC] Erreur projects:list:', error);
+    throw error;
+  }
+});
+
+// Charger un projet
+ipcMain.handle('projects:load', async (event, projectId) => {
+  try {
+    return await projectManager.loadProject(projectId);
+  } catch (error) {
+    console.error('[IPC] Erreur projects:load:', error);
+    throw error;
+  }
+});
+
+// Sauvegarder un projet
+ipcMain.handle('projects:save', async (event, project) => {
+  try {
+    // Créer un backup avant sauvegarde si le projet existe
+    const exists = await projectManager.projectExists(project.id);
+    if (exists) {
+      await projectManager.createBackup(project.id);
+    }
+    return await projectManager.saveProject(project);
+  } catch (error) {
+    console.error('[IPC] Erreur projects:save:', error);
+    throw error;
+  }
+});
+
+// Supprimer un projet
+ipcMain.handle('projects:delete', async (event, projectId) => {
+  try {
+    // Créer un backup avant suppression
+    await projectManager.createBackup(projectId);
+    return await projectManager.deleteProject(projectId);
+  } catch (error) {
+    console.error('[IPC] Erreur projects:delete:', error);
+    throw error;
+  }
+});
+
+// Obtenir les projets récents
+ipcMain.handle('projects:recents', async () => {
+  try {
+    return await projectManager.getRecents();
+  } catch (error) {
+    console.error('[IPC] Erreur projects:recents:', error);
+    throw error;
+  }
+});
+
+// Importer un projet
+ipcMain.handle('projects:import', async () => {
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Importer un projet',
+      filters: [
+        { name: 'Projets ListX', extensions: ['listx', 'json'] },
+        { name: 'Tous les fichiers', extensions: ['*'] }
+      ],
+      properties: ['openFile']
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+
+    return await projectManager.importProject(result.filePaths[0]);
+  } catch (error) {
+    console.error('[IPC] Erreur projects:import:', error);
+    throw error;
+  }
+});
+
+// Exporter un projet
+ipcMain.handle('projects:export', async (event, projectId) => {
+  try {
+    const project = await projectManager.loadProject(projectId);
+    const dateStr = new Date().toISOString().split('T')[0];
+    const defaultName = `projet_${project.nom.replace(/\s+/g, '_')}_${dateStr}.listx`;
+
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Exporter le projet',
+      defaultPath: defaultName,
+      filters: [
+        { name: 'Projets ListX', extensions: ['listx'] },
+        { name: 'JSON', extensions: ['json'] },
+        { name: 'Tous les fichiers', extensions: ['*'] }
+      ]
+    });
+
+    if (result.canceled || !result.filePath) {
+      return null;
+    }
+
+    await projectManager.exportProject(projectId, result.filePath);
+    return result.filePath;
+  } catch (error) {
+    console.error('[IPC] Erreur projects:export:', error);
+    throw error;
+  }
 });
 
 console.log(`ListX v${app.getVersion()} démarré`);

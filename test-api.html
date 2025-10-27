@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test API Electron</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 40px;
+      background: #1e293b;
+      color: white;
+    }
+    .section {
+      background: #334155;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background: #2563eb;
+    }
+    pre {
+      background: #1e293b;
+      padding: 15px;
+      border-radius: 5px;
+      overflow-x: auto;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .error {
+      color: #ef4444;
+    }
+    .success {
+      color: #22c55e;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 Test de l'API Electron</h1>
+
+  <div class="section">
+    <h2>1. Vérifier l'API</h2>
+    <button onclick="checkAPI()">Vérifier window.electronAPI</button>
+    <pre id="api-result"></pre>
+  </div>
+
+  <div class="section">
+    <h2>2. Lister les templates</h2>
+    <button onclick="listTemplates()">Charger les templates</button>
+    <pre id="templates-result"></pre>
+  </div>
+
+  <div class="section">
+    <h2>3. Lister les projets</h2>
+    <button onclick="listProjects()">Charger les projets</button>
+    <pre id="projects-result"></pre>
+  </div>
+
+  <script>
+    function checkAPI() {
+      const result = document.getElementById('api-result');
+
+      if (!window.electronAPI) {
+        result.innerHTML = '<span class="error">❌ window.electronAPI n\'existe pas !</span>';
+        return;
+      }
+
+      const info = {
+        'electronAPI existe': '✅',
+        'templates': window.electronAPI.templates ? '✅' : '❌',
+        'projects': window.electronAPI.projects ? '✅' : '❌',
+        'templates.list': typeof window.electronAPI.templates?.list === 'function' ? '✅' : '❌',
+        'projects.list': typeof window.electronAPI.projects?.list === 'function' ? '✅' : '❌'
+      };
+
+      result.innerHTML = '<span class="success">' + JSON.stringify(info, null, 2) + '</span>';
+    }
+
+    async function listTemplates() {
+      const result = document.getElementById('templates-result');
+      result.innerHTML = 'Chargement...';
+
+      if (!window.electronAPI || !window.electronAPI.templates) {
+        result.innerHTML = '<span class="error">❌ API non disponible</span>';
+        return;
+      }
+
+      try {
+        const templates = await window.electronAPI.templates.list();
+        result.innerHTML = '<span class="success">✅ ' + templates.length + ' template(s) trouvé(s)\n\n' +
+          JSON.stringify(templates, null, 2) + '</span>';
+      } catch (error) {
+        result.innerHTML = '<span class="error">❌ Erreur: ' + error.message + '\n\n' + error.stack + '</span>';
+      }
+    }
+
+    async function listProjects() {
+      const result = document.getElementById('projects-result');
+      result.innerHTML = 'Chargement...';
+
+      if (!window.electronAPI || !window.electronAPI.projects) {
+        result.innerHTML = '<span class="error">❌ API non disponible</span>';
+        return;
+      }
+
+      try {
+        const projects = await window.electronAPI.projects.list();
+        result.innerHTML = '<span class="success">✅ ' + projects.length + ' projet(s) trouvé(s)\n\n' +
+          JSON.stringify(projects, null, 2) + '</span>';
+      } catch (error) {
+        result.innerHTML = '<span class="error">❌ Erreur: ' + error.message + '\n\n' + error.stack + '</span>';
+      }
+    }
+
+    // Auto-check au chargement
+    setTimeout(() => {
+      console.log('Auto-check API...');
+      checkAPI();
+    }, 500);
+  </script>
+</body>
+</html>

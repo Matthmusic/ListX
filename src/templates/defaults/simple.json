@@ -1,0 +1,96 @@
+{
+  "type": "listx-template",
+  "version": "1.1.0",
+  "exportDate": "2025-10-27T00:00:00Z",
+  "data": {
+    "id": "default-simple",
+    "nom": "Simple",
+    "description": "Template simplifié avec seulement les champs essentiels",
+    "version": "1.1.0",
+    "dateCreation": "2025-10-27T00:00:00Z",
+    "dateModification": "2025-10-27T00:00:00Z",
+    "champs": [
+      {
+        "id": "field-affaire-simple",
+        "nom": "Affaire",
+        "type": "text",
+        "obligatoire": true,
+        "ordre": 1,
+        "visible": true,
+        "inclureDansNom": true,
+        "cleDeCatégorie": false,
+        "largeurColonne": 20,
+        "placeholder": "Nom de l'affaire",
+        "options": null
+      },
+      {
+        "id": "field-phase-simple",
+        "nom": "Phase",
+        "type": "select",
+        "obligatoire": true,
+        "ordre": 2,
+        "visible": true,
+        "inclureDansNom": true,
+        "cleDeCatégorie": false,
+        "largeurColonne": 12,
+        "placeholder": "Phase du projet",
+        "options": ["APS", "APD", "PRO", "EXE"]
+      },
+      {
+        "id": "field-nature-simple",
+        "nom": "Nature",
+        "type": "select",
+        "obligatoire": true,
+        "ordre": 3,
+        "visible": true,
+        "inclureDansNom": true,
+        "cleDeCatégorie": true,
+        "largeurColonne": 12,
+        "placeholder": "Type de document",
+        "options": ["Plan", "Note", "Schéma"]
+      },
+      {
+        "id": "field-format-simple",
+        "nom": "Format",
+        "type": "select",
+        "obligatoire": true,
+        "ordre": 4,
+        "visible": true,
+        "inclureDansNom": true,
+        "cleDeCatégorie": false,
+        "largeurColonne": 10,
+        "placeholder": "Format papier",
+        "options": ["A3", "A4"]
+      },
+      {
+        "id": "field-indice-simple",
+        "nom": "Indice",
+        "type": "text",
+        "obligatoire": true,
+        "ordre": 5,
+        "visible": true,
+        "inclureDansNom": true,
+        "cleDeCatégorie": false,
+        "largeurColonne": 8,
+        "placeholder": "A",
+        "options": null
+      },
+      {
+        "id": "field-nom-simple",
+        "nom": "Description",
+        "type": "text",
+        "obligatoire": true,
+        "ordre": 6,
+        "visible": true,
+        "inclureDansNom": false,
+        "cleDeCatégorie": false,
+        "largeurColonne": 35,
+        "placeholder": "Description du document",
+        "options": null
+      }
+    ],
+    "exportConfig": {
+      "afficherCategories": true
+    }
+  }
+}

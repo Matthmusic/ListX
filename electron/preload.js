@@ -30,7 +30,32 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Nettoyer les listeners
   removeAllListeners: (channel) => {
     ipcRenderer.removeAllListeners(channel);
+  },
+
+  // ==============================
+  // TEMPLATE MANAGEMENT API
+  // ==============================
+  templates: {
+    list: () => ipcRenderer.invoke('templates:list'),
+    load: (templateId) => ipcRenderer.invoke('templates:load', templateId),
+    save: (template) => ipcRenderer.invoke('templates:save', template),
+    delete: (templateId) => ipcRenderer.invoke('templates:delete', templateId),
+    import: () => ipcRenderer.invoke('templates:import'),
+    export: (templateId) => ipcRenderer.invoke('templates:export', templateId)
+  },
+
+  // ==============================
+  // PROJECT MANAGEMENT API
+  // ==============================
+  projects: {
+    list: () => ipcRenderer.invoke('projects:list'),
+    load: (projectId) => ipcRenderer.invoke('projects:load', projectId),
+    save: (project) => ipcRenderer.invoke('projects:save', project),
+    delete: (projectId) => ipcRenderer.invoke('projects:delete', projectId),
+    recents: () => ipcRenderer.invoke('projects:recents'),
+    import: () => ipcRenderer.invoke('projects:import'),
+    export: (projectId) => ipcRenderer.invoke('projects:export', projectId)
   }
 });
 
-console.log('Preload script loaded - electronAPI exposed');
+console.log('Preload script loaded - electronAPI exposed with Templates & Projects API');

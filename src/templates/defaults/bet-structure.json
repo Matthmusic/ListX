@@ -1,0 +1,148 @@
+{
+  "type": "listx-template",
+  "version": "1.1.0",
+  "exportDate": "2025-10-27T00:00:00Z",
+  "data": {
+    "id": "default-bet-structure",
+    "nom": "BET Structure (Défaut)",
+    "description": "Template par défaut pour projets de structure avec tous les champs standards",
+    "version": "1.1.0",
+    "dateCreation": "2025-10-27T00:00:00Z",
+    "dateModification": "2025-10-27T00:00:00Z",
+    "champs": [
+      {
+        "id": "field-affaire",
+        "nom": "Affaire",
+        "type": "text",
+        "obligatoire": true,
+        "ordre": 1,
+        "visible": true,
+        "inclureDansNom": true,
+        "cleDeCatégorie": false,
+        "largeurColonne": 15,
+        "placeholder": "Nom de l'affaire",
+        "options": null
+      },
+      {
+        "id": "field-phase",
+        "nom": "Phase",
+        "type": "select",
+        "obligatoire": true,
+        "ordre": 2,
+        "visible": true,
+        "inclureDansNom": true,
+        "cleDeCatégorie": false,
+        "largeurColonne": 10,
+        "placeholder": "Phase du projet",
+        "options": ["DIAG", "APS", "APD", "AVP", "PRO", "DCE", "ACT", "EXE"]
+      },
+      {
+        "id": "field-lot",
+        "nom": "Lot",
+        "type": "text",
+        "obligatoire": false,
+        "ordre": 3,
+        "visible": true,
+        "inclureDansNom": true,
+        "cleDeCatégorie": false,
+        "largeurColonne": 10,
+        "placeholder": "Numéro de lot",
+        "options": null
+      },
+      {
+        "id": "field-emetteur",
+        "nom": "Émetteur",
+        "type": "text",
+        "obligatoire": false,
+        "ordre": 4,
+        "visible": true,
+        "inclureDansNom": true,
+        "cleDeCatégorie": false,
+        "largeurColonne": 12,
+        "placeholder": "Émetteur du document",
+        "options": null
+      },
+      {
+        "id": "field-nature",
+        "nom": "Nature",
+        "type": "select",
+        "obligatoire": true,
+        "ordre": 5,
+        "visible": true,
+        "inclureDansNom": true,
+        "cleDeCatégorie": true,
+        "largeurColonne": 10,
+        "placeholder": "Type de document",
+        "options": ["NOT", "NDC", "PLN", "SYN", "SCH", "LST"]
+      },
+      {
+        "id": "field-zone",
+        "nom": "Zone",
+        "type": "text",
+        "obligatoire": false,
+        "ordre": 6,
+        "visible": true,
+        "inclureDansNom": true,
+        "cleDeCatégorie": false,
+        "largeurColonne": 10,
+        "placeholder": "Zone du bâtiment",
+        "options": null
+      },
+      {
+        "id": "field-niveau",
+        "nom": "Niveau",
+        "type": "text",
+        "obligatoire": false,
+        "ordre": 7,
+        "visible": true,
+        "inclureDansNom": true,
+        "cleDeCatégorie": false,
+        "largeurColonne": 10,
+        "placeholder": "Niveau de coupe",
+        "options": null
+      },
+      {
+        "id": "field-format",
+        "nom": "Format",
+        "type": "select",
+        "obligatoire": true,
+        "ordre": 8,
+        "visible": true,
+        "inclureDansNom": true,
+        "cleDeCatégorie": false,
+        "largeurColonne": 10,
+        "placeholder": "Format papier",
+        "options": ["A0+", "A0", "A1", "A2", "A3", "A4"]
+      },
+      {
+        "id": "field-indice",
+        "nom": "Indice",
+        "type": "text",
+        "obligatoire": true,
+        "ordre": 9,
+        "visible": true,
+        "inclureDansNom": true,
+        "cleDeCatégorie": false,
+        "largeurColonne": 8,
+        "placeholder": "A",
+        "options": null
+      },
+      {
+        "id": "field-nom",
+        "nom": "Nom du document",
+        "type": "text",
+        "obligatoire": true,
+        "ordre": 10,
+        "visible": true,
+        "inclureDansNom": false,
+        "cleDeCatégorie": false,
+        "largeurColonne": 30,
+        "placeholder": "Description du document",
+        "options": null
+      }
+    ],
+    "exportConfig": {
+      "afficherCategories": true
+    }
+  }
+}

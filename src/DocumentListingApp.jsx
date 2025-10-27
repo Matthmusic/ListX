@@ -94,6 +94,8 @@ export default function DocumentListingApp() {
   const [exportLogoClient, setExportLogoClient] = useState(null);
   const [exportLogoBE, setExportLogoBE] = useState(null);
   const [exportAfficherCategories, setExportAfficherCategories] = useState(false);
+  const [exportDate, setExportDate] = useState('');
+  const [exportIndice, setExportIndice] = useState('');
 
   // État pour la version de l'app
   const [appVersion, setAppVersion] = useState('');
@@ -649,31 +651,73 @@ export default function DocumentListingApp() {
 
       currentRow = 2 + ROW_OFFSET;
 
-      // Ajouter le nom de la liste
-      worksheet.mergeCells(currentRow, 1 + COL_OFFSET, currentRow, headers.length + COL_OFFSET);
-      const subtitleCell = worksheet.getCell(currentRow, 1 + COL_OFFSET);
-      subtitleCell.value = exportNomListe.toUpperCase();
-      subtitleCell.font = {
-        name: 'Cooper Black',
-        size: 12,
-        bold: true,
-        color: { argb: 'FFFFFFFF' }
-      };
-      subtitleCell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FF6495ED' }
-      };
-      subtitleCell.alignment = {
-        vertical: 'middle',
-        horizontal: 'center'
-      };
-      subtitleCell.border = {
-        top: thickBorder,
-        left: thickBorder,
-        bottom: thickBorder,
-        right: thickBorder
-      };
+      // Ligne du nom de la liste avec date et indice
+      const firstCol = 1 + COL_OFFSET;
+      const lastCol = headers.length + COL_OFFSET;
+
+      // Fond bleu pour toute la ligne
+      for (let col = firstCol; col <= lastCol; col++) {
+        const cell = worksheet.getCell(currentRow, col);
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF6495ED' }
+        };
+        cell.font = {
+          name: 'Cooper Black',
+          size: 12,
+          bold: true,
+          color: { argb: 'FFFFFFFF' }
+        };
+        cell.alignment = {
+          vertical: 'middle',
+          horizontal: 'center'
+        };
+        cell.border = {
+          top: thickBorder,
+          left: col === firstCol ? thickBorder : { style: 'thin', color: { argb: 'FF000000' } },
+          bottom: thickBorder,
+          right: col === lastCol ? thickBorder : { style: 'thin', color: { argb: 'FF000000' } }
+        };
+      }
+
+      // Date à gauche (première colonne)
+      if (exportDate) {
+        const dateCell = worksheet.getCell(currentRow, firstCol);
+        dateCell.value = exportDate;
+        dateCell.alignment = {
+          vertical: 'middle',
+          horizontal: 'left'
+        };
+      }
+
+      // Nom de la liste au centre (fusionner les colonnes du milieu)
+      if (headers.length > 2) {
+        const middleStart = firstCol + 1;
+        const middleEnd = lastCol - 1;
+        worksheet.mergeCells(currentRow, middleStart, currentRow, middleEnd);
+        const subtitleCell = worksheet.getCell(currentRow, middleStart);
+        subtitleCell.value = exportNomListe.toUpperCase();
+        subtitleCell.alignment = {
+          vertical: 'middle',
+          horizontal: 'center'
+        };
+      } else {
+        // Si moins de 3 colonnes, mettre juste le nom dans la première colonne
+        const subtitleCell = worksheet.getCell(currentRow, firstCol);
+        subtitleCell.value = exportNomListe.toUpperCase();
+      }
+
+      // Indice à droite (dernière colonne)
+      if (exportIndice) {
+        const indiceCell = worksheet.getCell(currentRow, lastCol);
+        indiceCell.value = `Indice : ${exportIndice}`;
+        indiceCell.alignment = {
+          vertical: 'middle',
+          horizontal: 'right'
+        };
+      }
+
       worksheet.getRow(currentRow).height = 20;
       currentRow++;
 
@@ -1150,13 +1194,25 @@ export default function DocumentListingApp() {
       doc.setTextColor(31, 78, 121); // Bleu foncé
       doc.text(exportNomProjet, pageWidth / 2, 20, { align: 'center' });
 
-      // Sous-titre (nom de la liste)
+      // Sous-titre (nom de la liste avec date et indice)
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(255, 255, 255);
       doc.setFillColor(100, 149, 237); // Bleu clair
       doc.rect(10, 32, pageWidth - 20, 8, 'F');
+
+      // Date à gauche (si renseignée)
+      if (exportDate) {
+        doc.text(exportDate, 15, 37, { align: 'left' });
+      }
+
+      // Nom de la liste au centre
       doc.text(exportNomListe, pageWidth / 2, 37, { align: 'center' });
+
+      // Indice à droite (si renseigné)
+      if (exportIndice) {
+        doc.text(`Indice : ${exportIndice}`, pageWidth - 15, 37, { align: 'right' });
+      }
 
       // Déterminer quels champs sont utilisés dans au moins un document
       const fieldsUsed = {
@@ -1879,6 +1935,38 @@ export default function DocumentListingApp() {
                 />
               </div>
 
+              {/* Date et Indice */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Date */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Date
+                  </label>
+                  <input
+                    type="text"
+                    value={exportDate}
+                    onChange={(e) => setExportDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder="JJ/MM/AAAA"
+                  />
+                </div>
+
+                {/* Indice */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Indice
+                  </label>
+                  <input
+                    type="text"
+                    value={exportIndice}
+                    onChange={(e) => setExportIndice(e.target.value.toUpperCase())}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder="Ex: A, Rev.1, etc."
+                    style={{ textTransform: 'uppercase' }}
+                  />
+                </div>
+              </div>
+
               {/* Logos */}
               <div className="grid grid-cols-2 gap-4">
                 {/* Logo Client */}
@@ -2375,7 +2463,15 @@ export default function DocumentListingApp() {
                   <span className="font-semibold text-sm text-gray-700">Export</span>
                 </div>
                 <button
-                  onClick={() => setShowExportPopup(true)}
+                  onClick={() => {
+                    // Initialiser la date du jour au format JJ/MM/AAAA
+                    const today = new Date();
+                    const day = String(today.getDate()).padStart(2, '0');
+                    const month = String(today.getMonth() + 1).padStart(2, '0');
+                    const year = today.getFullYear();
+                    setExportDate(`${day}/${month}/${year}`);
+                    setShowExportPopup(true);
+                  }}
                   className="group relative bg-gradient-to-br from-indigo-600 to-indigo-700 text-white w-full rounded-lg hover:from-indigo-700 hover:to-indigo-800 shadow-md hover:shadow-lg transition-all duration-200 flex flex-row items-center justify-center gap-2 overflow-hidden p-3"
                   title="Exporter"
                 >
