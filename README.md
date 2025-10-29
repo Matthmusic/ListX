@@ -80,6 +80,44 @@ Application web pour la génération et la gestion de listings de documents tech
 - Visualisation de l'ordre des catégories
 - Sauvegarde des préférences
 
+### 🎯 Système de Templates et Champs Personnalisables
+
+#### Configuration des champs
+- **Interface horizontale à 3 zones** pour une configuration intuitive :
+  - **ZONE 1 - Champs Disponibles** : Tous les champs non utilisés (par défaut + personnalisés)
+  - **ZONE 2 - Formulaire et Exports** : Définit l'ordre des champs dans le formulaire et les exports Excel/PDF
+  - **ZONE 3 - Nom de Fichier** : Définit l'ordre des champs dans le nom de fichier généré
+
+#### Gestion des champs
+- **Champs par défaut** (non modifiables) : AFFAIRE, PHASE, LOT, EMETTEUR, NATURE, ETAT, NUMERO, ZONE, NIVEAU, FORMAT, INDICE
+- **Champs personnalisés** : Créez vos propres champs avec libellés personnalisables
+- **Drag & Drop** :
+  - Glissez de Zone 1 → Zone 2 ou Zone 3 pour activer un champ
+  - Glissez de Zone 2/3 → Zone 1 pour désactiver un champ
+  - Réorganisez l'ordre au sein de chaque zone
+  - Auto-ajout : Ajouter à Zone 2 ou 3 ajoute automatiquement aux deux
+- **Bouton X au survol** : Retirez rapidement un champ d'une zone spécifique
+- **Boutons de copie rapide** :
+  - "COPIER ORDRE EN BAS" : Zone 2 → Zone 3
+  - "COPIER ORDRE EN HAUT" : Zone 3 → Zone 2
+
+#### Templates
+- **Sauvegarde de configurations** : Créez plusieurs templates avec différentes organisations
+- **Import/Export** : Partagez vos templates en JSON
+- **Template par défaut** : Fourni avec tous les champs standards
+- **Persistance** : Sauvegarde automatique dans localStorage
+- **Application rapide** : Basculez entre templates en un clic
+
+#### Ordres indépendants
+- **Ordre Formulaire/Exports** : Contrôle l'affichage dans le formulaire d'ajout et les colonnes Excel/PDF
+- **Ordre Nom de Fichier** : Contrôle la séquence des champs dans le nom du fichier généré
+- **Prévisualisation en temps réel** : Visualisez le nom de fichier qui sera généré
+
+#### Interface optimisée
+- **Design compact** : Tout tient sans scroll pour une utilisation rapide
+- **Codes couleur** : Gris (disponibles), Bleu (formulaire/exports), Vert (nom de fichier)
+- **Feedback visuel** : Animations au drag, boutons au survol, zones clairement identifiées
+
 ## Types de documents supportés
 
 - **NOT** : Notice
@@ -103,9 +141,10 @@ A0+, A0, A1, A2, A3, A4
 - **Vite** : Build tool et dev server
 - **Tailwind CSS** : Styling avec animations personnalisées (vagues animées)
 - **Lucide React** : Icônes
+- **@dnd-kit** : Bibliothèque drag-and-drop moderne et accessible (compatible React 19)
 - **jsPDF + jspdf-autotable** : Génération PDF
 - **ExcelJS** : Génération Excel avec mise en forme avancée
-- **LocalStorage** : Persistence des données
+- **LocalStorage** : Persistence des données (documents, templates, affaires)
 - **Electron** : Application desktop native
 - **electron-updater** : Système de mise à jour automatique
 

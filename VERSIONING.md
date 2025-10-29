@@ -59,10 +59,11 @@ Le format utilisé est : `MAJEUR.MINEUR.PATCH` avec possibilité d'ajout de rév
 - `2.5.0` → `2.6.0`
 
 **Cas concret :**
-- Ajout d'un système de templates → `1.1.0`
-- Intégration avec OneDrive/SharePoint → `1.2.0`
-- Système de gestion des utilisateurs → `1.3.0`
-- Mode collaboratif → `1.4.0`
+- Ajout d'un système de templates avec gestion des champs → `1.1.0`
+- Système de configuration avancée des champs (3 zones, drag-and-drop, ordres multiples) → `1.2.0`
+- Intégration avec OneDrive/SharePoint → `1.3.0`
+- Système de gestion des utilisateurs → `1.4.0`
+- Mode collaboratif → `1.5.0`
 
 ---
 

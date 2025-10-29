@@ -1,5 +1,27 @@
-import { useState, useEffect } from 'react';
-import { Plus, Download, Trash2, FolderTree, GripVertical, X, CheckCircle, AlertCircle, Info, FileText, ListOrdered, FileDown, Edit } from 'lucide-react';
+import { useState, useEffect, useContext } from 'react';
+import { Plus, Download, Trash2, FolderTree, GripVertical, X, CheckCircle, AlertCircle, Info, FileText, ListOrdered, FileDown, Edit, Settings, Upload } from 'lucide-react';
+import { TemplateContext } from './context/TemplateContext';
+import { generateFilename, getExportHeaders, getDocumentValues, mergeFormFieldsOrder } from './utils/filename';
+import { FieldSettingsModal } from './components/FieldSettingsModal';
+import { DynamicFormField } from './components/DynamicFormField';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ExcelJS from 'exceljs';
@@ -13,6 +35,96 @@ import copierIcon from './assets/coller-le-presse-papiers (1).png';
 import creerIcon from './assets/nouveau-dossier.png';
 import numGenIcon from './assets/num-gen.svg';
 import numCatIcon from './assets/num-cat.svg';
+
+// Composant SortableDocument pour le drag and drop avec dnd-kit
+function SortableDocument({ doc, categoryColor, templateHasEtatField, onEdit, onDelete }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: doc.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-3 p-3 border rounded-md hover:bg-gray-50 transition-all duration-200 ${
+        isDragging
+          ? 'bg-blue-50 scale-95 shadow-xl z-50'
+          : 'bg-white'
+      }`}
+    >
+      <div {...attributes} {...listeners} className="cursor-move touch-none">
+        <GripVertical size={20} className="text-gray-400 flex-shrink-0" />
+      </div>
+      <span className={`${categoryColor.tailwindBg} ${categoryColor.tailwindText} px-2 py-1 rounded text-xs font-medium flex-shrink-0`}>
+        {doc.nature}
+      </span>
+      <span className="font-mono text-gray-600 flex-shrink-0 font-semibold">{doc.numero}</span>
+      {templateHasEtatField && doc.etat && doc.etat.trim() !== '' && (
+        <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-medium flex-shrink-0">
+          {doc.etat}
+        </span>
+      )}
+      <span className="bg-gray-100 px-2 py-1 rounded text-xs flex-shrink-0">{doc.indice}</span>
+      <span className="flex-grow">{doc.nom}</span>
+      <span className="text-xs text-gray-400 font-mono hidden md:block">{doc.nomComplet}</span>
+      <button
+        onClick={() => onEdit(doc.id)}
+        className="text-blue-600 hover:text-blue-800 flex-shrink-0"
+        title="Modifier"
+      >
+        <Edit size={16} />
+      </button>
+      <button
+        onClick={() => onDelete(doc.id)}
+        className="text-red-600 hover:text-red-800 flex-shrink-0"
+        title="Supprimer"
+      >
+        <Trash2 size={16} />
+      </button>
+    </div>
+  );
+}
+
+// Composant SortableCategory pour le drag and drop des catégories avec dnd-kit
+function SortableCategory({ natureCode, label, categoryColor, isDragging }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: `category-${natureCode}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <h3
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`font-semibold text-lg mb-2 ${categoryColor.tailwindText} ${categoryColor.tailwindBg} px-3 py-2 rounded cursor-move hover:opacity-90 transition-all flex items-center gap-2`}
+    >
+      <GripVertical size={20} className="text-gray-400" />
+      {natureCode} - {label}
+    </h3>
+  );
+}
 
 // Palette de couleurs arc-en-ciel pour les catégories (6 couleurs)
 const COLOR_PALETTE = [
@@ -54,7 +166,66 @@ const COLOR_PALETTE = [
   }
 ];
 
+const ARBO_SECTION_DEFINITIONS = [
+  { nature: 'NOT', root: 'A - PIECES ECRITES', sectionCode: 'A1', label: 'NOTICE' },
+  { nature: 'LST', root: 'B - PIECES GRAPHIQUES', sectionCode: 'B1', label: 'LISTING' },
+  { nature: 'BPU', root: 'B - PIECES GRAPHIQUES', sectionCode: 'B2', label: 'BPU' },
+  { nature: 'NDC', root: 'B - PIECES GRAPHIQUES', sectionCode: 'B3', label: 'NDC' },
+  { nature: 'SYN', root: 'B - PIECES GRAPHIQUES', sectionCode: 'B4', label: 'SYNO' },
+  { nature: 'SCH', root: 'B - PIECES GRAPHIQUES', sectionCode: 'B5', label: 'SCH' },
+  { nature: 'PLN', root: 'B - PIECES GRAPHIQUES', sectionCode: 'B6', label: 'PLAN' },
+];
+
+const ARBO_ROOTS_ORDER = ['A - PIECES ECRITES', 'B - PIECES GRAPHIQUES'];
+
+const sanitizeForFilesystem = (value = '') => value.replace(/[\\/:*?"<>|]/g, '-').trim();
+
+const getSectionLayout = (docs = []) => {
+  const layout = [...ARBO_SECTION_DEFINITIONS];
+  const handledNatures = new Set(layout.map(def => def.nature));
+  const extraNatures = [];
+
+  docs.forEach(doc => {
+    const nature = doc?.nature;
+    if (nature && !handledNatures.has(nature)) {
+      handledNatures.add(nature);
+      extraNatures.push(nature);
+    }
+  });
+
+  if (extraNatures.length === 0) {
+    return layout;
+  }
+
+  const baseBIndices = layout
+    .filter(def => def.root === 'B - PIECES GRAPHIQUES')
+    .map(def => {
+      const match = def.sectionCode.match(/^B(\d+)$/);
+      return match ? parseInt(match[1], 10) : 0;
+    })
+    .filter(Boolean);
+
+  let nextIndex = baseBIndices.length > 0 ? Math.max(...baseBIndices) + 1 : 1;
+
+  extraNatures.sort().forEach((nature) => {
+    layout.push({
+      nature,
+      root: 'B - PIECES GRAPHIQUES',
+      sectionCode: `B${String(nextIndex)}`,
+      label: nature,
+    });
+    nextIndex += 1;
+  });
+
+  return layout;
+};
+
 export default function DocumentListingApp() {
+  // Import du contexte des templates
+  const { currentTemplate } = useContext(TemplateContext);
+  const formFieldsOrder = currentTemplate ? mergeFormFieldsOrder(currentTemplate) : [];
+  const templateHasEtatField = !currentTemplate || formFieldsOrder.includes('ETAT');
+
   const [affaire, setAffaire] = useState('');
   const [phase, setPhase] = useState('PRO');
   const [lot, setLot] = useState('');
@@ -67,10 +238,73 @@ export default function DocumentListingApp() {
   const [indice, setIndice] = useState('A');
   const [nom, setNom] = useState('');
   const [documents, setDocuments] = useState([]);
-  const [draggedItem, setDraggedItem] = useState(null);
-  const [dragOverItem, setDragOverItem] = useState(null); // Item survolé pendant le drag
+
+  // État pour les champs personnalisés (dynamiques)
+  const [customFieldsValues, setCustomFieldsValues] = useState({});
+
+  // État pour les historiques de champs par affaire
+  const [fieldsHistory, setFieldsHistory] = useState({});
+
+  // Mapping dynamique des valeurs et setters pour les champs du formulaire
+  const fieldValues = {
+    affaire,
+    phase,
+    lot,
+    emetteur,
+    nature,
+    etat,
+    numero: '(auto)',
+    zone,
+    niveau: niveauCoupe,
+    niveaucoupe: niveauCoupe,
+    format,
+    indice,
+    // Ajouter les valeurs des champs personnalisés
+    ...Object.keys(customFieldsValues).reduce((acc, key) => {
+      acc[key.toLowerCase()] = customFieldsValues[key];
+      return acc;
+    }, {})
+  };
+
+  // Créer un setter générique pour les champs personnalisés
+  const createCustomFieldSetter = (fieldId) => (val) => {
+    setCustomFieldsValues(prev => ({ ...prev, [fieldId]: val.toUpperCase() }));
+  };
+
+  const fieldSetters = {
+    affaire: (val) => {
+      handleAffaireChange(val);
+    },
+    phase: (val) => {
+      setPhase(val);
+      if (fieldErrors.phase) setFieldErrors(prev => ({ ...prev, phase: false }));
+    },
+    lot: (val) => setLot(val.toUpperCase()),
+    emetteur: (val) => setEmetteur(val.toUpperCase()),
+    nature: (val) => {
+      setNature(val);
+      if (fieldErrors.nature) setFieldErrors(prev => ({ ...prev, nature: false }));
+    },
+    etat: (val) => setEtat(val),
+    numero: () => {}, // Readonly
+    zone: (val) => setZone(val.toUpperCase()),
+    niveau: (val) => setNiveauCoupe(val.toUpperCase()),
+    niveaucoupe: (val) => setNiveauCoupe(val.toUpperCase()),
+    format: (val) => {
+      setFormat(val);
+      if (fieldErrors.format) setFieldErrors(prev => ({ ...prev, format: false }));
+    },
+    indice: (val) => {
+      setIndice(val.toUpperCase());
+      if (fieldErrors.indice) setFieldErrors(prev => ({ ...prev, indice: false }));
+    },
+    // Ajouter les setters des champs personnalisés dynamiquement
+    ...Object.keys(customFieldsValues).reduce((acc, key) => {
+      acc[key.toLowerCase()] = createCustomFieldSetter(key);
+      return acc;
+    }, {})
+  };
   const [editingDocId, setEditingDocId] = useState(null); // ID du document en cours de modification
-  const [useRanges, setUseRanges] = useState(true);
   const [affairesList, setAffairesList] = useState([]);
   const [filteredAffaires, setFilteredAffaires] = useState([]);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
@@ -83,20 +317,43 @@ export default function DocumentListingApp() {
   // État pour la popup de confirmation de vidage
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  // État pour l'ordre des catégories
+  // États pour le drag and drop avec dnd-kit
+  const [activeDocId, setActiveDocId] = useState(null);
+  const [activeCategoryId, setActiveCategoryId] = useState(null);
+
+  // État pour l'ordre des catégories (pour la persistance)
   const [categoriesOrder, setCategoriesOrder] = useState(['NOT', 'NDC', 'PLN', 'SYN', 'SCH', 'LST']);
-  const [draggedCategory, setDraggedCategory] = useState(null);
+
+  // Sensors pour dnd-kit
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // État pour la popup d'export unifiée
   const [showExportPopup, setShowExportPopup] = useState(false);
   const [exportNomProjet, setExportNomProjet] = useState('');
   const [exportNomListe, setExportNomListe] = useState('');
+  const [exportDateListe, setExportDateListe] = useState('');
+  const [exportIndiceListe, setExportIndiceListe] = useState('');
   const [exportLogoClient, setExportLogoClient] = useState(null);
   const [exportLogoBE, setExportLogoBE] = useState(null);
   const [exportAfficherCategories, setExportAfficherCategories] = useState(false);
 
+  // État pour le mode de numérotation actif ('categorie' ou 'generale')
+  const [modeNumerotation, setModeNumerotation] = useState('categorie');
+
   // État pour la version de l'app
   const [appVersion, setAppVersion] = useState('');
+
+  // État pour la modale des paramètres de champs
+  const [showFieldSettings, setShowFieldSettings] = useState(false);
 
   const phases = ['DIAG', 'APS', 'APD', 'AVP', 'PRO', 'DCE', 'ACT', 'EXE'];
 
@@ -132,7 +389,8 @@ export default function DocumentListingApp() {
   };
 
   const getNextNumber = (natureCode) => {
-    if (useRanges) {
+    if (modeNumerotation === 'categorie') {
+      // Numérotation par catégorie avec centaines : 1XX, 2XX, 3XX...
       // Obtenir les catégories uniques dans l'ordre d'apparition
       const categoriesPresentes = [];
       documents.forEach(doc => {
@@ -141,27 +399,55 @@ export default function DocumentListingApp() {
         }
       });
 
-      // Si la nouvelle catégorie n'existe pas encore, l'ajouter
+      // Si la nouvelle catégorie n'existe pas encore, l'ajouter à la fin
       if (!categoriesPresentes.includes(natureCode)) {
         categoriesPresentes.push(natureCode);
       }
 
-      // Trouver la position de la catégorie dans l'ordre d'apparition
-      const categoryPosition = categoriesPresentes.indexOf(natureCode) + 1;
-
-      // Compter combien de docs existent déjà dans cette catégorie
+      const categoryIndex = categoriesPresentes.indexOf(natureCode);
+      const categoryBase = (categoryIndex + 1) * 100; // 100, 200, 300...
       const docsOfType = documents.filter(d => d.nature === natureCode);
-      const docPosition = docsOfType.length + 1;
-
-      // Format: 1er chiffre = catégorie, 2-3 chiffres = position doc
-      return `${categoryPosition}${String(docPosition).padStart(2, '0')}`;
+      return (categoryBase + docsOfType.length + 1).toString().padStart(3, '0'); // 101, 102, 103...
     } else {
-      const docsOfType = documents.filter(d => d.nature === natureCode);
-      return (docsOfType.length + 1).toString().padStart(2, '0');
+      // Numérotation générale : numérotation continue sur tous les documents
+      // Calculer le prochain numéro global en tenant compte de l'ordre des catégories
+      const categoriesPresentes = [];
+      documents.forEach(doc => {
+        if (!categoriesPresentes.includes(doc.nature)) {
+          categoriesPresentes.push(doc.nature);
+        }
+      });
+
+      // Si la nouvelle catégorie n'existe pas encore, l'ajouter à la fin
+      if (!categoriesPresentes.includes(natureCode)) {
+        categoriesPresentes.push(natureCode);
+      }
+
+      // Compter tous les documents avant cette catégorie + documents dans cette catégorie
+      let numeroGlobal = 1;
+      for (const cat of categoriesPresentes) {
+        const docsOfCat = documents.filter(d => d.nature === cat);
+        if (cat === natureCode) {
+          // On est dans la catégorie du nouveau document
+          numeroGlobal += docsOfCat.length;
+          break;
+        }
+        numeroGlobal += docsOfCat.length;
+      }
+
+      return numeroGlobal.toString().padStart(3, '0');
     }
   };
 
   const genererNomComplet = (doc, numero) => {
+    // Utiliser le template pour générer le nom
+    if (currentTemplate) {
+      // Créer un document temporaire avec le numéro au lieu du champ NUMERO
+      const docWithNumero = { ...doc, numero };
+      return generateFilename(docWithNumero, currentTemplate);
+    }
+
+    // Fallback vers l'ancien système si pas de template
     const parts = [
       doc.affaire,
       doc.phase,
@@ -186,60 +472,37 @@ export default function DocumentListingApp() {
   };
 
   const renumeroteDocuments = (docs) => {
-    if (useRanges) {
-      const grouped = docs.reduce((acc, doc) => {
-        if (!acc[doc.nature]) acc[doc.nature] = [];
-        acc[doc.nature].push(doc);
-        return acc;
-      }, {});
+    const grouped = docs.reduce((acc, doc) => {
+      if (!acc[doc.nature]) acc[doc.nature] = [];
+      acc[doc.nature].push(doc);
+      return acc;
+    }, {});
 
-      // Obtenir les catégories uniques dans l'ordre d'apparition
-      const categoriesPresentes = [];
-      docs.forEach(doc => {
-        if (!categoriesPresentes.includes(doc.nature)) {
-          categoriesPresentes.push(doc.nature);
-        }
-      });
+    // Obtenir les catégories uniques dans l'ordre d'apparition
+    const categoriesPresentes = [];
+    docs.forEach(doc => {
+      if (!categoriesPresentes.includes(doc.nature)) {
+        categoriesPresentes.push(doc.nature);
+      }
+    });
 
-      const renumbered = [];
+    const renumbered = [];
 
-      // Parcourir dans l'ordre d'apparition des catégories
-      categoriesPresentes.forEach((natureCode, categoryIndex) => {
-        if (grouped[natureCode]) {
-          grouped[natureCode].forEach((doc, docIndex) => {
-            // 1er chiffre = position catégorie, 2-3 chiffres = position doc
-            const categoryPosition = categoryIndex + 1;
-            const docPosition = docIndex + 1;
-            const newNumero = `${categoryPosition}${String(docPosition).padStart(2, '0')}`;
-            renumbered.push({
-              ...doc,
-              numero: newNumero,
-              nomComplet: genererNomComplet(doc, newNumero)
-            });
-          });
-        }
-      });
-      return renumbered;
-    } else {
-      const grouped = docs.reduce((acc, doc) => {
-        if (!acc[doc.nature]) acc[doc.nature] = [];
-        acc[doc.nature].push(doc);
-        return acc;
-      }, {});
-
-      const renumbered = [];
-      Object.keys(grouped).forEach(natureCode => {
-        grouped[natureCode].forEach((doc, index) => {
-          const newNumero = (index + 1).toString().padStart(2, '0');
+    // Numérotation par catégorie avec centaines : 1XX, 2XX, 3XX...
+    categoriesPresentes.forEach((natureCode, categoryIndex) => {
+      if (grouped[natureCode]) {
+        const categoryBase = (categoryIndex + 1) * 100; // 100, 200, 300...
+        grouped[natureCode].forEach((doc, docIndex) => {
+          const newNumero = (categoryBase + docIndex + 1).toString().padStart(3, '0'); // 101, 102, 103...
           renumbered.push({
             ...doc,
             numero: newNumero,
             nomComplet: genererNomComplet(doc, newNumero)
           });
         });
-      });
-      return renumbered;
-    }
+      }
+    });
+    return renumbered;
   };
 
   const ajouterDocument = () => {
@@ -272,12 +535,17 @@ export default function DocumentListingApp() {
             lot: lot.toUpperCase(),
             emetteur: emetteur.toUpperCase(),
             nature: nature.toUpperCase(),
-            etat: etat.toUpperCase(),
+            etat: templateHasEtatField ? (etat || '').toUpperCase() : '',
             niveauCoupe: niveauCoupe.toUpperCase(),
             zone: zone.toUpperCase(),
             format,
             indice: indice.toUpperCase(),
-            nom: nom.toUpperCase()
+            nom: nom.toUpperCase(),
+            // Ajouter les champs personnalisés (convertir les clés en minuscules)
+            ...Object.keys(customFieldsValues).reduce((acc, key) => {
+              acc[key.toLowerCase()] = customFieldsValues[key];
+              return acc;
+            }, {})
           };
           updatedDoc.nomComplet = genererNomComplet(updatedDoc, doc.numero);
           return updatedDoc;
@@ -299,14 +567,19 @@ export default function DocumentListingApp() {
         lot: lot.toUpperCase(),
         emetteur: emetteur.toUpperCase(),
         nature: nature.toUpperCase(),
-        etat: etat.toUpperCase(), // ACTUEL, PROJET ou vide
+        etat: templateHasEtatField ? (etat || '').toUpperCase() : '',
         numero,
         niveauCoupe: niveauCoupe.toUpperCase(),
         zone: zone.toUpperCase(),
         format,
         indice: indice.toUpperCase(),
         nom: nom.toUpperCase(),
-        nomComplet: '' // Sera généré par genererNomComplet
+        nomComplet: '', // Sera généré par genererNomComplet
+        // Ajouter les champs personnalisés (convertir les clés en minuscules)
+        ...Object.keys(customFieldsValues).reduce((acc, key) => {
+          acc[key.toLowerCase()] = customFieldsValues[key];
+          return acc;
+        }, {})
       };
 
       // Générer le nom complet
@@ -316,6 +589,24 @@ export default function DocumentListingApp() {
 
       // Notification de succès
       showNotification(`Document "${newDoc.nomComplet}" ajouté avec succès !`, 'success');
+
+      // Enregistrer les valeurs dans l'historique pour cette affaire
+      if (affaire) {
+        ajouterValeurHistorique(affaire, 'EMETTEUR', emetteur);
+        ajouterValeurHistorique(affaire, 'LOT', lot);
+        ajouterValeurHistorique(affaire, 'ZONE', zone);
+        ajouterValeurHistorique(affaire, 'NIVEAU', niveauCoupe);
+
+        // Enregistrer aussi les champs personnalisés
+        if (currentTemplate && currentTemplate.customFields) {
+          currentTemplate.customFields.forEach(field => {
+            const value = customFieldsValues[field.id];
+            if (value && value.trim() !== '') {
+              ajouterValeurHistorique(affaire, field.id, value);
+            }
+          });
+        }
+      }
     }
 
     // Ne plus reset les champs - garder les infos du dernier document
@@ -341,6 +632,16 @@ export default function DocumentListingApp() {
       setFormat(docToEdit.format || '');
       setIndice(docToEdit.indice || '');
       setNom(docToEdit.nom || '');
+
+      // Charger les champs personnalisés
+      if (currentTemplate && currentTemplate.customFields) {
+        const customValues = {};
+        currentTemplate.customFields.forEach(field => {
+          customValues[field.id] = docToEdit[field.id] || '';
+        });
+        setCustomFieldsValues(customValues);
+      }
+
       setEditingDocId(id);
 
       // Faire défiler vers le formulaire
@@ -354,48 +655,33 @@ export default function DocumentListingApp() {
     setDocuments(renumeroteDocuments(filtered));
   };
 
-  const handleDragStart = (e, doc) => {
-    setDraggedItem(doc);
-    e.dataTransfer.effectAllowed = 'move';
+  // Handlers pour le drag and drop des documents avec dnd-kit
+  const handleDocumentDragStart = (event) => {
+    setActiveDocId(event.active.id);
   };
 
-  const handleDragOver = (e, targetDoc) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (targetDoc && draggedItem && targetDoc.id !== draggedItem.id) {
-      setDragOverItem(targetDoc);
-    }
-  };
+  const handleDocumentDragEnd = (event) => {
+    const { active, over } = event;
+    setActiveDocId(null);
 
-  const handleDragLeave = (e) => {
-    setDragOverItem(null);
-  };
+    if (!over || active.id === over.id) return;
 
-  const handleDrop = (e, targetDoc) => {
-    e.preventDefault();
-    setDragOverItem(null);
+    const activeDoc = documents.find(d => d.id === active.id);
+    const overDoc = documents.find(d => d.id === over.id);
 
-    if (!draggedItem || draggedItem.id === targetDoc.id) return;
+    if (!activeDoc || !overDoc) return;
 
-    if (draggedItem.nature !== targetDoc.nature) {
+    // Vérifier que les documents sont de même nature
+    if (activeDoc.nature !== overDoc.nature) {
       showNotification('Vous ne pouvez réorganiser que des documents de même nature !', 'warning');
       return;
     }
 
-    const newDocs = [...documents];
-    const draggedIndex = newDocs.findIndex(d => d.id === draggedItem.id);
-    const targetIndex = newDocs.findIndex(d => d.id === targetDoc.id);
+    const oldIndex = documents.findIndex(d => d.id === active.id);
+    const newIndex = documents.findIndex(d => d.id === over.id);
 
-    const [removed] = newDocs.splice(draggedIndex, 1);
-    newDocs.splice(targetIndex, 0, removed);
-
-    setDocuments(renumeroteDocuments(newDocs));
-    setDraggedItem(null);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedItem(null);
-    setDragOverItem(null);
+    const reorderedDocs = arrayMove(documents, oldIndex, newIndex);
+    setDocuments(renumeroteDocuments(reorderedDocs));
   };
 
   const exporterCSV = () => {
@@ -435,33 +721,42 @@ export default function DocumentListingApp() {
     }
 
     try {
-      // Renuméroter les documents pour garantir l'ordre correct
-      const documentsToExport = renumeroteDocuments(documents);
+      // Renuméroter les documents pour garantir l'ordre correct selon le mode actif
+      let documentsToExport;
+      if (modeNumerotation === 'categorie') {
+        documentsToExport = renumeroteDocuments(documents);
+      } else {
+        // Numérotation générale pour l'export
+        const categoriesPresentes = [];
+        documents.forEach(doc => {
+          if (!categoriesPresentes.includes(doc.nature)) {
+            categoriesPresentes.push(doc.nature);
+          }
+        });
 
-      // Déterminer quels champs sont utilisés (même logique que le PDF)
-      const fieldsUsed = {
-        affaire: documentsToExport.some(d => d.affaire && d.affaire.trim() !== ''),
-        phase: documentsToExport.some(d => d.phase && d.phase.trim() !== ''),
-        lot: documentsToExport.some(d => d.lot && d.lot.trim() !== ''),
-        emetteur: documentsToExport.some(d => d.emetteur && d.emetteur.trim() !== ''),
-        nature: documentsToExport.some(d => d.nature && d.nature.trim() !== ''),
-        etat: documentsToExport.some(d => d.etat && d.etat.trim() !== ''),
-        zone: documentsToExport.some(d => d.zone && d.zone.trim() !== ''),
-        niveauCoupe: documentsToExport.some(d => d.niveauCoupe && d.niveauCoupe.trim() !== '')
-      };
+        let numeroGlobal = 1;
+        const renumbered = [];
+        categoriesPresentes.forEach(natureCode => {
+          const docsOfType = documents.filter(d => d.nature === natureCode);
+          docsOfType.forEach(doc => {
+            const newNumero = numeroGlobal.toString().padStart(3, '0');
+            renumbered.push({
+              ...doc,
+              numero: newNumero,
+              nomComplet: genererNomComplet(doc, newNumero)
+            });
+            numeroGlobal++;
+          });
+        });
+        documentsToExport = renumbered;
+      }
 
-      // Construire les en-têtes dynamiquement
-      const headers = [];
-      if (fieldsUsed.affaire) headers.push('AFFAIRE');
-      if (fieldsUsed.phase) headers.push('PHASE');
-      if (fieldsUsed.lot) headers.push('LOT');
-      if (fieldsUsed.emetteur) headers.push('ÉMETTEUR');
-      if (fieldsUsed.nature) headers.push('NATURE');
-      headers.push('N° DOC');
-      if (fieldsUsed.etat) headers.push('ETAT');
-      if (fieldsUsed.zone) headers.push('ZONE');
-      if (fieldsUsed.niveauCoupe) headers.push('NIVEAU');
-      headers.push('FORMAT', 'INDICE', 'DESCRIPTION DU DOC', 'NOM DU FICHIER');
+      // Utiliser le template pour obtenir les en-têtes et déterminer les champs utilisés
+      const exportHeaders = getExportHeaders(currentTemplate);
+
+      // Créer le tableau des en-têtes (libellés uniquement)
+      // Les champs système (DESCRIPTION, NOM_FICHIER) sont déjà inclus dans exportHeaders
+      const headers = exportHeaders.map(h => h.label);
 
       // Obtenir les catégories présentes dans l'ordre d'apparition pour les couleurs
       const categoriesPresentes = [];
@@ -512,8 +807,9 @@ export default function DocumentListingApp() {
       const logoRowHeight = 75; // Hauteur en points (≈100px car 1 point ≈ 1.33px)
       worksheet.getRow(1 + ROW_OFFSET).height = logoRowHeight;
 
-      // Trouver l'index de la dernière colonne (NOM DU FICHIER) pour y placer le logo BE
-      const logoColIndex = headers.indexOf('NOM DU FICHIER') + 1 + COL_OFFSET;
+      // Zone Logo BE : utiliser les 2 dernières colonnes fusionnées
+      const logoBEStartCol = headers.length - 1 + COL_OFFSET; // Avant-dernière colonne
+      const logoBEEndCol = headers.length + COL_OFFSET; // Dernière colonne
 
       // Bordure épaisse pour les zones de logos
       const thickBorder = {
@@ -526,8 +822,12 @@ export default function DocumentListingApp() {
 
       // Zone Logo Client : Fusionner les 2 premières colonnes (C3:D3 après offset)
       if (exportLogoClient) {
-        worksheet.mergeCells(1 + ROW_OFFSET, 1 + COL_OFFSET, 1 + ROW_OFFSET, 2 + COL_OFFSET);
-        const logoClientCell = worksheet.getCell(1 + ROW_OFFSET, 1 + COL_OFFSET);
+        const logoClientStartCol = 1 + COL_OFFSET;
+        const logoClientEndCol = 2 + COL_OFFSET;
+        if (logoClientEndCol > logoClientStartCol) {
+          worksheet.mergeCells(1 + ROW_OFFSET, logoClientStartCol, 1 + ROW_OFFSET, logoClientEndCol);
+        }
+        const logoClientCell = worksheet.getCell(1 + ROW_OFFSET, logoClientStartCol);
         logoClientCell.alignment = {
           vertical: 'middle',
           horizontal: 'center'
@@ -552,8 +852,12 @@ export default function DocumentListingApp() {
         });
       } else {
         // Même sans logo, créer la zone avec bordure
-        worksheet.mergeCells(1 + ROW_OFFSET, 1 + COL_OFFSET, 1 + ROW_OFFSET, 2 + COL_OFFSET);
-        const logoClientCell = worksheet.getCell(1 + ROW_OFFSET, 1 + COL_OFFSET);
+        const logoClientStartCol = 1 + COL_OFFSET;
+        const logoClientEndCol = 2 + COL_OFFSET;
+        if (logoClientEndCol > logoClientStartCol) {
+          worksheet.mergeCells(1 + ROW_OFFSET, logoClientStartCol, 1 + ROW_OFFSET, logoClientEndCol);
+        }
+        const logoClientCell = worksheet.getCell(1 + ROW_OFFSET, logoClientStartCol);
         logoClientCell.border = {
           top: thickBorder,
           left: thickBorder,
@@ -564,8 +868,12 @@ export default function DocumentListingApp() {
 
       // Zone Titre : Fusionner les colonnes du milieu (jusqu'à la colonne avant le logo BE)
       const titleStartCol = 3 + COL_OFFSET;
-      const titleEndCol = logoColIndex - 1; // S'arrête juste avant la colonne du logo BE
-      worksheet.mergeCells(1 + ROW_OFFSET, titleStartCol, 1 + ROW_OFFSET, titleEndCol);
+      const titleEndCol = logoBEStartCol - 1; // S'arrête juste avant la zone du logo BE
+
+      // Vérifier que la fusion est valide avant de l'effectuer
+      if (titleEndCol > titleStartCol) {
+        worksheet.mergeCells(1 + ROW_OFFSET, titleStartCol, 1 + ROW_OFFSET, titleEndCol);
+      }
       const titleCell = worksheet.getCell(1 + ROW_OFFSET, titleStartCol);
       titleCell.value = exportNomProjet.toUpperCase();
       titleCell.font = {
@@ -585,9 +893,13 @@ export default function DocumentListingApp() {
         right: thickBorder
       };
 
-      // Zone Logo BE : Cellule unique dans la dernière colonne (NOM DU FICHIER) (100px x 100px)
+      // Zone Logo BE : Fusionner les 2 dernières colonnes (100px x 100px)
       if (exportLogoBE) {
-        const logoBECell = worksheet.getCell(1 + ROW_OFFSET, logoColIndex);
+        // Fusionner les 2 dernières colonnes pour le logo BE
+        if (logoBEEndCol > logoBEStartCol) {
+          worksheet.mergeCells(1 + ROW_OFFSET, logoBEStartCol, 1 + ROW_OFFSET, logoBEEndCol);
+        }
+        const logoBECell = worksheet.getCell(1 + ROW_OFFSET, logoBEStartCol);
         logoBECell.alignment = {
           vertical: 'middle',
           horizontal: 'center'
@@ -626,7 +938,7 @@ export default function DocumentListingApp() {
             }
 
             worksheet.addImage(logoBEId, {
-              tl: { col: logoColIndex - 1 + 0.05, row: ROW_OFFSET + 0.05 },
+              tl: { col: logoBEStartCol - 1 + 0.5, row: ROW_OFFSET + 0.2 }, // Centré dans la zone fusionnée
               ext: { width, height },
               editAs: 'oneCell'
             });
@@ -637,8 +949,11 @@ export default function DocumentListingApp() {
           img.src = imgUrl;
         });
       } else {
-        // Même sans logo, créer la zone avec bordure
-        const logoBECell = worksheet.getCell(1 + ROW_OFFSET, logoColIndex);
+        // Même sans logo, créer la zone avec bordure (fusionner les 2 dernières colonnes)
+        if (logoBEEndCol > logoBEStartCol) {
+          worksheet.mergeCells(1 + ROW_OFFSET, logoBEStartCol, 1 + ROW_OFFSET, logoBEEndCol);
+        }
+        const logoBECell = worksheet.getCell(1 + ROW_OFFSET, logoBEStartCol);
         logoBECell.border = {
           top: thickBorder,
           left: thickBorder,
@@ -649,9 +964,47 @@ export default function DocumentListingApp() {
 
       currentRow = 2 + ROW_OFFSET;
 
-      // Ajouter le nom de la liste
-      worksheet.mergeCells(currentRow, 1 + COL_OFFSET, currentRow, headers.length + COL_OFFSET);
-      const subtitleCell = worksheet.getCell(currentRow, 1 + COL_OFFSET);
+      // Ajouter le nom de la liste avec date et indice
+      // Date dans la première colonne
+      const dateCell = worksheet.getCell(currentRow, 1 + COL_OFFSET);
+      if (exportDateListe) {
+        const dateFormatted = new Date(exportDateListe).toLocaleDateString('fr-FR');
+        dateCell.value = dateFormatted;
+      } else {
+        dateCell.value = '';
+      }
+      dateCell.font = {
+        name: 'Cooper Black',
+        size: 10,
+        bold: true,
+        color: { argb: 'FFFFFFFF' }
+      };
+      dateCell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF6495ED' }
+      };
+      dateCell.alignment = {
+        vertical: 'middle',
+        horizontal: 'left'
+      };
+      dateCell.border = {
+        top: thickBorder,
+        left: thickBorder,
+        bottom: thickBorder,
+        right: { style: 'thin', color: { argb: 'FFFFFFFF' } }
+      };
+
+      // Nom de la liste au centre (fusionner les colonnes du milieu, s'arrêter avant les 2 dernières pour l'indice)
+      const mergeStartCol = 2 + COL_OFFSET;
+      const mergeEndCol = headers.length - 2 + COL_OFFSET; // S'arrête avant les 2 dernières colonnes (indice)
+
+      if (mergeEndCol > mergeStartCol) {
+        // Fusionner seulement si on a au moins 2 colonnes à fusionner
+        worksheet.mergeCells(currentRow, mergeStartCol, currentRow, mergeEndCol);
+      }
+
+      const subtitleCell = worksheet.getCell(currentRow, mergeStartCol);
       subtitleCell.value = exportNomListe.toUpperCase();
       subtitleCell.font = {
         name: 'Cooper Black',
@@ -670,10 +1023,66 @@ export default function DocumentListingApp() {
       };
       subtitleCell.border = {
         top: thickBorder,
-        left: thickBorder,
         bottom: thickBorder,
-        right: thickBorder
+        left: { style: 'thin', color: { argb: 'FFFFFFFF' } },
+        right: { style: 'thin', color: { argb: 'FFFFFFFF' } }
       };
+
+      // Appliquer le même style aux cellules intermédiaires fusionnées
+      if (mergeEndCol > mergeStartCol) {
+        for (let col = mergeStartCol + 1; col <= mergeEndCol; col++) {
+          const cell = worksheet.getCell(currentRow, col);
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF6495ED' }
+          };
+          cell.border = {
+            top: thickBorder,
+            bottom: thickBorder,
+            left: { style: 'thin', color: { argb: 'FFFFFFFF' } },
+            right: { style: 'thin', color: { argb: 'FFFFFFFF' } }
+          };
+        }
+      }
+
+      // Indice dans les 2 dernières colonnes fusionnées
+      const indiceStartCol = headers.length - 1 + COL_OFFSET; // Avant-dernière colonne
+      const indiceEndCol = headers.length + COL_OFFSET; // Dernière colonne
+
+      // Fusionner les 2 dernières colonnes pour l'indice
+      if (indiceEndCol > indiceStartCol) {
+        worksheet.mergeCells(currentRow, indiceStartCol, currentRow, indiceEndCol);
+      }
+
+      const indiceCell = worksheet.getCell(currentRow, indiceStartCol);
+      if (exportIndiceListe) {
+        indiceCell.value = `Indice : ${exportIndiceListe}`;
+      } else {
+        indiceCell.value = '';
+      }
+      indiceCell.font = {
+        name: 'Cooper Black',
+        size: 10,
+        bold: true,
+        color: { argb: 'FFFFFFFF' }
+      };
+      indiceCell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF6495ED' }
+      };
+      indiceCell.alignment = {
+        vertical: 'middle',
+        horizontal: 'right'
+      };
+      indiceCell.border = {
+        top: thickBorder,
+        right: thickBorder,
+        bottom: thickBorder,
+        left: { style: 'thin', color: { argb: 'FFFFFFFF' } }
+      };
+
       worksheet.getRow(currentRow).height = 20;
       currentRow++;
 
@@ -769,17 +1178,9 @@ export default function DocumentListingApp() {
           // Ajouter tous les documents de cette catégorie
           const docsOfCategory = documentsToExport.filter(doc => doc.nature === category);
           docsOfCategory.forEach((doc) => {
-            const rowData = [];
-            if (fieldsUsed.affaire) rowData.push(doc.affaire || '');
-            if (fieldsUsed.phase) rowData.push(doc.phase || '');
-            if (fieldsUsed.lot) rowData.push(doc.lot || '');
-            if (fieldsUsed.emetteur) rowData.push(doc.emetteur || '');
-            if (fieldsUsed.nature) rowData.push(doc.nature || '');
-            rowData.push(doc.numero);
-            if (fieldsUsed.etat) rowData.push(doc.etat || '');
-            if (fieldsUsed.zone) rowData.push(doc.zone || '');
-            if (fieldsUsed.niveauCoupe) rowData.push(doc.niveauCoupe || '');
-            rowData.push(doc.format || '', doc.indice || '', doc.nom || '', doc.nomComplet || '');
+            // Utiliser le template pour obtenir les valeurs dans l'ordre
+            // Les champs système sont déjà gérés dans exportHeaders
+            const rowData = exportHeaders.map(header => doc[header.field] || '');
             numeroLigne++;
 
             // Couleur de fond selon la catégorie
@@ -825,17 +1226,9 @@ export default function DocumentListingApp() {
       } else {
         // Sans catégories, afficher tous les documents directement
         documentsToExport.forEach((doc) => {
-          const rowData = [];
-          if (fieldsUsed.affaire) rowData.push(doc.affaire || '');
-          if (fieldsUsed.phase) rowData.push(doc.phase || '');
-          if (fieldsUsed.lot) rowData.push(doc.lot || '');
-          if (fieldsUsed.emetteur) rowData.push(doc.emetteur || '');
-          if (fieldsUsed.nature) rowData.push(doc.nature || '');
-          rowData.push(doc.numero);
-          if (fieldsUsed.etat) rowData.push(doc.etat || '');
-          if (fieldsUsed.zone) rowData.push(doc.zone || '');
-          if (fieldsUsed.niveauCoupe) rowData.push(doc.niveauCoupe || '');
-          rowData.push(doc.format || '', doc.indice || '', doc.nom || '', doc.nomComplet || '');
+          // Utiliser le template pour obtenir les valeurs dans l'ordre
+          // Les champs système sont déjà gérés dans exportHeaders
+          const rowData = exportHeaders.map(header => doc[header.field] || '');
 
           // Couleur de fond selon la catégorie
           const bgColor = categoryColors[doc.nature] || 'FFFFFFFF';
@@ -935,8 +1328,8 @@ export default function DocumentListingApp() {
             }
           });
           column.width = Math.min(Math.max(maxLength + 2, 25), 60); // Min 25, max 60
-        } else if (headerName === 'DESCRIPTION DU DOC') {
-          // DESCRIPTION : largeur moyenne
+        } else if (headerName === 'DESCRIPTION' || headerName === 'DESCRIPTION DU DOC' || headerName === 'DESCRIPTION DU DOCUMENT') {
+          // DESCRIPTION DU DOCUMENT : largeur moyenne
           let maxLength = headerName.length;
           column.eachCell({ includeEmpty: false }, (cell) => {
             const cellLength = cell.value ? cell.value.toString().length : 0;
@@ -945,6 +1338,16 @@ export default function DocumentListingApp() {
             }
           });
           column.width = Math.min(Math.max(maxLength + 2, 20), 45);
+        } else if (headerName === 'NOM FICHIER' || headerName === 'NOM DU FICHIER') {
+          // NOM FICHIER : largeur large
+          let maxLength = headerName.length;
+          column.eachCell({ includeEmpty: false }, (cell) => {
+            const cellLength = cell.value ? cell.value.toString().length : 0;
+            if (cellLength > maxLength) {
+              maxLength = cellLength;
+            }
+          });
+          column.width = Math.min(Math.max(maxLength + 2, 25), 60);
         } else {
           // Largeur auto pour les autres colonnes (AFFAIRE, LOT, ÉMETTEUR, ETAT, ZONE, NIVEAU)
           let maxLength = headerName.length;
@@ -1087,8 +1490,35 @@ export default function DocumentListingApp() {
     }
 
     try {
-      // Forcer la renumérotation des documents avant export pour garantir l'ordre correct
-      const documentsToExport = renumeroteDocuments(documents);
+      // Forcer la renumérotation des documents avant export selon le mode actif
+      let documentsToExport;
+      if (modeNumerotation === 'categorie') {
+        documentsToExport = renumeroteDocuments(documents);
+      } else {
+        // Numérotation générale pour l'export
+        const categoriesPresentes = [];
+        documents.forEach(doc => {
+          if (!categoriesPresentes.includes(doc.nature)) {
+            categoriesPresentes.push(doc.nature);
+          }
+        });
+
+        let numeroGlobal = 1;
+        const renumbered = [];
+        categoriesPresentes.forEach(natureCode => {
+          const docsOfType = documents.filter(d => d.nature === natureCode);
+          docsOfType.forEach(doc => {
+            const newNumero = numeroGlobal.toString().padStart(3, '0');
+            renumbered.push({
+              ...doc,
+              numero: newNumero,
+              nomComplet: genererNomComplet(doc, newNumero)
+            });
+            numeroGlobal++;
+          });
+        });
+        documentsToExport = renumbered;
+      }
 
       const doc = new jsPDF('landscape', 'mm', 'a4');
       const pageWidth = doc.internal.pageSize.getWidth();
@@ -1111,37 +1541,71 @@ export default function DocumentListingApp() {
 
       // Ajouter les logos si disponibles (sans étirement)
       if (exportLogoClient) {
-        const logoClientData = await imageToBase64(exportLogoClient);
-        const img = new Image();
-        img.src = logoClientData;
-        await new Promise((resolve) => {
-          img.onload = () => {
-            const maxWidth = 40;
-            const maxHeight = 25;
-            const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
-            const width = img.width * ratio;
-            const height = img.height * ratio;
-            doc.addImage(logoClientData, 'PNG', 10, 5, width, height);
-            resolve();
-          };
-        });
+        try {
+          const logoClientData = await imageToBase64(exportLogoClient);
+          if (logoClientData && logoClientData.startsWith('data:image')) {
+            const img = new Image();
+            img.src = logoClientData;
+            await new Promise((resolve, reject) => {
+              img.onload = () => {
+                try {
+                  const maxWidth = 40;
+                  const maxHeight = 25;
+                  const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
+                  const width = img.width * ratio;
+                  const height = img.height * ratio;
+                  const format = exportLogoClient.type.includes('jpeg') || exportLogoClient.type.includes('jpg') ? 'JPEG' : 'PNG';
+                  doc.addImage(logoClientData, format, 10, 5, width, height);
+                  resolve();
+                } catch (error) {
+                  console.error('Erreur lors de l\'ajout du logo client:', error);
+                  resolve(); // Continue même en cas d'erreur
+                }
+              };
+              img.onerror = () => {
+                console.error('Erreur lors du chargement du logo client');
+                resolve(); // Continue même en cas d'erreur
+              };
+            });
+          }
+        } catch (error) {
+          console.error('Erreur lors de la conversion du logo client:', error);
+          // Continue l'export même si le logo échoue
+        }
       }
 
       if (exportLogoBE) {
-        const logoBEData = await imageToBase64(exportLogoBE);
-        const img = new Image();
-        img.src = logoBEData;
-        await new Promise((resolve) => {
-          img.onload = () => {
-            const maxWidth = 40;
-            const maxHeight = 25;
-            const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
-            const width = img.width * ratio;
-            const height = img.height * ratio;
-            doc.addImage(logoBEData, 'PNG', pageWidth - 10 - width, 5, width, height);
-            resolve();
-          };
-        });
+        try {
+          const logoBEData = await imageToBase64(exportLogoBE);
+          if (logoBEData && logoBEData.startsWith('data:image')) {
+            const img = new Image();
+            img.src = logoBEData;
+            await new Promise((resolve, reject) => {
+              img.onload = () => {
+                try {
+                  const maxWidth = 40;
+                  const maxHeight = 25;
+                  const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
+                  const width = img.width * ratio;
+                  const height = img.height * ratio;
+                  const format = exportLogoBE.type.includes('jpeg') || exportLogoBE.type.includes('jpg') ? 'JPEG' : 'PNG';
+                  doc.addImage(logoBEData, format, pageWidth - 10 - width, 5, width, height);
+                  resolve();
+                } catch (error) {
+                  console.error('Erreur lors de l\'ajout du logo BE:', error);
+                  resolve(); // Continue même en cas d'erreur
+                }
+              };
+              img.onerror = () => {
+                console.error('Erreur lors du chargement du logo BE');
+                resolve(); // Continue même en cas d'erreur
+              };
+            });
+          }
+        } catch (error) {
+          console.error('Erreur lors de la conversion du logo BE:', error);
+          // Continue l'export même si le logo échoue
+        }
       }
 
       // Titre principal (nom du projet)
@@ -1150,82 +1614,64 @@ export default function DocumentListingApp() {
       doc.setTextColor(31, 78, 121); // Bleu foncé
       doc.text(exportNomProjet, pageWidth / 2, 20, { align: 'center' });
 
-      // Sous-titre (nom de la liste)
+      // Sous-titre (nom de la liste avec date et indice)
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(255, 255, 255);
       doc.setFillColor(100, 149, 237); // Bleu clair
       doc.rect(10, 32, pageWidth - 20, 8, 'F');
+
+      // Nom de la liste au centre
       doc.text(exportNomListe, pageWidth / 2, 37, { align: 'center' });
 
-      // Déterminer quels champs sont utilisés dans au moins un document
-      const fieldsUsed = {
-        affaire: documentsToExport.some(d => d.affaire && d.affaire.trim() !== ''),
-        phase: documentsToExport.some(d => d.phase && d.phase.trim() !== ''),
-        lot: documentsToExport.some(d => d.lot && d.lot.trim() !== ''),
-        emetteur: documentsToExport.some(d => d.emetteur && d.emetteur.trim() !== ''),
-        nature: documentsToExport.some(d => d.nature && d.nature.trim() !== ''),
-        etat: documentsToExport.some(d => d.etat && d.etat.trim() !== ''),
-        zone: documentsToExport.some(d => d.zone && d.zone.trim() !== ''),
-        niveauCoupe: documentsToExport.some(d => d.niveauCoupe && d.niveauCoupe.trim() !== '')
-      };
+      // Date à gauche (si renseignée)
+      if (exportDateListe) {
+        doc.setFontSize(10);
+        const dateFormatted = new Date(exportDateListe).toLocaleDateString('fr-FR');
+        doc.text(dateFormatted, 15, 37, { align: 'left' });
+      }
+
+      // Indice à droite (si renseigné)
+      if (exportIndiceListe) {
+        doc.setFontSize(10);
+        doc.text(`Indice : ${exportIndiceListe}`, pageWidth - 15, 37, { align: 'right' });
+      }
+
+      // Restaurer la taille de police
+      doc.setFontSize(12);
+
+      // Utiliser le template pour obtenir les en-têtes
+      const exportHeaders = getExportHeaders(currentTemplate);
 
       // Construire les en-têtes de colonnes dynamiquement
-      const headers = [];
+      // Les champs système (DESCRIPTION, NOM_FICHIER) sont déjà inclus dans exportHeaders
+      const headers = exportHeaders.map(h => h.label);
+
+      // Définir les styles de colonnes
       const columnStyles = {};
       let colIndex = 0;
 
-      if (fieldsUsed.affaire) {
-        headers.push('AFFAIRE');
-        columnStyles[colIndex] = { cellWidth: 25, halign: 'center' };
+      // Appliquer des largeurs de colonnes dynamiques basées sur les champs du template
+      exportHeaders.forEach((header) => {
+        const defaultWidths = {
+          'affaire': 25,
+          'phase': 17,
+          'lot': 13.5,
+          'emetteur': 25,
+          'nature': 20,
+          'numero': 15,
+          'etat': 15,
+          'zone': 15,
+          'niveaucoupe': 15,
+          'format': 15,
+          'indice': 13,
+          'nom': 'auto',          // Champ système (DESCRIPTION)
+          'nomComplet': 'auto'    // Champ système (NOM_FICHIER)
+        };
+        const width = defaultWidths[header.field] || 15;
+        columnStyles[colIndex] = { cellWidth: width, halign: 'center' };
         colIndex++;
-      }
-      if (fieldsUsed.phase) {
-        headers.push('PHASE');
-        columnStyles[colIndex] = { cellWidth: 17, halign: 'center' };
-        colIndex++;
-      }
-      if (fieldsUsed.lot) {
-        headers.push('LOT');
-        columnStyles[colIndex] = { cellWidth: 13.5, halign: 'center' };
-        colIndex++;
-      }
-      if (fieldsUsed.emetteur) {
-        headers.push('ÉMETTEUR');
-        columnStyles[colIndex] = { cellWidth: 25, halign: 'center' };
-        colIndex++;
-      }
-      if (fieldsUsed.nature) {
-        headers.push('NATURE');
-        columnStyles[colIndex] = { cellWidth: 20, halign: 'center' };
-        colIndex++;
-      }
-
-      headers.push('N° DOC');
-      columnStyles[colIndex] = { cellWidth: 15, halign: 'center' };
-      colIndex++;
-
-      if (fieldsUsed.etat) {
-        headers.push('ETAT');
-        columnStyles[colIndex] = { cellWidth: 15, halign: 'center' };
-        colIndex++;
-      }
-      if (fieldsUsed.zone) {
-        headers.push('ZONE');
-        columnStyles[colIndex] = { cellWidth: 15, halign: 'center' };
-        colIndex++;
-      }
-      if (fieldsUsed.niveauCoupe) {
-        headers.push('NIVEAU');
-        columnStyles[colIndex] = { cellWidth: 15, halign: 'center' };
-        colIndex++;
-      }
-
-      headers.push('FORMAT', 'INDICE', 'DESCRIPTION DU DOC', 'NOM DU FICHIER');
-      columnStyles[colIndex] = { cellWidth: 15, halign: 'center' };
-      columnStyles[colIndex + 1] = { cellWidth: 13, halign: 'center' };
-      columnStyles[colIndex + 2] = { cellWidth: 'auto' };
-      columnStyles[colIndex + 3] = { cellWidth: 'auto' };
+      });
 
       // Préparer les données du tableau
       let tableData = [];
@@ -1261,21 +1707,9 @@ export default function DocumentListingApp() {
           // Ajouter les documents de cette catégorie
           const docsOfCategory = documentsToExport.filter(doc => doc.nature === category);
           docsOfCategory.forEach((doc, index) => {
-            const rowData = [];
-
-            if (fieldsUsed.affaire) rowData.push(doc.affaire || '');
-            if (fieldsUsed.phase) rowData.push(doc.phase || '');
-            if (fieldsUsed.lot) rowData.push(doc.lot || '');
-            if (fieldsUsed.emetteur) rowData.push(doc.emetteur || '');
-            if (fieldsUsed.nature) rowData.push(doc.nature || '');
-
-            rowData.push(doc.numero);
-
-            if (fieldsUsed.etat) rowData.push(doc.etat || '');
-            if (fieldsUsed.zone) rowData.push(doc.zone || '');
-            if (fieldsUsed.niveauCoupe) rowData.push(doc.niveauCoupe || '');
-
-            rowData.push(doc.format || '', doc.indice || 'A', doc.nom, doc.nomComplet);
+            // Utiliser le template pour obtenir les valeurs dans l'ordre
+            // Les champs système sont déjà gérés dans exportHeaders
+            const rowData = exportHeaders.map(header => doc[header.field] || '');
 
             tableData.push({
               rowData,
@@ -1288,21 +1722,9 @@ export default function DocumentListingApp() {
       } else {
         // Sans catégories
         tableData = documentsToExport.map((doc, index) => {
-          const rowData = [];
-
-          if (fieldsUsed.affaire) rowData.push(doc.affaire || '');
-          if (fieldsUsed.phase) rowData.push(doc.phase || '');
-          if (fieldsUsed.lot) rowData.push(doc.lot || '');
-          if (fieldsUsed.emetteur) rowData.push(doc.emetteur || '');
-          if (fieldsUsed.nature) rowData.push(doc.nature || '');
-
-          rowData.push(doc.numero);
-
-          if (fieldsUsed.etat) rowData.push(doc.etat || '');
-          if (fieldsUsed.zone) rowData.push(doc.zone || '');
-          if (fieldsUsed.niveauCoupe) rowData.push(doc.niveauCoupe || '');
-
-          rowData.push(doc.format || '', doc.indice || 'A', doc.nom, doc.nomComplet);
+          // Utiliser le template pour obtenir les valeurs dans l'ordre
+          // Les champs système sont déjà gérés dans exportHeaders
+          const rowData = exportHeaders.map(header => doc[header.field] || '');
 
           return { rowData, nature: doc.nature, isCategory: false };
         });
@@ -1381,21 +1803,20 @@ export default function DocumentListingApp() {
     }
   };
 
-  // Gestion du drag & drop des catégories
-  const handleCategoryDragStart = (e, categoryCode) => {
-    setDraggedCategory(categoryCode);
-    e.dataTransfer.effectAllowed = 'move';
+  // Handlers pour le drag and drop des catégories avec dnd-kit
+  const handleCategoryDragStart = (event) => {
+    const categoryCode = event.active.id.replace('category-', '');
+    setActiveCategoryId(categoryCode);
   };
 
-  const handleCategoryDragOver = (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
+  const handleCategoryDragEnd = (event) => {
+    const { active, over } = event;
+    setActiveCategoryId(null);
 
-  const handleCategoryDrop = (e, targetCategory) => {
-    e.preventDefault();
+    if (!over || active.id === over.id) return;
 
-    if (!draggedCategory || draggedCategory === targetCategory) return;
+    const draggedCategory = active.id.replace('category-', '');
+    const targetCategory = over.id.replace('category-', '');
 
     // Obtenir les catégories uniques dans l'ordre d'apparition actuel
     const categoriesPresentes = [];
@@ -1405,39 +1826,38 @@ export default function DocumentListingApp() {
       }
     });
 
-    // Trouver les positions
-    const draggedIndex = categoriesPresentes.indexOf(draggedCategory);
-    const targetIndex = categoriesPresentes.indexOf(targetCategory);
+    const oldIndex = categoriesPresentes.indexOf(draggedCategory);
+    const newIndex = categoriesPresentes.indexOf(targetCategory);
+
+    if (oldIndex === -1 || newIndex === -1) return;
 
     // Réorganiser l'ordre des catégories
-    categoriesPresentes.splice(draggedIndex, 1);
-    categoriesPresentes.splice(targetIndex, 0, draggedCategory);
+    const reorderedCategories = arrayMove(categoriesPresentes, oldIndex, newIndex);
 
     // Réorganiser les documents selon le nouvel ordre des catégories
     const newDocuments = [];
-    categoriesPresentes.forEach(natureCode => {
+    reorderedCategories.forEach(natureCode => {
       const docsOfType = documents.filter(d => d.nature === natureCode);
       newDocuments.push(...docsOfType);
     });
 
     // Renuméroter avec le nouvel ordre
     setDocuments(renumeroteDocuments(newDocuments));
-    setDraggedCategory(null);
     showNotification('Ordre des catégories modifié et documents renumérotés', 'success');
   };
 
-  const handleCategoryDragEnd = () => {
-    setDraggedCategory(null);
-  };
-
   const forcerRenumerationParCategorie = () => {
+    setModeNumerotation('categorie');
     if (documents.length > 0) {
       setDocuments(renumeroteDocuments(documents));
-      showNotification('Numérotation par catégorie mise à jour avec succès', 'success');
+      showNotification('Mode numérotation par catégorie activé', 'success');
+    } else {
+      showNotification('Mode numérotation par catégorie activé', 'success');
     }
   };
 
   const forcerRenumerationGenerale = () => {
+    setModeNumerotation('generale');
     if (documents.length > 0) {
       let numeroGlobal = 1;
       const renumbered = [];
@@ -1465,25 +1885,63 @@ export default function DocumentListingApp() {
       });
 
       setDocuments(renumbered);
-      showNotification('Numérotation générale mise à jour avec succès', 'success');
+      showNotification('Mode numérotation générale activé', 'success');
+    } else {
+      showNotification('Mode numérotation générale activé', 'success');
     }
   };
 
   const genererArborescence = () => {
-    const grouped = documents.reduce((acc, doc) => {
+    const sectionLayout = getSectionLayout(documents);
+    const docsByNature = documents.reduce((acc, doc) => {
+      if (!doc?.nature) return acc;
       if (!acc[doc.nature]) acc[doc.nature] = [];
       acc[doc.nature].push(doc);
       return acc;
     }, {});
 
-    let arbo = `B - PIECES GRAPHIQUES\\\n`;
+    const lines = [];
 
-    Object.keys(grouped).sort().forEach(nature => {
-      arbo += `├── ${nature}\\\n`;
-      grouped[nature].forEach(doc => {
-        arbo += `│   └── ${doc.nomComplet}\n`;
+    ARBO_ROOTS_ORDER.forEach((root) => {
+      const sectionsForRoot = sectionLayout.filter(section => section.root === root);
+      if (sectionsForRoot.length === 0) {
+        return;
+      }
+
+      if (lines.length > 0) {
+        lines.push('');
+      }
+      lines.push(root);
+
+      sectionsForRoot.forEach((section) => {
+        lines.push(`|-- ${section.sectionCode} - ${section.label}`);
+
+        const docsForSection = docsByNature[section.nature];
+        if (!docsForSection || docsForSection.length === 0) {
+          return;
+        }
+
+        const sortedDocs = [...docsForSection].sort((a, b) => {
+          const numeroA = (a.numero || '').toString();
+          const numeroB = (b.numero || '').toString();
+          return numeroA.localeCompare(numeroB, 'fr', { numeric: true, sensitivity: 'base' });
+        });
+
+        sortedDocs.forEach((doc, index) => {
+          const docIndex = `${section.sectionCode}.${String(index + 1).padStart(2, '0')}`;
+          const parts = [docIndex];
+          const numero = (doc.numero || '').toString().trim();
+          if (numero) {
+            parts.push(numero);
+          }
+          const docLabel = (doc.nom && doc.nom.trim() !== '') ? doc.nom : (doc.nomComplet || 'SANS NOM');
+          parts.push(docLabel);
+          lines.push(`|   |-- ${parts.join(' - ')}`);
+        });
       });
     });
+
+    const arbo = lines.join('\n') || 'Aucune donnée disponible';
 
     // Copier dans le presse-papier
     navigator.clipboard.writeText(arbo).then(() => {
@@ -1508,41 +1966,91 @@ export default function DocumentListingApp() {
       showNotification('Création de l\'arborescence en cours...', 'info');
 
       // Grouper les documents par nature
-      const grouped = documents.reduce((acc, doc) => {
+     const sectionLayout = getSectionLayout(documents);
+
+      const rootHandles = new Map();
+      for (const root of ARBO_ROOTS_ORDER) {
+        const hasSection = sectionLayout.some(section => section.root === root);
+        if (!hasSection) continue;
+        const rootHandle = await directoryHandle.getDirectoryHandle(root, { create: true });
+        rootHandles.set(root, rootHandle);
+      }
+
+      const sectionHandles = new Map();
+      for (const section of sectionLayout) {
+        const rootHandle = rootHandles.get(section.root);
+        if (!rootHandle) continue;
+        const sectionDirName = `${section.sectionCode} - ${section.label}`;
+        const sectionHandle = await rootHandle.getDirectoryHandle(sectionDirName, { create: true });
+        sectionHandles.set(section.nature, sectionHandle);
+      }
+
+      const docsByNature = documents.reduce((acc, doc) => {
+        if (!doc?.nature) return acc;
         if (!acc[doc.nature]) acc[doc.nature] = [];
         acc[doc.nature].push(doc);
         return acc;
       }, {});
 
-      // Créer la structure de base
-      const piecesEcrites = await directoryHandle.getDirectoryHandle('A - PIECES ECRITES', { create: true });
-      const noticeDir = await piecesEcrites.getDirectoryHandle('NOTICE', { create: true });
+      for (const section of sectionLayout) {
+        const sectionHandle = sectionHandles.get(section.nature);
+        if (!sectionHandle) continue;
 
-      const piecesGraphiques = await directoryHandle.getDirectoryHandle('B - PIECES GRAPHIQUES', { create: true });
-      const listingDir = await piecesGraphiques.getDirectoryHandle('00 - LISTING', { create: true });
-      await piecesGraphiques.getDirectoryHandle('01 - BPU', { create: true });
-      const ndcDir = await piecesGraphiques.getDirectoryHandle('02 - NDC', { create: true });
-      const synoDir = await piecesGraphiques.getDirectoryHandle('03 - SYNO', { create: true });
-      const schDir = await piecesGraphiques.getDirectoryHandle('04 - SCH', { create: true });
-      const plnDir = await piecesGraphiques.getDirectoryHandle('05 - PLAN', { create: true });
+        const docsForSection = docsByNature[section.nature];
+        if (!docsForSection || docsForSection.length === 0) {
+          continue;
+        }
 
-      // Mapping des natures vers les handles de dossiers
-      const natureDirs = {
-        'NOT': noticeDir,
-        'LST': listingDir,
-        'NDC': ndcDir,
-        'SYN': synoDir,
-        'SCH': schDir,
-        'PLN': plnDir
-      };
+        const sortedDocs = [...docsForSection].sort((a, b) => {
+          const numeroA = (a.numero || '').toString();
+          const numeroB = (b.numero || '').toString();
+          return numeroA.localeCompare(numeroB, 'fr', { numeric: true, sensitivity: 'base' });
+        });
 
-      // Créer les dossiers pour chaque document
-      for (const natureCode of Object.keys(grouped)) {
-        const parentDir = natureDirs[natureCode];
-        if (parentDir) {
-          for (const doc of grouped[natureCode]) {
-            const nomDossier = `${doc.numero} - ${doc.nom}`;
-            await parentDir.getDirectoryHandle(nomDossier, { create: true });
+        for (let index = 0; index < sortedDocs.length; index++) {
+          const doc = sortedDocs[index];
+          const docIndex = `${section.sectionCode}.${String(index + 1).padStart(2, '0')}`;
+          const numero = sanitizeForFilesystem((doc.numero || '').toString());
+          const rawName = (doc.nom && doc.nom.trim() !== '') ? doc.nom : (doc.nomComplet || 'SANS NOM');
+          const sanitizedName = sanitizeForFilesystem(rawName) || 'SANS NOM';
+          const folderParts = [docIndex];
+          if (numero) {
+            folderParts.push(numero);
+          }
+          folderParts.push(sanitizedName);
+          const folderName = folderParts.join(' - ');
+
+          const docDir = await sectionHandle.getDirectoryHandle(folderName, { create: true });
+
+          const safeNameBase = (doc.nomComplet && doc.nomComplet.trim() !== '') ? doc.nomComplet : folderName;
+          const safeFileName = `${sanitizeForFilesystem(safeNameBase) || 'document'}.txt`;
+          const displayName = safeNameBase;
+
+          try {
+            await docDir.getFileHandle(safeFileName, { create: false });
+            showNotification(`Fichier déjà présent pour ${displayName} (aucune écriture)`, 'warning');
+          } catch (fileError) {
+            if (fileError.name === 'NotFoundError') {
+              try {
+                const fileHandle = await docDir.getFileHandle(safeFileName, { create: true });
+                const writable = await fileHandle.createWritable();
+                const contentLines = [
+                  `DOSSIER : ${folderName}`,
+                  `NOM COMPLET : ${doc.nomComplet || 'Non renseigné'}`,
+                  `NATURE : ${doc.nature || 'Non renseigné'}`,
+                  `INDICE : ${doc.indice || 'Non renseigné'}`,
+                  `FORMAT : ${doc.format || 'Non renseigné'}`,
+                  `PHASE : ${doc.phase || 'Non renseignée'}`,
+                  `AFFAIRE : ${doc.affaire || 'Non renseignée'}`
+                ];
+                await writable.write(contentLines.join('\n'));
+                await writable.close();
+              } catch (writeError) {
+                showNotification(`Impossible d'écrire le fichier pour ${displayName} : ${writeError.message}`, 'error');
+              }
+            } else {
+              showNotification(`Impossible de vérifier le fichier pour ${displayName} : ${fileError.message}`, 'error');
+            }
           }
         }
       }
@@ -1682,6 +2190,205 @@ export default function DocumentListingApp() {
     }
   };
 
+  // Exporter le listing complet (documents + données annexes)
+  const exporterListingComplet = () => {
+    try {
+      const listingData = {
+        version: '1.0',
+        exportDate: new Date().toISOString(),
+        documents: documents,
+        affaire: affaire,
+        categoriesOrder: categoriesOrder,
+        affairesList: affairesList,
+        fieldsHistory: fieldsHistory,
+        settings: {
+          modeNumerotation: modeNumerotation
+        }
+      };
+
+      const dataStr = JSON.stringify(listingData, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `listing_${affaire || 'export'}_${Date.now()}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      showNotification('Listing exporté avec succès !', 'success');
+    } catch (error) {
+      console.error('Erreur lors de l\'export du listing:', error);
+      showNotification('Erreur lors de l\'export du listing', 'error');
+    }
+  };
+
+  // Importer un listing complet
+  const importerListingComplet = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const listingData = JSON.parse(text);
+
+        // Vérifier la version et la structure
+        if (!listingData.documents || !Array.isArray(listingData.documents)) {
+          throw new Error('Format de listing invalide');
+        }
+
+        // Demander à l'utilisateur : fusion ou remplacement
+        const action = confirm(
+          `Voulez-vous FUSIONNER ce listing avec vos documents actuels ?\n\n` +
+          `- OUI : Ajouter les ${listingData.documents.length} documents à la liste actuelle (${documents.length} documents)\n` +
+          `- NON : Remplacer complètement la liste actuelle\n\n` +
+          `Affaire importée : ${listingData.affaire || 'Non spécifiée'}`
+        );
+
+        if (action) {
+          // FUSION : Ajouter les documents importés aux documents existants
+          const fusionDocs = [...documents, ...listingData.documents];
+          setDocuments(fusionDocs);
+
+          // Fusionner les affaires
+          if (listingData.affairesList && Array.isArray(listingData.affairesList)) {
+            const fusionAffaires = [...new Set([...affairesList, ...listingData.affairesList])];
+            fusionAffaires.sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
+            setAffairesList(fusionAffaires);
+            setFilteredAffaires(fusionAffaires);
+            localStorage.setItem('affairesCSV', fusionAffaires.join('\n'));
+          }
+
+          // Fusionner l'historique des champs
+          if (listingData.fieldsHistory) {
+            const fusionHistory = { ...fieldsHistory };
+            Object.keys(listingData.fieldsHistory).forEach(affaireName => {
+              if (!fusionHistory[affaireName]) {
+                fusionHistory[affaireName] = {};
+              }
+              Object.keys(listingData.fieldsHistory[affaireName]).forEach(fieldName => {
+                if (!fusionHistory[affaireName][fieldName]) {
+                  fusionHistory[affaireName][fieldName] = [];
+                }
+                // Fusionner les valeurs sans doublons
+                const existingValues = fusionHistory[affaireName][fieldName];
+                const newValues = listingData.fieldsHistory[affaireName][fieldName];
+                fusionHistory[affaireName][fieldName] = [...new Set([...existingValues, ...newValues])];
+              });
+            });
+            sauvegarderFieldsHistory(fusionHistory);
+          }
+
+          showNotification(`${listingData.documents.length} documents ajoutés avec succès ! (Total : ${fusionDocs.length})`, 'success');
+        } else {
+          // REMPLACEMENT : Remplacer complètement
+          setDocuments(listingData.documents);
+
+          if (listingData.affaire) {
+            setAffaire(listingData.affaire);
+          }
+
+          if (listingData.categoriesOrder && Array.isArray(listingData.categoriesOrder)) {
+            setCategoriesOrder(listingData.categoriesOrder);
+          }
+
+          if (listingData.affairesList && Array.isArray(listingData.affairesList)) {
+            const affaires = listingData.affairesList;
+            affaires.sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
+            setAffairesList(affaires);
+            setFilteredAffaires(affaires);
+            localStorage.setItem('affairesCSV', affaires.join('\n'));
+          }
+
+          if (listingData.settings) {
+            if (listingData.settings.modeNumerotation !== undefined) {
+              setModeNumerotation(listingData.settings.modeNumerotation);
+            } else if (listingData.settings.useRanges !== undefined) {
+              // Rétro-compatibilité avec l'ancien système useRanges
+              setModeNumerotation('categorie');
+            }
+          }
+
+          // Charger l'historique des champs
+          if (listingData.fieldsHistory) {
+            sauvegarderFieldsHistory(listingData.fieldsHistory);
+          }
+
+          showNotification(`Listing importé avec succès ! (${listingData.documents.length} documents)`, 'success');
+        }
+      } catch (error) {
+        console.error('Erreur lors de l\'import du listing:', error);
+        showNotification('Erreur lors de l\'import : fichier invalide', 'error');
+      }
+    };
+    input.click();
+  };
+
+  // Charger l'historique des champs depuis localStorage
+  const chargerFieldsHistory = () => {
+    try {
+      const saved = localStorage.getItem('listx-fields-history');
+      if (saved) {
+        setFieldsHistory(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.error('Erreur chargement historique:', error);
+    }
+  };
+
+  // Sauvegarder l'historique des champs dans localStorage
+  const sauvegarderFieldsHistory = (history) => {
+    try {
+      localStorage.setItem('listx-fields-history', JSON.stringify(history));
+      setFieldsHistory(history);
+    } catch (error) {
+      console.error('Erreur sauvegarde historique:', error);
+    }
+  };
+
+  // Ajouter une valeur à l'historique d'un champ pour une affaire donnée
+  const ajouterValeurHistorique = (affaireName, fieldName, value) => {
+    if (!affaireName || !fieldName || !value || value.trim() === '') return;
+
+    const history = { ...fieldsHistory };
+
+    // Créer la structure si elle n'existe pas
+    if (!history[affaireName]) {
+      history[affaireName] = {};
+    }
+    if (!history[affaireName][fieldName]) {
+      history[affaireName][fieldName] = [];
+    }
+
+    // Ajouter la valeur si elle n'existe pas déjà
+    const upperValue = value.toUpperCase();
+    if (!history[affaireName][fieldName].includes(upperValue)) {
+      history[affaireName][fieldName].push(upperValue);
+      // Limiter à 20 valeurs max par champ
+      if (history[affaireName][fieldName].length > 20) {
+        history[affaireName][fieldName].shift();
+      }
+      sauvegarderFieldsHistory(history);
+    }
+  };
+
+  // Obtenir les suggestions pour un champ et une affaire
+  const getSuggestionsForField = (affaireName, fieldName) => {
+    if (!affaireName || !fieldName || !fieldsHistory[affaireName]) {
+      return [];
+    }
+    return fieldsHistory[affaireName][fieldName] || [];
+  };
+
+  useEffect(() => {
+    if (!templateHasEtatField && etat) {
+      setEtat('');
+    }
+  }, [templateHasEtatField, etat]);
+
   // useEffect pour charger les données au démarrage
   useEffect(() => {
     const loadData = async () => {
@@ -1700,11 +2407,19 @@ export default function DocumentListingApp() {
       }
 
       if (data.settings) {
-        setUseRanges(data.settings.useRanges !== undefined ? data.settings.useRanges : true);
+        if (data.settings.modeNumerotation !== undefined) {
+          setModeNumerotation(data.settings.modeNumerotation);
+        } else if (data.settings.useRanges !== undefined) {
+          // Rétro-compatibilité avec l'ancien système useRanges
+          setModeNumerotation('categorie');
+        }
         if (data.settings.categoriesOrder) {
           setCategoriesOrder(data.settings.categoriesOrder);
         }
       }
+
+      // Charger l'historique des champs
+      chargerFieldsHistory();
     };
 
     loadData();
@@ -1719,6 +2434,38 @@ export default function DocumentListingApp() {
     }
   }, []);
 
+  // useEffect pour initialiser les champs personnalisés quand le template change
+  useEffect(() => {
+    if (currentTemplate && currentTemplate.customFields) {
+      const initialCustomValues = {};
+      currentTemplate.customFields.forEach(field => {
+        if (!customFieldsValues[field.id]) {
+          initialCustomValues[field.id] = '';
+        }
+      });
+      if (Object.keys(initialCustomValues).length > 0) {
+        setCustomFieldsValues(prev => ({ ...prev, ...initialCustomValues }));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTemplate]);
+
+  // useEffect pour mettre à jour les noms de documents quand le template change
+  useEffect(() => {
+    if (currentTemplate && documents.length > 0) {
+      const updatedDocs = documents.map(doc => ({
+        ...doc,
+        nomComplet: genererNomComplet(doc, doc.numero)
+      }));
+      // Vérifier si les noms ont vraiment changé avant de mettre à jour
+      const hasChanged = updatedDocs.some((doc, index) => doc.nomComplet !== documents[index].nomComplet);
+      if (hasChanged) {
+        setDocuments(updatedDocs);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTemplate]);
+
   // useEffect pour sauvegarder automatiquement les documents
   useEffect(() => {
     if (affaire && documents.length > 0) {
@@ -1727,7 +2474,7 @@ export default function DocumentListingApp() {
       if (!data.affaires) data.affaires = {};
       data.affaires[affaire] = documents;
       data.lastAffaire = affaire;
-      data.settings = { useRanges, categoriesOrder };
+      data.settings = { modeNumerotation, categoriesOrder };
 
       localStorage.setItem('affairesData', JSON.stringify(data));
       localStorage.setItem('lastAffaire', affaire);
@@ -1740,9 +2487,9 @@ export default function DocumentListingApp() {
   // useEffect pour sauvegarder les paramètres
   useEffect(() => {
     const data = JSON.parse(localStorage.getItem('affairesData') || '{}');
-    data.settings = { useRanges, categoriesOrder };
+    data.settings = { modeNumerotation, categoriesOrder };
     localStorage.setItem('affairesData', JSON.stringify(data));
-  }, [useRanges, categoriesOrder]);
+  }, [modeNumerotation, categoriesOrder]);
 
   // Grouper documents par nature pour affichage
   const documentsGroupes = documents.reduce((acc, doc) => {
@@ -1879,6 +2626,38 @@ export default function DocumentListingApp() {
                 />
               </div>
 
+              {/* Date et Indice */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Date */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={exportDateListe}
+                    onChange={(e) => setExportDateListe(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+
+                {/* Indice */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Indice
+                  </label>
+                  <input
+                    type="text"
+                    value={exportIndiceListe}
+                    onChange={(e) => setExportIndiceListe(e.target.value.toUpperCase())}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder="Ex: A"
+                    maxLength="3"
+                    style={{ textTransform: 'uppercase' }}
+                  />
+                </div>
+              </div>
+
               {/* Logos */}
               <div className="grid grid-cols-2 gap-4">
                 {/* Logo Client */}
@@ -1970,205 +2749,132 @@ export default function DocumentListingApp() {
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Ajouter un document</h2>
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h2 className="text-xl font-semibold">Ajouter un document</h2>
+              {currentTemplate && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Template actif : <span className="font-medium text-blue-600">{currentTemplate.name}</span>
+                </p>
+              )}
+            </div>
+            <button
+              onClick={() => setShowFieldSettings(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              title="Paramètres des champs"
+            >
+              <Settings size={18} />
+              <span>Paramètres</span>
+            </button>
+          </div>
 
           <div className="space-y-3">
-            {/* Ligne 1 : Tous les champs sur une seule ligne */}
-            <div className="flex gap-2 items-end">
-              {/* Affaire */}
-              <div className="relative" style={{minWidth: '120px'}}>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Affaire *</label>
-                <div className="flex gap-1">
+            {/* Formulaire dynamique basé sur le template - utilise la fusion des zones 2 et 3 */}
+            {currentTemplate && (
+              <>
+                <div className="flex gap-2 items-end flex-wrap">
+                  {formFieldsOrder.filter(f => {
+                    // Exclure NOM et les champs système (DESCRIPTION, NOM_FICHIER)
+                    if (f === 'NOM' || f === 'DESCRIPTION' || f === 'NOM_FICHIER') return false;
+
+                    // Tous les champs retournés par mergeFormFieldsOrder doivent être affichés
+                    // (cette fonction retourne déjà la fusion des zones 2 et 3, sans les champs système)
+                    return true;
+                  }).map((fieldName) => {
+                    const fieldNameLower = fieldName.toLowerCase();
+
+                    // Chercher le label dans fieldsLabels, sinon dans customFields
+                    let label = currentTemplate.fieldsLabels[fieldName];
+                    if (!label && currentTemplate.customFields) {
+                      const customField = currentTemplate.customFields.find(cf => cf.id === fieldName);
+                      if (customField) {
+                        label = customField.label;
+                      }
+                    }
+                    label = label || fieldName;
+
+                    // Utiliser le setter existant ou créer un setter générique pour les champs custom
+                    const setter = fieldSetters[fieldNameLower] || createCustomFieldSetter(fieldName);
+
+                    return (
+                      <DynamicFormField
+                        key={fieldName}
+                        fieldName={fieldName}
+                        label={label}
+                        value={fieldValues[fieldNameLower] || ''}
+                        onChange={setter}
+                        onKeyPress={(e) => e.key === 'Enter' && ajouterDocument()}
+                        error={fieldErrors[fieldNameLower]}
+                        // Props spécifiques pour Affaire
+                        affairesList={affairesList}
+                        filteredAffaires={filteredAffaires}
+                        showAutocomplete={showAutocomplete}
+                        onAffaireFocus={() => {
+                          if (affaire.length > 0) {
+                            setShowAutocomplete(true);
+                          }
+                        }}
+                        onAffaireBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
+                        onAffaireSelect={chargerAffaire}
+                        affaireExiste={affaireExiste()}
+                        onAddAffaire={ajouterNouvelleAffaire}
+                        // Props pour l'historique des champs
+                        fieldHistory={getSuggestionsForField(affaire, fieldName)}
+                        currentAffaire={affaire}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* Description du document (toujours affiché) */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Description du document *</label>
                   <input
                     type="text"
-                    value={affaire}
-                    onChange={(e) => handleAffaireChange(e.target.value)}
-                    onFocus={() => {
-                      if (affaire.length > 0) {
-                        setShowAutocomplete(true);
-                      }
+                    value={nom}
+                    onChange={(e) => {
+                      setNom(e.target.value.toUpperCase());
+                      if (fieldErrors.nom) setFieldErrors(prev => ({ ...prev, nom: false }));
                     }}
-                    onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
-                    className={`w-full px-2 py-1.5 border rounded text-xs ${fieldErrors.affaire ? 'border-red-500' : 'border-gray-300'}`}
-                    placeholder="AFFAIRE"
+                    className={`w-full px-2 py-1.5 border rounded text-sm ${fieldErrors.nom ? 'border-red-500' : 'border-gray-300'}`}
+                    placeholder="ex: BILAN DE PUISSANCE"
+                    onKeyPress={(e) => e.key === 'Enter' && ajouterDocument()}
                   />
-                  {affaire && !affaireExiste() && (
-                    <button
-                      onClick={ajouterNouvelleAffaire}
-                      className="bg-green-600 text-white px-1.5 py-1.5 rounded hover:bg-green-700 flex items-center justify-center shrink-0"
-                      title="Ajouter cette nouvelle affaire"
-                    >
-                      <Plus size={14} />
-                    </button>
-                  )}
                 </div>
-                {showAutocomplete && filteredAffaires.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-                    {filteredAffaires.map((aff, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => chargerAffaire(aff)}
-                        className="w-full text-left px-2 py-1.5 hover:bg-gray-100 border-b border-gray-100 last:border-b-0 text-xs"
-                      >
-                        {aff}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Phase */}
-              <div style={{minWidth: '70px'}}>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Phase *</label>
-                <select
-                  value={phase}
-                  onChange={(e) => {
-                    setPhase(e.target.value);
-                    if (fieldErrors.phase) setFieldErrors(prev => ({ ...prev, phase: false }));
-                  }}
-                  className={`w-full px-1 py-1.5 border rounded text-xs ${fieldErrors.phase ? 'border-red-500' : 'border-gray-300'}`}
-                >
-                  {phases.map(p => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Lot */}
-              <div style={{minWidth: '70px'}}>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Lot</label>
-                <input
-                  type="text"
-                  value={lot}
-                  onChange={(e) => setLot(e.target.value.toUpperCase())}
-                  maxLength={5}
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs"
-                  placeholder="LOT1"
-                />
-              </div>
-
-              {/* Émetteur */}
-              <div style={{minWidth: '70px'}}>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Émetteur</label>
-                <input
-                  type="text"
-                  value={emetteur}
-                  onChange={(e) => setEmetteur(e.target.value.toUpperCase())}
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs"
-                  placeholder="CEAI"
-                />
-              </div>
-
-              {/* Nature */}
-              <div style={{minWidth: '160px'}}>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Nature du doc. *</label>
-                <select
-                  value={nature}
-                  onChange={(e) => {
-                    setNature(e.target.value);
-                    if (fieldErrors.nature) setFieldErrors(prev => ({ ...prev, nature: false }));
-                  }}
-                  className={`w-full px-1 py-1.5 border rounded text-xs ${fieldErrors.nature ? 'border-red-500' : 'border-gray-300'}`}
-                >
-                  {natures.map(n => (
-                    <option key={n} value={n.code}>
-                      {n.code} - {n.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* État */}
-              <div style={{minWidth: '110px'}}>
-                <label className="block text-xs font-medium text-gray-700 mb-1">État</label>
-                <select
-                  value={etat}
-                  onChange={(e) => setEtat(e.target.value)}
-                  className="w-full px-1 py-1.5 border border-gray-300 rounded text-xs"
-                >
-                  <option value="">-</option>
-                  <option value="ACTUEL">ACTUEL</option>
-                  <option value="PROJET">PROJET</option>
-                </select>
-              </div>
-
-              {/* Zone */}
-              <div style={{minWidth: '70px'}}>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Zone</label>
-                <input
-                  type="text"
-                  value={zone}
-                  onChange={(e) => setZone(e.target.value.toUpperCase())}
-                  maxLength={5}
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs"
-                  placeholder="ZONE1"
-                />
-              </div>
-
-              {/* Niveau */}
-              <div style={{minWidth: '70px'}}>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Niveau</label>
-                <input
-                  type="text"
-                  value={niveauCoupe}
-                  onChange={(e) => setNiveauCoupe(e.target.value.toUpperCase())}
-                  maxLength={5}
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs"
-                  placeholder="R+1"
-                />
-              </div>
-
-              {/* Format */}
-              <div style={{minWidth: '60px'}}>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Format *</label>
-                <select
-                  value={format}
-                  onChange={(e) => {
-                    setFormat(e.target.value);
-                    if (fieldErrors.format) setFieldErrors(prev => ({ ...prev, format: false }));
-                  }}
-                  className={`w-full px-1 py-1.5 border rounded text-xs ${fieldErrors.format ? 'border-red-500' : 'border-gray-300'}`}
-                >
-                  <option value="">-</option>
-                  {formats.map(f => (
-                    <option key={f} value={f}>{f}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Indice */}
-              <div style={{minWidth: '40px'}}>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Indice *</label>
-                <input
-                  type="text"
-                  value={indice}
-                  onChange={(e) => {
-                    setIndice(e.target.value.toUpperCase());
-                    if (fieldErrors.indice) setFieldErrors(prev => ({ ...prev, indice: false }));
-                  }}
-                  maxLength="1"
-                  className={`w-full px-1 py-1.5 border rounded text-center text-xs ${fieldErrors.indice ? 'border-red-500' : 'border-gray-300'}`}
-                  placeholder="A"
-                />
-              </div>
-            </div>
-
-            {/* Ligne 2 : Nom du document en pleine largeur */}
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Nom du document *</label>
-              <input
-                type="text"
-                value={nom}
-                onChange={(e) => {
-                  setNom(e.target.value.toUpperCase());
-                  if (fieldErrors.nom) setFieldErrors(prev => ({ ...prev, nom: false }));
-                }}
-                className={`w-full px-2 py-1.5 border rounded text-sm ${fieldErrors.nom ? 'border-red-500' : 'border-gray-300'}`}
-                placeholder="ex: BILAN DE PUISSANCE"
-                onKeyPress={(e) => e.key === 'Enter' && ajouterDocument()}
-              />
-            </div>
+              </>
+            )}
           </div>
+
+          {/* Aperçu du nom de fichier selon le template */}
+          {(affaire || phase || nom) && currentTemplate && (
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs font-medium text-blue-800 mb-1">Aperçu du nom de fichier :</p>
+              <p className="text-sm font-mono text-blue-900 break-all">
+                {(() => {
+                  const previewDoc = {
+                    affaire: affaire || '',
+                    phase: phase || '',
+                    lot: lot || '',
+                    emetteur: emetteur || '',
+                    nature: nature || '',
+                    etat: etat || '',
+                    numero: '00',
+                    zone: zone || '',
+                    niveaucoupe: niveauCoupe || '',
+                    format: format || '',
+                    indice: indice || '',
+                    nom: nom || '',
+                    // Ajouter les champs personnalisés
+                    ...Object.keys(customFieldsValues).reduce((acc, key) => {
+                      acc[key.toLowerCase()] = customFieldsValues[key];
+                      return acc;
+                    }, {})
+                  };
+                  return generateFilename(previewDoc, currentTemplate) || '(incomplet)';
+                })()}
+              </p>
+            </div>
+          )}
 
           <button
             onClick={ajouterDocument}
@@ -2223,91 +2929,87 @@ export default function DocumentListingApp() {
                   categoriesPresentes.push(doc.nature);
                 }
               });
-              return categoriesPresentes;
-            })().map(natureCode => {
-              // Calculer les catégories pour obtenir la couleur
-              const categoriesPresentes = [];
-              documents.forEach(doc => {
-                if (!categoriesPresentes.includes(doc.nature)) {
-                  categoriesPresentes.push(doc.nature);
-                }
-              });
-              const categoryColor = getCategoryColor(natureCode, categoriesPresentes);
 
               return (
-              <div key={natureCode} className="mb-6">
-                <h3
-                  draggable
-                  onDragStart={(e) => handleCategoryDragStart(e, natureCode)}
-                  onDragOver={handleCategoryDragOver}
-                  onDrop={(e) => handleCategoryDrop(e, natureCode)}
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleCategoryDragStart}
                   onDragEnd={handleCategoryDragEnd}
-                  className={`font-semibold text-lg mb-2 ${categoryColor.tailwindText} ${categoryColor.tailwindBg} px-3 py-2 rounded cursor-move hover:opacity-90 transition-all flex items-center gap-2 ${
-                    draggedCategory === natureCode ? 'opacity-50' : ''
-                  }`}
                 >
-                  <GripVertical size={20} className="text-gray-400" />
-                  {natureCode} - {natures.find(n => n.code === natureCode)?.label}
-                </h3>
-                <div className="space-y-1">
-                  {documentsGroupes[natureCode].map(doc => (
-                    <div
-                      key={doc.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, doc)}
-                      onDragOver={(e) => handleDragOver(e, doc)}
-                      onDragLeave={handleDragLeave}
-                      onDrop={(e) => handleDrop(e, doc)}
-                      onDragEnd={handleDragEnd}
-                      className={`flex items-center gap-3 p-3 border rounded-md cursor-move hover:bg-gray-50 transition-all duration-200 ${
-                        draggedItem?.id === doc.id
-                          ? 'opacity-30 bg-blue-50 scale-95'
-                          : dragOverItem?.id === doc.id
-                            ? 'border-blue-500 border-2 bg-blue-50 scale-105 shadow-lg'
-                            : 'bg-white'
-                      }`}
-                    >
-                      <GripVertical size={20} className="text-gray-400 flex-shrink-0" />
-                      <span className={`${(() => {
-                        const cats = [];
-                        documents.forEach(d => { if (!cats.includes(d.nature)) cats.push(d.nature); });
-                        return getCategoryColor(doc.nature, cats).tailwindBg;
-                      })()} ${(() => {
-                        const cats = [];
-                        documents.forEach(d => { if (!cats.includes(d.nature)) cats.push(d.nature); });
-                        return getCategoryColor(doc.nature, cats).tailwindText;
-                      })()} px-2 py-1 rounded text-xs font-medium flex-shrink-0`}>
-                        {doc.nature}
-                      </span>
-                      <span className="font-mono text-gray-600 flex-shrink-0 font-semibold">{doc.numero}</span>
-                      {doc.etat && (
-                        <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-medium flex-shrink-0">
-                          {doc.etat}
-                        </span>
-                      )}
-                      <span className="bg-gray-100 px-2 py-1 rounded text-xs flex-shrink-0">{doc.indice}</span>
-                      <span className="flex-grow">{doc.nom}</span>
-                      <span className="text-xs text-gray-400 font-mono hidden md:block">{doc.nomComplet}</span>
-                      <button
-                        onClick={() => modifierDocument(doc.id)}
-                        className="text-blue-600 hover:text-blue-800 flex-shrink-0"
-                        title="Modifier"
-                      >
-                        <Edit size={16} />
-                      </button>
-                      <button
-                        onClick={() => supprimerDocument(doc.id)}
-                        className="text-red-600 hover:text-red-800 flex-shrink-0"
-                        title="Supprimer"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-            })}
+                  <SortableContext
+                    items={categoriesPresentes.map(code => `category-${code}`)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {categoriesPresentes.map(natureCode => {
+                      const categoryColor = getCategoryColor(natureCode, categoriesPresentes);
+                      const categoryDocs = documentsGroupes[natureCode];
+
+                      return (
+                        <div key={natureCode} className="mb-6">
+                          <SortableCategory
+                            natureCode={natureCode}
+                            label={natures.find(n => n.code === natureCode)?.label}
+                            categoryColor={categoryColor}
+                            isDragging={activeCategoryId === natureCode}
+                          />
+
+                          <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            modifiers={[restrictToVerticalAxis]}
+                            onDragStart={handleDocumentDragStart}
+                            onDragEnd={handleDocumentDragEnd}
+                          >
+                            <SortableContext
+                              items={categoryDocs.map(doc => doc.id)}
+                              strategy={verticalListSortingStrategy}
+                            >
+                              <div className="space-y-1">
+                                {categoryDocs.map(doc => (
+                                  <SortableDocument
+                                    key={doc.id}
+                                    doc={doc}
+                                    categoryColor={categoryColor}
+                                    templateHasEtatField={templateHasEtatField}
+                                    onEdit={modifierDocument}
+                                    onDelete={supprimerDocument}
+                                  />
+                                ))}
+                              </div>
+                            </SortableContext>
+                            <DragOverlay>
+                              {activeDocId ? (
+                                <div className="flex items-center gap-3 p-3 border rounded-md bg-white shadow-2xl opacity-90">
+                                  <GripVertical size={20} className="text-gray-400 flex-shrink-0" />
+                                  <span className={`${categoryColor.tailwindBg} ${categoryColor.tailwindText} px-2 py-1 rounded text-xs font-medium flex-shrink-0`}>
+                                    {documents.find(d => d.id === activeDocId)?.nature}
+                                  </span>
+                                  <span className="font-mono text-gray-600 flex-shrink-0 font-semibold">
+                                    {documents.find(d => d.id === activeDocId)?.numero}
+                                  </span>
+                                  <span className="flex-grow">
+                                    {documents.find(d => d.id === activeDocId)?.nom}
+                                  </span>
+                                </div>
+                              ) : null}
+                            </DragOverlay>
+                          </DndContext>
+                        </div>
+                      );
+                    })}
+                  </SortableContext>
+                  <DragOverlay>
+                    {activeCategoryId ? (
+                      <div className="font-semibold text-lg mb-2 px-3 py-2 rounded bg-blue-100 text-blue-800 opacity-90 shadow-2xl flex items-center gap-2">
+                        <GripVertical size={20} className="text-gray-400" />
+                        {activeCategoryId} - {natures.find(n => n.code === activeCategoryId)?.label}
+                      </div>
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
+              );
+            })()}
             </div>
 
             {/* Barre d'actions verticale */}
@@ -2321,19 +3023,21 @@ export default function DocumentListingApp() {
                 <div className="flex gap-2">
                   <button
                     onClick={forcerRenumerationParCategorie}
-                    className="group relative bg-gradient-to-br from-blue-600 to-blue-700 text-white flex-1 aspect-square rounded-lg hover:from-blue-700 hover:to-blue-800 shadow-md hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center gap-1 overflow-hidden"
-                    title="Renuméroter par catégorie"
+                    className={`group relative ${modeNumerotation === 'categorie' ? 'bg-gradient-to-br from-blue-700 to-blue-800 ring-4 ring-blue-300' : 'bg-gradient-to-br from-blue-600 to-blue-700'} text-white flex-1 aspect-square rounded-lg hover:from-blue-700 hover:to-blue-800 shadow-md hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center gap-1 overflow-hidden`}
+                    title="Numérotation par catégorie"
                   >
                     <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-black/30 to-transparent"></div>
+                    {modeNumerotation === 'categorie' && <CheckCircle size={16} className="absolute top-1 right-1 text-green-300 z-20" />}
                     <img src={numCatIcon} alt="" className="w-10 h-10 brightness-0 invert drop-shadow-lg relative z-10" />
                     <span className="font-medium text-xs relative z-10">Catégorie</span>
                   </button>
                   <button
                     onClick={forcerRenumerationGenerale}
-                    className="group relative bg-gradient-to-br from-purple-600 to-purple-700 text-white flex-1 aspect-square rounded-lg hover:from-purple-700 hover:to-purple-800 shadow-md hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center gap-1 overflow-hidden"
-                    title="Renumérotation générale"
+                    className={`group relative ${modeNumerotation === 'generale' ? 'bg-gradient-to-br from-purple-700 to-purple-800 ring-4 ring-purple-300' : 'bg-gradient-to-br from-purple-600 to-purple-700'} text-white flex-1 aspect-square rounded-lg hover:from-purple-700 hover:to-purple-800 shadow-md hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center gap-1 overflow-hidden`}
+                    title="Numérotation générale"
                   >
                     <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-black/30 to-transparent"></div>
+                    {modeNumerotation === 'generale' && <CheckCircle size={16} className="absolute top-1 right-1 text-green-300 z-20" />}
                     <img src={numGenIcon} alt="" className="w-10 h-10 brightness-0 invert drop-shadow-lg relative z-10" />
                     <span className="font-medium text-xs relative z-10">Générale</span>
                   </button>
@@ -2384,6 +3088,34 @@ export default function DocumentListingApp() {
                   <span className="font-medium text-sm relative z-10">Exporter</span>
                 </button>
               </div>
+
+              {/* Encart Listing (Import/Export complet) */}
+              <div className="bg-gradient-to-br from-purple-100 to-purple-200 p-3 rounded-lg shadow-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <ListOrdered size={24} className="text-purple-700" />
+                  <span className="font-semibold text-sm text-purple-700">Listing</span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={exporterListingComplet}
+                    className="group relative bg-gradient-to-br from-purple-600 to-purple-700 text-white flex-1 rounded-lg hover:from-purple-700 hover:to-purple-800 shadow-md hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center gap-1 overflow-hidden p-2"
+                    title="Exporter le listing complet"
+                  >
+                    <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-black/30 to-transparent"></div>
+                    <Download size={20} className="drop-shadow-lg relative z-10" />
+                    <span className="font-medium text-xs relative z-10">Export</span>
+                  </button>
+                  <button
+                    onClick={importerListingComplet}
+                    className="group relative bg-gradient-to-br from-purple-600 to-purple-700 text-white flex-1 rounded-lg hover:from-purple-700 hover:to-purple-800 shadow-md hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center gap-1 overflow-hidden p-2"
+                    title="Importer un listing"
+                  >
+                    <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-black/30 to-transparent"></div>
+                    <Upload size={20} className="drop-shadow-lg relative z-10" />
+                    <span className="font-medium text-xs relative z-10">Import</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -2395,6 +3127,11 @@ export default function DocumentListingApp() {
         <div className="absolute bottom-2 right-4 text-xs text-gray-500 select-none">
           v{appVersion}
         </div>
+      )}
+
+      {/* Modale des paramètres de champs */}
+      {showFieldSettings && (
+        <FieldSettingsModal onClose={() => setShowFieldSettings(false)} />
       )}
     </div>
   );
