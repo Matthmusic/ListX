@@ -978,18 +978,18 @@ export const FieldSettingsModal = ({ onClose }) => {
                     Nouveau template
                   </button>
                   <button
-                    onClick={handleImport}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-bold transition-colors"
-                  >
-                    <Upload className="w-4 h-4" />
-                    Importer
-                  </button>
-                  <button
                     onClick={handleExport}
                     className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-bold transition-colors"
                   >
-                    <Download className="w-4 h-4" />
+                    <Upload className="w-4 h-4" />
                     Exporter
+                  </button>
+                  <button
+                    onClick={handleImport}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-bold transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    Importer
                   </button>
                 </div>
               </div>

@@ -3097,22 +3097,22 @@ export default function DocumentListingApp() {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={exporterListingComplet}
-                    className="group relative bg-gradient-to-br from-purple-600 to-purple-700 text-white flex-1 rounded-lg hover:from-purple-700 hover:to-purple-800 shadow-md hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center gap-1 overflow-hidden p-2"
-                    title="Exporter le listing complet"
-                  >
-                    <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-black/30 to-transparent"></div>
-                    <Download size={20} className="drop-shadow-lg relative z-10" />
-                    <span className="font-medium text-xs relative z-10">Export</span>
-                  </button>
-                  <button
                     onClick={importerListingComplet}
                     className="group relative bg-gradient-to-br from-purple-600 to-purple-700 text-white flex-1 rounded-lg hover:from-purple-700 hover:to-purple-800 shadow-md hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center gap-1 overflow-hidden p-2"
                     title="Importer un listing"
                   >
                     <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-black/30 to-transparent"></div>
-                    <Upload size={20} className="drop-shadow-lg relative z-10" />
+                    <Download size={20} className="drop-shadow-lg relative z-10" />
                     <span className="font-medium text-xs relative z-10">Import</span>
+                  </button>
+                  <button
+                    onClick={exporterListingComplet}
+                    className="group relative bg-gradient-to-br from-purple-600 to-purple-700 text-white flex-1 rounded-lg hover:from-purple-700 hover:to-purple-800 shadow-md hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center gap-1 overflow-hidden p-2"
+                    title="Exporter le listing complet"
+                  >
+                    <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-black/30 to-transparent"></div>
+                    <Upload size={20} className="drop-shadow-lg relative z-10" />
+                    <span className="font-medium text-xs relative z-10">Export</span>
                   </button>
                 </div>
               </div>

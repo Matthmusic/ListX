@@ -2,6 +2,18 @@
 
 Toutes les modifications notables de ce projet seront documentées dans ce fichier.
 
+## [1.1.1] - 2025-10-29
+
+### 🔧 Améliorations
+
+- **Inversion des icônes Import/Export** : Icônes plus intuitives
+  - Import : Icône Download (⬇️) - télécharger/importer des données
+  - Export : Icône Upload (⬆️) - envoyer/exporter des données
+- **Réorganisation de l'ordre des boutons** : Import à gauche, Export à droite
+- Amélioration de la cohérence visuelle dans toute l'application
+
+---
+
 ## [1.1.0] - 2025-10-29
 
 ### ✨ Nouveautés

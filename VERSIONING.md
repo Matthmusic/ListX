@@ -4,11 +4,11 @@ Ce document décrit la convention de versioning utilisée pour ListX.
 
 ## Format de version
 
-Le format utilisé est : `MAJEUR.MINEUR.PATCH` avec possibilité d'ajout de révisions.
+Le format utilisé est : `MAJEUR.MINEUR.PATCH` (semantic versioning standard).
 
 ## Règles de versioning
 
-### 1. Correctifs de bugs minimes → **revA, revB, revC...**
+### 1. Correctifs et petites améliorations → **x.x.PATCH (+1)**
 
 **Quand l'utiliser :**
 - Bugs cosmétiques mineurs
@@ -16,20 +16,6 @@ Le format utilisé est : `MAJEUR.MINEUR.PATCH` avec possibilité d'ajout de rév
 - Petits ajustements qui n'affectent pas vraiment l'utilisation
 - Typos dans l'interface
 - Petits ajustements de performance
-
-**Exemples :**
-- `1.0.3` → `1.0.3-revA` → `1.0.3-revB`
-- `1.2.5` → `1.2.5-revA`
-
-**Cas concret :**
-- Fix d'un chemin d'icône qui ne s'affiche pas correctement → `1.0.3-revA`
-- Correction d'une couleur dans le thème → `1.0.3-revB`
-
----
-
-### 2. Petite nouvelle fonctionnalité → **x.x.PATCH (+1)**
-
-**Quand l'utiliser :**
 - Ajout d'une petite fonctionnalité
 - Amélioration mineure d'une feature existante
 - Ajout d'un nouveau paramètre/option
@@ -40,13 +26,16 @@ Le format utilisé est : `MAJEUR.MINEUR.PATCH` avec possibilité d'ajout de rév
 - `1.2.0` → `1.2.1` → `1.2.2`
 
 **Cas concret :**
-- Ajout de l'affichage de la version en bas de l'app → `1.0.4`
-- Ajout d'un bouton pour vider la liste → `1.0.5`
-- Ajout d'un raccourci clavier → `1.0.6`
+- Fix d'un chemin d'icône qui ne s'affiche pas correctement → `1.0.4`
+- Correction d'une couleur dans le thème → `1.0.5`
+- Ajout de l'affichage de la version en bas de l'app → `1.0.6`
+- Ajout d'un bouton pour vider la liste → `1.0.7`
+- Ajout d'un raccourci clavier → `1.0.8`
+- Inversion des icônes Import/Export → `1.1.1`
 
 ---
 
-### 3. Grosse nouvelle fonctionnalité → **x.MINEUR (+1).0**
+### 2. Grosse nouvelle fonctionnalité → **x.MINEUR (+1).0**
 
 **Quand l'utiliser :**
 - Ajout d'une fonctionnalité importante
@@ -67,7 +56,7 @@ Le format utilisé est : `MAJEUR.MINEUR.PATCH` avec possibilité d'ajout de rév
 
 ---
 
-### 4. Refonte complète → **MAJEUR (+1).0.0**
+### 3. Refonte complète → **MAJEUR (+1).0.0**
 
 **Quand l'utiliser :**
 - Refonte complète de l'architecture
@@ -94,19 +83,19 @@ Le format utilisé est : `MAJEUR.MINEUR.PATCH` avec possibilité d'ajout de rév
 1.0.1   → Ajout d'un filtre de recherche
 1.0.2   → Ajout de l'export en CSV
 1.0.3   → Ajout du dark mode + icône personnalisée
-1.0.3-revA → Fix de l'icône en production
-1.0.4   → Ajout de raccourcis clavier
+1.0.4   → Fix de l'icône en production
+1.0.5   → Ajout de raccourcis clavier
 1.1.0   → Ajout du système de templates (grosse feature)
-1.1.1   → Amélioration des templates
-1.1.1-revA → Correction d'un bug d'affichage
+1.1.1   → Amélioration des icônes Import/Export
+1.1.2   → Correction d'un bug d'affichage
 ```
 
 ### Exemple 2 : Avec refonte
 ```
 1.8.5   → Dernière version de la v1
 2.0.0   → Refonte complète de l'interface
-2.0.0-revA → Corrections post-refonte
-2.0.1   → Ajout d'animations
+2.0.1   → Corrections post-refonte
+2.0.2   → Ajout d'animations
 2.1.0   → Nouveau système de plugins
 3.0.0   → Migration vers nouvelle techno
 ```
@@ -117,7 +106,7 @@ Le format utilisé est : `MAJEUR.MINEUR.PATCH` avec possibilité d'ajout de rév
 
 1. **Pas de limite numérique** : On peut aller au-delà de 9 (ex: `1.0.12`, `1.15.0`)
 
-2. **Les révisions ne déclenchent pas toujours de nouvelle release** : Pour des corrections très mineures, on peut utiliser revA/revB sans forcément créer une nouvelle release GitHub si le changement est négligeable.
+2. **Semantic Versioning** : Ce système suit le standard semver (https://semver.org/) pour garantir la compatibilité avec les gestionnaires de versions et l'auto-updater.
 
 3. **Cohérence** : Toujours se référer à ce document avant de créer une nouvelle version.
 
