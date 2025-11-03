@@ -184,9 +184,10 @@ export function generateDocNumber(document, template) {
 /**
  * Obtient les en-têtes de colonnes pour l'export en fonction du template
  * @param {Object} template - Le template définissant les libellés des champs
+ * @param {Array} documents - Optionnel: Les documents à exporter pour filtrer les colonnes vides
  * @returns {Array} - Les en-têtes de colonnes avec leurs libellés personnalisés
  */
-export function getExportHeaders(template) {
+export function getExportHeaders(template, documents = null) {
   if (!template) {
     return [];
   }
@@ -232,6 +233,22 @@ export function getExportHeaders(template) {
         label: label || field,
       };
     });
+
+  // Si des documents sont fournis, filtrer les colonnes qui sont vides dans tous les documents
+  if (documents && documents.length > 0) {
+    return headers.filter(header => {
+      // Toujours garder les champs système
+      if (header.isSystem) {
+        return true;
+      }
+
+      // Vérifier si au moins un document a une valeur non vide pour ce champ
+      return documents.some(doc => {
+        const value = doc[header.field];
+        return value !== null && value !== undefined && value !== '';
+      });
+    });
+  }
 
   // Ne PAS ajouter "Nom du document" ici car il sera ajouté dans le code d'export
 

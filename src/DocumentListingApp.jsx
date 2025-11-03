@@ -752,7 +752,8 @@ export default function DocumentListingApp() {
       }
 
       // Utiliser le template pour obtenir les en-têtes et déterminer les champs utilisés
-      const exportHeaders = getExportHeaders(currentTemplate);
+      // Filtrer les colonnes vides en passant les documents
+      const exportHeaders = getExportHeaders(currentTemplate, documentsToExport);
 
       // Créer le tableau des en-têtes (libellés uniquement)
       // Les champs système (DESCRIPTION, NOM_FICHIER) sont déjà inclus dans exportHeaders
@@ -1641,7 +1642,8 @@ export default function DocumentListingApp() {
       doc.setFontSize(12);
 
       // Utiliser le template pour obtenir les en-têtes
-      const exportHeaders = getExportHeaders(currentTemplate);
+      // Filtrer les colonnes vides en passant les documents
+      const exportHeaders = getExportHeaders(currentTemplate, documentsToExport);
 
       // Construire les en-têtes de colonnes dynamiquement
       // Les champs système (DESCRIPTION, NOM_FICHIER) sont déjà inclus dans exportHeaders
@@ -1664,12 +1666,17 @@ export default function DocumentListingApp() {
           'zone': 15,
           'niveaucoupe': 15,
           'format': 15,
-          'indice': 13,
-          'nom': 'auto',          // Champ système (DESCRIPTION)
-          'nomComplet': 'auto'    // Champ système (NOM_FICHIER)
+          'indice': 13
         };
-        const width = defaultWidths[header.field] || 15;
-        columnStyles[colIndex] = { cellWidth: width, halign: 'center' };
+
+        // Pour les champs système (DESCRIPTION et NOM_FICHIER), ne pas définir de largeur fixe
+        // jsPDF-autoTable calculera automatiquement la largeur optimale
+        if (header.field === 'nom' || header.field === 'nomComplet') {
+          columnStyles[colIndex] = { halign: 'center' };
+        } else {
+          const width = defaultWidths[header.field] || 15;
+          columnStyles[colIndex] = { cellWidth: width, halign: 'center' };
+        }
         colIndex++;
       });
 
