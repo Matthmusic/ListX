@@ -42,7 +42,7 @@ export const DynamicFormField = ({
       type: 'text-with-autocomplete',
       placeholder: 'AFFAIRE',
       minWidth: '120px',
-      required: true,
+      required: false, // Champ optionnel car on travaille dans un listing spécifique
     },
     phase: {
       type: 'select',
@@ -145,18 +145,18 @@ export const DynamicFormField = ({
   if (fieldNameLower === 'affaire') {
     return (
       <div className="relative" style={{ minWidth: config.minWidth }}>
-        <label className="block text-xs font-medium text-gray-700 mb-1">
+        <label className="block text-xs font-medium text-white mb-1">
           {label} {config.required && '*'}
         </label>
         <div className="flex gap-1">
           <input
             type="text"
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e) => onChange(e.target.value.toUpperCase())}
             onFocus={onAffaireFocus}
             onBlur={onAffaireBlur}
             onKeyPress={onKeyPress}
-            className={`w-full px-2 py-1.5 border rounded text-xs ${
+            className={`w-full px-2 py-1.5 border rounded text-xs uppercase ${
               error ? 'border-red-500' : 'border-gray-300'
             }`}
             placeholder={config.placeholder}
@@ -192,7 +192,7 @@ export const DynamicFormField = ({
   if (config.type === 'select') {
     return (
       <div style={{ minWidth: config.minWidth }}>
-        <label className="block text-xs font-medium text-gray-700 mb-1">
+        <label className="block text-xs font-medium text-white mb-1">
           {label} {config.required && '*'}
         </label>
         <select
@@ -226,7 +226,7 @@ export const DynamicFormField = ({
   if (config.type === 'readonly') {
     return (
       <div style={{ minWidth: config.minWidth }}>
-        <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
+        <label className="block text-xs font-medium text-white mb-1">{label}</label>
         <input
           type="text"
           value={value}
@@ -246,16 +246,17 @@ export const DynamicFormField = ({
   };
 
   const handleFieldChange = (newValue) => {
-    onChange(newValue);
+    // Transformer en majuscules
+    const upperValue = newValue.toUpperCase();
+    onChange(upperValue);
 
     // Filtrer l'historique en fonction de la saisie
     if (currentAffaire && fieldHistory && fieldHistory.length > 0) {
-      const upperValue = newValue.toUpperCase();
       const filtered = fieldHistory.filter(item =>
         item.toUpperCase().includes(upperValue)
       );
       setFilteredHistory(filtered);
-      setShowFieldAutocomplete(filtered.length > 0 && newValue.length > 0);
+      setShowFieldAutocomplete(filtered.length > 0 && upperValue.length > 0);
     }
   };
 
@@ -274,7 +275,7 @@ export const DynamicFormField = ({
 
   return (
     <div className="relative" style={{ minWidth: config.minWidth }}>
-      <label className="block text-xs font-medium text-gray-700 mb-1">
+      <label className="block text-xs font-medium text-white mb-1">
         {label} {config.required && '*'}
       </label>
       <input
@@ -285,7 +286,7 @@ export const DynamicFormField = ({
         onBlur={handleFieldBlur}
         onKeyPress={onKeyPress}
         maxLength={config.maxLength}
-        className={`w-full px-2 py-1.5 border rounded text-xs ${
+        className={`w-full px-2 py-1.5 border rounded text-xs uppercase ${
           config.centered ? 'text-center' : ''
         } ${error ? 'border-red-500' : 'border-gray-300'}`}
         placeholder={config.placeholder}

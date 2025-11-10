@@ -1,9 +1,11 @@
 import { useState, useEffect, useContext } from 'react';
-import { Plus, Download, Trash2, FolderTree, GripVertical, X, CheckCircle, AlertCircle, Info, FileText, ListOrdered, FileDown, Edit, Settings, Upload } from 'lucide-react';
+import { Plus, Download, Trash2, FolderTree, GripVertical, X, CheckCircle, AlertCircle, Info, FileText, ListOrdered, FileDown, Edit, Settings, Upload, ListChecks } from 'lucide-react';
 import { TemplateContext } from './context/TemplateContext';
+import { useApp } from './context/AppContext';
 import { generateFilename, getExportHeaders, getDocumentValues, mergeFormFieldsOrder } from './utils/filename';
 import { FieldSettingsModal } from './components/FieldSettingsModal';
 import { DynamicFormField } from './components/DynamicFormField';
+import AffairesModal from './components/AffairesModal';
 import {
   DndContext,
   closestCenter,
@@ -77,7 +79,7 @@ function SortableDocument({ doc, categoryColor, templateHasEtatField, onEdit, on
       )}
       <span className="bg-gray-100 px-2 py-1 rounded text-xs flex-shrink-0">{doc.indice}</span>
       <span className="flex-grow">{doc.nom}</span>
-      <span className="text-xs text-gray-400 font-mono hidden md:block">{doc.nomComplet}</span>
+      <span className="text-xs text-gray-600 font-mono hidden md:block">{doc.nomComplet}</span>
       <button
         onClick={() => onEdit(doc.id)}
         className="text-blue-600 hover:text-blue-800 flex-shrink-0"
@@ -223,6 +225,7 @@ const getSectionLayout = (docs = []) => {
 export default function DocumentListingApp() {
   // Import du contexte des templates
   const { currentTemplate } = useContext(TemplateContext);
+  const { selectedClient, selectedProject, selectedListing } = useApp();
   const formFieldsOrder = currentTemplate ? mergeFormFieldsOrder(currentTemplate) : [];
   const templateHasEtatField = !currentTemplate || formFieldsOrder.includes('ETAT');
 
@@ -354,6 +357,9 @@ export default function DocumentListingApp() {
 
   // État pour la modale des paramètres de champs
   const [showFieldSettings, setShowFieldSettings] = useState(false);
+
+  // État pour la modale de gestion des affaires
+  const [showAffairesModal, setShowAffairesModal] = useState(false);
 
   const phases = ['DIAG', 'APS', 'APD', 'AVP', 'PRO', 'DCE', 'ACT', 'EXE'];
 
@@ -507,8 +513,8 @@ export default function DocumentListingApp() {
 
   const ajouterDocument = () => {
     // Validation des champs obligatoires
+    // Note: Le champ "Affaire" est maintenant optionnel car on travaille dans un listing spécifique
     const errors = {};
-    if (!affaire) errors.affaire = true;
     if (!phase) errors.phase = true;
     if (!nature) errors.nature = true;
     if (!format) errors.format = true;
@@ -517,7 +523,7 @@ export default function DocumentListingApp() {
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
-      showNotification('Veuillez renseigner tous les champs obligatoires (Affaire, Phase, Nature, Format, Indice, Nom)', 'error');
+      showNotification('Veuillez renseigner tous les champs obligatoires (Phase, Nature, Format, Indice, Nom)', 'error');
       return;
     }
 
@@ -592,6 +598,11 @@ export default function DocumentListingApp() {
 
       // Enregistrer les valeurs dans l'historique pour cette affaire
       if (affaire) {
+        // Ajouter l'affaire au CSV (autocomplete) si elle n'existe pas
+        if (!affaire.startsWith('listing_')) {
+          ajouterAffaireCSV(affaire);
+        }
+
         ajouterValeurHistorique(affaire, 'EMETTEUR', emetteur);
         ajouterValeurHistorique(affaire, 'LOT', lot);
         ajouterValeurHistorique(affaire, 'ZONE', zone);
@@ -2129,12 +2140,13 @@ export default function DocumentListingApp() {
   };
 
   const chargerAffaire = (nomAffaire) => {
-    const data = JSON.parse(localStorage.getItem('affairesData') || '{}');
-    const docs = data.affaires?.[nomAffaire] || [];
-    setDocuments(docs);
+    // Dans le contexte d'un listing, on ne charge PAS les documents d'une autre affaire
+    // On remplit juste le champ "AFFAIRE" avec la valeur sélectionnée
     setAffaire(nomAffaire);
-    localStorage.setItem('lastAffaire', nomAffaire);
     setShowAutocomplete(false);
+
+    // Note: On ne modifie PAS lastAffaire ni les documents
+    // car on travaille dans un listing spécifique avec sa propre clé (currentListingKey)
   };
 
   const nouvelleAffaire = () => {
@@ -2404,13 +2416,23 @@ export default function DocumentListingApp() {
       setAffairesList(affaires);
       setFilteredAffaires(affaires);
 
-      // Charger les données de l'affaire précédente
+      // Charger les données du listing actuel
       const data = JSON.parse(localStorage.getItem('affairesData') || '{}');
-      const lastAffaire = localStorage.getItem('lastAffaire') || '';
+      // Utiliser currentListingKey qui est la clé stable du listing
+      const listingKey = localStorage.getItem('currentListingKey') || '';
 
-      if (lastAffaire && data.affaires?.[lastAffaire]) {
-        setAffaire(lastAffaire);
-        setDocuments(data.affaires[lastAffaire]);
+      // Vérifier si c'est la première ouverture d'un nouveau listing
+      const isFirstOpen = localStorage.getItem('isFirstOpen') === 'true';
+      if (isFirstOpen) {
+        setShowFieldSettings(true);
+        // Supprimer le flag après utilisation
+        localStorage.removeItem('isFirstOpen');
+      }
+
+      // Charger les documents du listing
+      if (listingKey && data.affaires?.[listingKey]) {
+        const docs = data.affaires[listingKey];
+        setDocuments(docs);
       }
 
       if (data.settings) {
@@ -2427,6 +2449,12 @@ export default function DocumentListingApp() {
 
       // Charger l'historique des champs
       chargerFieldsHistory();
+
+      // Charger le champ d'export pré-rempli (nom de la liste uniquement)
+      const savedExportNomListe = localStorage.getItem('exportNomListe');
+      if (savedExportNomListe) {
+        setExportNomListe(savedExportNomListe);
+      }
     };
 
     loadData();
@@ -2475,21 +2503,21 @@ export default function DocumentListingApp() {
 
   // useEffect pour sauvegarder automatiquement les documents
   useEffect(() => {
-    if (affaire && documents.length > 0) {
+    // Utiliser currentListingKey (clé technique du listing) pour la sauvegarde
+    // Cette clé ne doit jamais changer, même si l'utilisateur saisit quelque chose dans "Affaire"
+    const listingKey = localStorage.getItem('currentListingKey') || '';
+
+    if (listingKey && documents.length >= 0) { // Sauvegarder même si vide (pour les suppressions)
       const data = JSON.parse(localStorage.getItem('affairesData') || '{}');
 
       if (!data.affaires) data.affaires = {};
-      data.affaires[affaire] = documents;
-      data.lastAffaire = affaire;
+      data.affaires[listingKey] = documents;
+      data.lastAffaire = listingKey; // Garder la cohérence
       data.settings = { modeNumerotation, categoriesOrder };
 
       localStorage.setItem('affairesData', JSON.stringify(data));
-      localStorage.setItem('lastAffaire', affaire);
-
-      // Ajouter l'affaire au CSV si elle n'existe pas
-      ajouterAffaireCSV(affaire);
     }
-  }, [documents]);
+  }, [documents, modeNumerotation, categoriesOrder]);
 
   // useEffect pour sauvegarder les paramètres
   useEffect(() => {
@@ -2626,7 +2654,11 @@ export default function DocumentListingApp() {
                 <input
                   type="text"
                   value={exportNomListe}
-                  onChange={(e) => setExportNomListe(e.target.value.toUpperCase())}
+                  onChange={(e) => {
+                    const value = e.target.value.toUpperCase();
+                    setExportNomListe(value);
+                    localStorage.setItem('exportNomListe', value);
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   placeholder="Ex: LISTE DES ANNEXES - PHASE DCE"
                   style={{ textTransform: 'uppercase' }}
@@ -2749,30 +2781,55 @@ export default function DocumentListingApp() {
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center gap-6 mb-6">
-          <img src={listXLogo} alt="listX Logo" className="h-20 w-auto" />
-          <h1 className="text-3xl font-bold text-white">Générateur de Listing Documents</h1>
+      <div className="max-w-7xl mx-auto">
+        {/* Header avec logo */}
+        <div className="flex items-center justify-center mb-6">
+          <img src={listXLogo} alt="ListX" className="h-20" />
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        {/* Titre principal avec bouton retour (depuis EditorWrapper) */}
+        <div id="editor-title-section" className="relative text-center mb-12">
+          {selectedClient && selectedProject && selectedListing && (
+            <p className="text-sm text-blue-300 mb-2">
+              {selectedClient.name} / {selectedProject.name}
+            </p>
+          )}
+          <h1 className="text-4xl font-bold text-white mb-3">
+            {selectedListing ? selectedListing.name : 'Générateur de Listing Documents'}
+          </h1>
+          {selectedListing && (
+            <p className="text-blue-200">Édition du listing</p>
+          )}
+        </div>
+
+        <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl shadow-lg p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
             <div>
-              <h2 className="text-xl font-semibold">Ajouter un document</h2>
+              <h2 className="text-xl font-semibold text-white">Ajouter un document</h2>
               {currentTemplate && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Template actif : <span className="font-medium text-blue-600">{currentTemplate.name}</span>
+                <p className="text-xs text-blue-200 mt-1">
+                  Template actif : <span className="font-medium text-white">{currentTemplate.name}</span>
                 </p>
               )}
             </div>
-            <button
-              onClick={() => setShowFieldSettings(true)}
-              className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              title="Paramètres des champs"
-            >
-              <Settings size={18} />
-              <span>Paramètres</span>
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowAffairesModal(true)}
+                className="flex items-center gap-2 px-3 py-2 bg-green-700 text-white rounded-md hover:bg-green-800 transition-colors"
+                title="Gérer les affaires"
+              >
+                <ListChecks size={18} />
+                <span>Affaires</span>
+              </button>
+              <button
+                onClick={() => setShowFieldSettings(true)}
+                className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                title="Paramètres des champs"
+              >
+                <Settings size={18} />
+                <span>Paramètres</span>
+              </button>
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -2835,7 +2892,7 @@ export default function DocumentListingApp() {
 
                 {/* Description du document (toujours affiché) */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Description du document *</label>
+                  <label className="block text-xs font-medium text-white mb-1">Description du document *</label>
                   <input
                     type="text"
                     value={nom}
@@ -2910,9 +2967,9 @@ export default function DocumentListingApp() {
         {documents.length > 0 && (
           <div className="flex gap-4">
             {/* Barre d'actions verticale à droite */}
-            <div className="flex-1 bg-white rounded-lg shadow-md p-6">
+            <div className="flex-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl shadow-lg p-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Documents listés ({documents.length})</h2>
+                <h2 className="text-xl font-semibold text-white">Documents listés ({documents.length})</h2>
                 <button
                   onClick={() => setShowClearConfirm(true)}
                   className="group relative bg-gradient-to-br from-red-600 to-red-700 text-white p-2 rounded-lg hover:from-red-700 hover:to-red-800 shadow-md hover:shadow-lg transition-all duration-200"
@@ -2922,8 +2979,8 @@ export default function DocumentListingApp() {
                 </button>
               </div>
 
-            <div className="flex items-center mb-4 bg-blue-50 p-3 rounded">
-              <p className="text-sm text-gray-600">
+            <div className="flex items-center mb-4 bg-blue-500/20 backdrop-blur-sm p-3 rounded-lg border border-blue-400/30">
+              <p className="text-sm text-blue-100">
                 💡 <strong>Astuce:</strong> Glissez-déposez les documents ou les catégories pour les réorganiser. Les numéros se mettront à jour automatiquement !
               </p>
             </div>
@@ -3140,6 +3197,12 @@ export default function DocumentListingApp() {
       {showFieldSettings && (
         <FieldSettingsModal onClose={() => setShowFieldSettings(false)} />
       )}
+
+      {/* Modale de gestion des affaires */}
+      <AffairesModal
+        isOpen={showAffairesModal}
+        onClose={() => setShowAffairesModal(false)}
+      />
     </div>
   );
 }

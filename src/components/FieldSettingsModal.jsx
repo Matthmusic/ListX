@@ -41,7 +41,7 @@ const AvailableZoneContainer = ({ children }) => {
   });
 
   return (
-    <div ref={setNodeRef} className="bg-gray-50 rounded-lg p-2 border-2 border-dashed border-gray-300 min-h-[80px]">
+    <div ref={setNodeRef} className="bg-white/5 backdrop-blur-sm rounded-lg p-2 border-2 border-dashed border-white/30 min-h-[80px]">
       {children}
     </div>
   );
@@ -54,7 +54,7 @@ const DisplayZoneContainer = ({ children }) => {
   });
 
   return (
-    <div ref={setNodeRef} className="bg-blue-50 rounded-lg p-2 border-2 border-dashed border-blue-300 min-h-[80px]">
+    <div ref={setNodeRef} className="bg-blue-500/10 backdrop-blur-sm rounded-lg p-2 border-2 border-dashed border-blue-400/50 min-h-[80px]">
       {children}
     </div>
   );
@@ -67,7 +67,7 @@ const FilenameZoneContainer = ({ children }) => {
   });
 
   return (
-    <div ref={setNodeRef} className="bg-green-50 rounded-lg p-2 border-2 border-dashed border-green-300 min-h-[80px]">
+    <div ref={setNodeRef} className="bg-green-500/10 backdrop-blur-sm rounded-lg p-2 border-2 border-dashed border-green-400/50 min-h-[80px]">
       {children}
     </div>
   );
@@ -106,7 +106,7 @@ const AvailableFieldItem = ({ field, isCustom, onEdit, onRemove, onAddToZones })
       }`}
     >
       <span className={`px-2 py-1 rounded text-xs font-bold whitespace-nowrap ${
-        isCustom ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+        isCustom ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-white'
       }`}>
         {displayLabel}
       </span>
@@ -950,16 +950,26 @@ export const FieldSettingsModal = ({ onClose }) => {
   const draggedField = activeId ? getAllFields().find(f => f.id === activeId) : null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-7xl max-h-[92vh] overflow-hidden flex flex-col">
-        {/* EN-TÃŠTE */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 flex items-center justify-between">
-          <h2 className="text-xl font-bold">Paramètres des champs</h2>
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-32">
+      {/* Overlay */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="relative bg-black/40 backdrop-blur-md border border-white/20 rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-white/20 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-white">Paramètres des champs</h2>
+            <p className="text-sm text-blue-200 mt-1">Configurez les champs et templates pour vos documents</p>
+          </div>
           <button
             onClick={onClose}
-            className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-1.5 transition-colors"
+            className="text-white/60 hover:text-white transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X size={24} />
           </button>
         </div>
 
@@ -968,7 +978,7 @@ export const FieldSettingsModal = ({ onClose }) => {
           {!showCustomizeModal ? (
             <div>
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-gray-800">Mes templates</h3>
+                <h3 className="text-xl font-bold text-white">Mes templates</h3>
                 <div className="flex gap-2">
                   <button
                     onClick={handleCreateNewTemplate}
@@ -1000,19 +1010,19 @@ export const FieldSettingsModal = ({ onClose }) => {
                     key={template.name}
                     className={`p-3 rounded-lg border-2 transition-colors ${
                       currentTemplate?.name === template.name
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-300 bg-white hover:border-gray-400"
+                        ? "border-blue-400 bg-blue-500/20 backdrop-blur-sm"
+                        : "border-white/30 bg-white/10 backdrop-blur-sm hover:border-white/50 hover:bg-white/20"
                     }`}
                   >
                     <div className="flex items-start justify-between mb-1.5">
-                      <h4 className="font-bold text-gray-800 text-sm">{template.name}</h4>
+                      <h4 className="font-bold text-white text-sm">{template.name}</h4>
                       {currentTemplate?.name === template.name && (
                         <span className="px-1.5 py-0.5 bg-blue-600 text-white text-xs rounded font-bold whitespace-nowrap">
                           Actif
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-600 mb-3">
+                    <p className="text-xs text-blue-200 mb-3">
                       {template.activeFields.length} champs actifs
                     </p>
                     <div className="flex gap-1.5">
@@ -1048,23 +1058,23 @@ export const FieldSettingsModal = ({ onClose }) => {
               <div className="mb-4 flex items-center gap-4">
                 <button
                   onClick={() => setShowCustomizeModal(false)}
-                  className="text-gray-600 hover:text-gray-800 font-bold"
+                  className="text-blue-200 hover:text-white font-bold"
                 >
                   Retour aux templates
                 </button>
-                <h3 className="text-xl font-bold text-gray-800">Personnaliser les champs</h3>
+                <h3 className="text-xl font-bold text-white">Personnaliser les champs</h3>
               </div>
 
               {/* Nom du template */}
               <div className="mb-3">
-                <label className="block text-xs font-bold text-gray-700 mb-1">
+                <label className="block text-xs font-bold text-gray-900 mb-1">
                   Nom du template
                 </label>
                 <input
                   type="text"
                   value={newTemplate.name}
                   onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value.toUpperCase() })}
-                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                  className="w-full px-3 py-1.5 text-sm bg-white/90 border border-white/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 uppercase text-gray-900 placeholder-gray-500"
                   placeholder="Mon template"
                 />
               </div>
@@ -1080,7 +1090,7 @@ export const FieldSettingsModal = ({ onClose }) => {
                   {/* Zone 1 - Champs disponibles */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                      <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
                         <span className="bg-gray-200 rounded-full w-6 h-6 flex items-center justify-center text-xs">
                           {availableFields.length}
                         </span>
@@ -1117,7 +1127,7 @@ export const FieldSettingsModal = ({ onClose }) => {
                               setShowAddCustomField(false);
                               setNewCustomFieldName("");
                             }}
-                            className="px-2.5 py-1 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg font-bold transition-colors text-xs"
+                            className="px-2.5 py-1 bg-gray-300 hover:bg-gray-400 text-gray-900 rounded-lg font-bold transition-colors text-xs"
                           >
                             Annuler
                           </button>
@@ -1159,7 +1169,7 @@ export const FieldSettingsModal = ({ onClose }) => {
                   {/* Zone 2 - Formulaire et exports */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                      <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
                         <span className="bg-blue-200 rounded-full w-6 h-6 flex items-center justify-center text-xs">
                           {displayFields.length}
                         </span>
@@ -1210,7 +1220,7 @@ export const FieldSettingsModal = ({ onClose }) => {
                   {/* Zone 3 - Nom de fichier */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                      <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
                         <span className="bg-green-200 rounded-full w-6 h-6 flex items-center justify-center text-xs">
                           {filenameFields.length}
                         </span>
@@ -1257,27 +1267,27 @@ export const FieldSettingsModal = ({ onClose }) => {
                     </FilenameZoneContainer>
 
                     {/* PRÃ‰VISUALISATION DES CHAMPS DU FORMULAIRE (FUSION ZONES 2 ET 3) */}
-                    <div className="mt-2 p-2 bg-amber-50 rounded-lg border border-amber-300">
-                      <p className="text-xs font-bold text-amber-700 mb-1">Champs du formulaire :</p>
+                    <div className="mt-2 p-2 bg-amber-500/20 backdrop-blur-sm rounded-lg border border-amber-400/50">
+                      <p className="text-xs font-bold text-amber-200 mb-1">Champs du formulaire :</p>
                       <div className="flex flex-wrap gap-1">
                         {mergeFormFieldsOrder(newTemplate).filter(f => f !== 'NOM' && newTemplate.activeFields.includes(f)).map((fieldId) => {
                           const label = newTemplate.fieldsLabels[fieldId] || fieldId;
                           return (
-                            <span key={fieldId} className="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs rounded font-medium">
+                            <span key={fieldId} className="px-2 py-0.5 bg-amber-400/30 text-amber-100 text-xs rounded font-medium border border-amber-400/50">
                               {label}
                             </span>
                           );
                         })}
-                        <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs rounded font-medium">
+                        <span className="px-2 py-0.5 bg-amber-400/30 text-amber-100 text-xs rounded font-medium border border-amber-400/50">
                           NOM
                         </span>
                       </div>
                     </div>
 
                     {/* PRÃ‰VISUALISATION DU NOM DE FICHIER */}
-                    <div className="mt-2 p-2 bg-purple-50 rounded-lg border border-purple-300">
-                      <p className="text-xs font-bold text-purple-700 mb-0.5">Aperçu du nom de fichier :</p>
-                      <p className="text-xs font-mono text-purple-800">{getFilenamePreview()}</p>
+                    <div className="mt-2 p-2 bg-purple-500/20 backdrop-blur-sm rounded-lg border border-purple-400/50">
+                      <p className="text-xs font-bold text-purple-200 mb-0.5">Aperçu du nom de fichier :</p>
+                      <p className="text-xs font-mono text-purple-100">{getFilenamePreview()}</p>
                     </div>
                   </div>
                 </div>
@@ -1338,7 +1348,7 @@ export const FieldSettingsModal = ({ onClose }) => {
                   setEditingField(null);
                   setEditLabel("");
                 }}
-                className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg font-bold transition-colors"
+                className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-900 rounded-lg font-bold transition-colors"
               >
                 Annuler
               </button>
@@ -1352,7 +1362,7 @@ export const FieldSettingsModal = ({ onClose }) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
           <div className="bg-white rounded-lg p-6 w-96 shadow-2xl">
             <h3 className="text-lg font-bold mb-4">Confirmer la suppression</h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-blue-200 mb-6">
               Voulez-vous vraiment supprimer le template "{showDeleteConfirm}" ?
             </p>
             <div className="flex gap-2">
@@ -1364,7 +1374,7 @@ export const FieldSettingsModal = ({ onClose }) => {
               </button>
               <button
                 onClick={() => setShowDeleteConfirm(null)}
-                className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg font-bold transition-colors"
+                className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-900 rounded-lg font-bold transition-colors"
               >
                 Annuler
               </button>
