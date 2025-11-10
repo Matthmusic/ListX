@@ -28,7 +28,11 @@ export default function EditorWrapper() {
       // C'est la source de vérité pour la persistance
       if (listingData && listingData.documents && listingData.documents.length > 0) {
         // Listing existant avec documents - charger depuis storageService
-        const affairesData = {
+        // Restaurer toute la structure affairesData si elle existe
+        const affairesData = listingData.affairesData ? {
+          ...listingData.affairesData,
+          lastAffaire: listingKey
+        } : {
           affaires: {
             [listingKey]: listingData.documents
           },
@@ -89,11 +93,19 @@ export default function EditorWrapper() {
     const documents = affairesData.affaires?.[listingKey] || [];
     const settings = affairesData.settings || {};
 
+    // Sauvegarder TOUTES les données du listing
     await saveListing(selectedClient.id, selectedProject.id, selectedListing.id, {
+      id: selectedListing.id,
       name: selectedListing.name,
       createdAt: selectedListing.createdAt,
       documents,
-      settings
+      settings,
+      // Conserver toutes les autres données potentielles
+      affairesData: {
+        affaires: affairesData.affaires || {},
+        lastAffaire: affairesData.lastAffaire,
+        settings: affairesData.settings
+      }
     });
   };
 
