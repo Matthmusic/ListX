@@ -53,15 +53,146 @@ export async function initializeStorage() {
 }
 
 /**
- * Migre les données de localStorage vers le stockage partagé
+ * Compte le nombre total d'éléments dans les données
+ */
+function countDataElements(data) {
+  if (!data || !data.clients) return 0;
+
+  let count = 0;
+  const clients = Object.keys(data.clients);
+  count += clients.length;
+
+  clients.forEach(clientId => {
+    const client = data.clients[clientId];
+    if (client.projects) {
+      const projects = Object.keys(client.projects);
+      count += projects.length;
+
+      projects.forEach(projectId => {
+        const project = client.projects[projectId];
+        if (project.listings) {
+          count += Object.keys(project.listings).length;
+        }
+      });
+    }
+  });
+
+  return count;
+}
+
+/**
+ * Merge intelligent de deux structures de données
+ * Conserve toujours le maximum de données
+ */
+function mergeData(local, remote) {
+  const merged = { clients: {} };
+
+  // Copier tous les clients du remote
+  if (remote && remote.clients) {
+    merged.clients = JSON.parse(JSON.stringify(remote.clients));
+  }
+
+  // Ajouter les clients manquants du local
+  if (local && local.clients) {
+    Object.keys(local.clients).forEach(clientId => {
+      if (!merged.clients[clientId]) {
+        // Client existe en local mais pas en remote
+        merged.clients[clientId] = local.clients[clientId];
+      } else {
+        // Client existe des deux côtés, merger les projets
+        const localClient = local.clients[clientId];
+        const mergedClient = merged.clients[clientId];
+
+        if (localClient.projects) {
+          if (!mergedClient.projects) {
+            mergedClient.projects = {};
+          }
+
+          Object.keys(localClient.projects).forEach(projectId => {
+            if (!mergedClient.projects[projectId]) {
+              // Projet existe en local mais pas en remote
+              mergedClient.projects[projectId] = localClient.projects[projectId];
+            } else {
+              // Projet existe des deux côtés, merger les listings
+              const localProject = localClient.projects[projectId];
+              const mergedProject = mergedClient.projects[projectId];
+
+              if (localProject.listings) {
+                if (!mergedProject.listings) {
+                  mergedProject.listings = {};
+                }
+
+                Object.keys(localProject.listings).forEach(listingId => {
+                  if (!mergedProject.listings[listingId]) {
+                    // Listing existe en local mais pas en remote
+                    mergedProject.listings[listingId] = localProject.listings[listingId];
+                  } else {
+                    // Listing existe des deux côtés, garder le plus récent
+                    const localListing = localProject.listings[listingId];
+                    const remoteListing = mergedProject.listings[listingId];
+
+                    // Comparer les timestamps si disponibles
+                    const localTime = localListing.metadata?.lastModified || 0;
+                    const remoteTime = remoteListing.metadata?.lastModified || 0;
+
+                    if (localTime > remoteTime) {
+                      mergedProject.listings[listingId] = localListing;
+                    }
+                  }
+                });
+              }
+            }
+          });
+        }
+      }
+    });
+  }
+
+  return merged;
+}
+
+/**
+ * Migre les données de localStorage vers le stockage partagé avec merge intelligent
  */
 async function migrateToSharedStorage() {
   try {
     const localData = localStorage.getItem(STORAGE_KEY);
     if (localData && isElectron) {
-      const data = JSON.parse(localData);
-      await window.electronAPI.writeSharedData(data);
-      console.log('Migration vers stockage partagé réussie');
+      const local = JSON.parse(localData);
+
+      // Lire les données existantes sur le stockage partagé
+      const remoteResult = await window.electronAPI.readSharedData();
+      const remote = remoteResult.success ? remoteResult.data : { clients: {} };
+
+      // Compter les éléments
+      const localCount = countDataElements(local);
+      const remoteCount = countDataElements(remote);
+
+      console.log(`Données locales: ${localCount} éléments, Données partagées: ${remoteCount} éléments`);
+
+      let dataToSave;
+      if (localCount === 0 && remoteCount > 0) {
+        // Local vide, utiliser remote
+        dataToSave = remote;
+        console.log('→ Chargement depuis le stockage partagé');
+      } else if (remoteCount === 0 && localCount > 0) {
+        // Remote vide, utiliser local
+        dataToSave = local;
+        console.log('→ Migration des données locales vers le partagé');
+      } else if (localCount > 0 && remoteCount > 0) {
+        // Les deux ont des données, merger intelligemment
+        dataToSave = mergeData(local, remote);
+        const mergedCount = countDataElements(dataToSave);
+        console.log(`→ Merge intelligent: ${mergedCount} éléments (conserve tout)`);
+      } else {
+        // Tous vides
+        dataToSave = { clients: {} };
+      }
+
+      // Sauvegarder le résultat
+      await window.electronAPI.writeSharedData(dataToSave);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+      console.log('Migration/Sync terminée avec succès');
     }
   } catch (error) {
     console.error('Erreur migration données:', error);
@@ -415,9 +546,14 @@ export async function saveListing(clientId, projectId, listingId, listingData) {
   console.log('Listing ID:', listingId);
   console.log('Documents:', listingData.documents?.length || 0);
 
+  const now = Date.now();
   project.listings[listingId] = {
     ...listingData,
     updatedAt: new Date().toISOString(),
+    metadata: {
+      ...listingData.metadata,
+      lastModified: now
+    }
   };
 
   const result = await saveData(data);
