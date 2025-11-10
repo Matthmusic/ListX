@@ -4,12 +4,114 @@
  */
 
 const STORAGE_KEY = 'listx_data';
+const USE_SHARED_STORAGE_KEY = 'listx_use_shared_storage';
+
+// Variable pour stocker l'état du stockage partagé
+let sharedStorageAvailable = false;
+let useSharedStorage = false;
+
+// Vérifier si on est dans Electron
+const isElectron = typeof window !== 'undefined' && window.electronAPI;
 
 /**
- * Charge toutes les données depuis localStorage
+ * Initialise le stockage partagé
  */
-function loadData() {
+export async function initializeStorage() {
+  if (!isElectron) {
+    return { mode: 'local', accessible: false };
+  }
+
   try {
+    // Vérifier si le stockage partagé est accessible
+    const result = await window.electronAPI.checkSharedStorage();
+    sharedStorageAvailable = result.accessible;
+
+    // Vérifier la préférence de l'utilisateur
+    const userPreference = localStorage.getItem(USE_SHARED_STORAGE_KEY);
+
+    if (userPreference === null && sharedStorageAvailable) {
+      // Première fois : proposer d'utiliser le stockage partagé
+      useSharedStorage = true;
+      localStorage.setItem(USE_SHARED_STORAGE_KEY, 'true');
+
+      // Migrer les données locales vers le stockage partagé
+      await migrateToSharedStorage();
+    } else {
+      useSharedStorage = userPreference === 'true' && sharedStorageAvailable;
+    }
+
+    return {
+      mode: useSharedStorage ? 'shared' : 'local',
+      accessible: sharedStorageAvailable,
+      path: result.path
+    };
+  } catch (error) {
+    console.error('Erreur initialisation stockage:', error);
+    useSharedStorage = false;
+    return { mode: 'local', accessible: false, error: error.message };
+  }
+}
+
+/**
+ * Migre les données de localStorage vers le stockage partagé
+ */
+async function migrateToSharedStorage() {
+  try {
+    const localData = localStorage.getItem(STORAGE_KEY);
+    if (localData && isElectron) {
+      const data = JSON.parse(localData);
+      await window.electronAPI.writeSharedData(data);
+      console.log('Migration vers stockage partagé réussie');
+    }
+  } catch (error) {
+    console.error('Erreur migration données:', error);
+  }
+}
+
+/**
+ * Change le mode de stockage
+ */
+export async function setStorageMode(useShared) {
+  if (!isElectron || !sharedStorageAvailable) {
+    return false;
+  }
+
+  useSharedStorage = useShared;
+  localStorage.setItem(USE_SHARED_STORAGE_KEY, useShared.toString());
+
+  if (useShared) {
+    await migrateToSharedStorage();
+  }
+
+  return true;
+}
+
+/**
+ * Obtient le mode de stockage actuel
+ */
+export function getStorageMode() {
+  return {
+    current: useSharedStorage ? 'shared' : 'local',
+    available: sharedStorageAvailable
+  };
+}
+
+/**
+ * Charge toutes les données (depuis localStorage ou stockage partagé)
+ */
+async function loadData() {
+  try {
+    if (useSharedStorage && isElectron) {
+      const result = await window.electronAPI.readSharedData();
+      if (result.success) {
+        return result.data || { clients: {} };
+      } else {
+        console.error('Erreur lecture stockage partagé, fallback sur local');
+        useSharedStorage = false;
+      }
+    }
+
+    // Fallback sur localStorage
     const data = localStorage.getItem(STORAGE_KEY);
     return data ? JSON.parse(data) : { clients: {} };
   } catch (error) {
@@ -19,10 +121,23 @@ function loadData() {
 }
 
 /**
- * Sauvegarde toutes les données dans localStorage
+ * Sauvegarde toutes les données (dans localStorage ou stockage partagé)
  */
-function saveData(data) {
+async function saveData(data) {
   try {
+    if (useSharedStorage && isElectron) {
+      const result = await window.electronAPI.writeSharedData(data);
+      if (result.success) {
+        // Aussi sauvegarder localement pour cache
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        return true;
+      } else {
+        console.error('Erreur écriture stockage partagé, fallback sur local');
+        useSharedStorage = false;
+      }
+    }
+
+    // Fallback sur localStorage
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     return true;
   } catch (error) {
@@ -37,8 +152,8 @@ function saveData(data) {
  * Récupère tous les clients
  * @returns {Array} Liste des clients avec leurs métadonnées
  */
-export function getAllClients() {
-  const data = loadData();
+export async function getAllClients() {
+  const data = await loadData();
   return Object.entries(data.clients || {}).map(([id, client]) => ({
     id,
     name: client.name,
@@ -52,8 +167,8 @@ export function getAllClients() {
  * @param {string} name - Nom du client
  * @returns {Object} Le client créé
  */
-export function createClient(name) {
-  const data = loadData();
+export async function createClient(name) {
+  const data = await loadData();
   const id = Date.now().toString();
 
   data.clients[id] = {
@@ -62,7 +177,7 @@ export function createClient(name) {
     projects: {},
   };
 
-  saveData(data);
+  await saveData(data);
 
   return {
     id,
@@ -78,15 +193,15 @@ export function createClient(name) {
  * @param {string} newName - Nouveau nom
  * @returns {boolean} Succès de l'opération
  */
-export function renameClient(clientId, newName) {
-  const data = loadData();
+export async function renameClient(clientId, newName) {
+  const data = await loadData();
 
   if (!data.clients[clientId]) {
     return false;
   }
 
   data.clients[clientId].name = newName;
-  return saveData(data);
+  return await saveData(data);
 }
 
 /**
@@ -94,15 +209,15 @@ export function renameClient(clientId, newName) {
  * @param {string} clientId - ID du client
  * @returns {boolean} Succès de l'opération
  */
-export function deleteClient(clientId) {
-  const data = loadData();
+export async function deleteClient(clientId) {
+  const data = await loadData();
 
   if (!data.clients[clientId]) {
     return false;
   }
 
   delete data.clients[clientId];
-  return saveData(data);
+  return await saveData(data);
 }
 
 // ============= PROJETS =============
@@ -112,8 +227,8 @@ export function deleteClient(clientId) {
  * @param {string} clientId - ID du client
  * @returns {Array} Liste des projets avec leurs métadonnées
  */
-export function getClientProjects(clientId) {
-  const data = loadData();
+export async function getClientProjects(clientId) {
+  const data = await loadData();
   const client = data.clients[clientId];
 
   if (!client) {
@@ -134,8 +249,8 @@ export function getClientProjects(clientId) {
  * @param {string} name - Nom du projet
  * @returns {Object} Le projet créé
  */
-export function createProject(clientId, name) {
-  const data = loadData();
+export async function createProject(clientId, name) {
+  const data = await loadData();
   const client = data.clients[clientId];
 
   if (!client) {
@@ -154,7 +269,7 @@ export function createProject(clientId, name) {
     listings: {},
   };
 
-  saveData(data);
+  await saveData(data);
 
   return {
     id,
@@ -171,8 +286,8 @@ export function createProject(clientId, name) {
  * @param {string} newName - Nouveau nom
  * @returns {boolean} Succès de l'opération
  */
-export function renameProject(clientId, projectId, newName) {
-  const data = loadData();
+export async function renameProject(clientId, projectId, newName) {
+  const data = await loadData();
   const project = data.clients[clientId]?.projects[projectId];
 
   if (!project) {
@@ -180,7 +295,7 @@ export function renameProject(clientId, projectId, newName) {
   }
 
   project.name = newName;
-  return saveData(data);
+  return await saveData(data);
 }
 
 /**
@@ -189,8 +304,8 @@ export function renameProject(clientId, projectId, newName) {
  * @param {string} projectId - ID du projet
  * @returns {boolean} Succès de l'opération
  */
-export function deleteProject(clientId, projectId) {
-  const data = loadData();
+export async function deleteProject(clientId, projectId) {
+  const data = await loadData();
   const client = data.clients[clientId];
 
   if (!client || !client.projects[projectId]) {
@@ -198,7 +313,7 @@ export function deleteProject(clientId, projectId) {
   }
 
   delete client.projects[projectId];
-  return saveData(data);
+  return await saveData(data);
 }
 
 // ============= LISTINGS =============
@@ -209,8 +324,8 @@ export function deleteProject(clientId, projectId) {
  * @param {string} projectId - ID du projet
  * @returns {Array} Liste des listings avec leurs métadonnées
  */
-export function getProjectListings(clientId, projectId) {
-  const data = loadData();
+export async function getProjectListings(clientId, projectId) {
+  const data = await loadData();
   const project = data.clients[clientId]?.projects[projectId];
 
   if (!project) {
@@ -233,8 +348,8 @@ export function getProjectListings(clientId, projectId) {
  * @param {string} name - Nom du listing
  * @returns {Object} Le listing créé
  */
-export function createListing(clientId, projectId, name) {
-  const data = loadData();
+export async function createListing(clientId, projectId, name) {
+  const data = await loadData();
   const project = data.clients[clientId]?.projects[projectId];
 
   if (!project) {
@@ -254,7 +369,7 @@ export function createListing(clientId, projectId, name) {
     documents: [],
   };
 
-  saveData(data);
+  await saveData(data);
 
   return {
     id,
@@ -272,8 +387,8 @@ export function createListing(clientId, projectId, name) {
  * @param {string} listingId - ID du listing
  * @returns {Object} Le listing complet
  */
-export function loadListing(clientId, projectId, listingId) {
-  const data = loadData();
+export async function loadListing(clientId, projectId, listingId) {
+  const data = await loadData();
   return data.clients[clientId]?.projects[projectId]?.listings[listingId] || null;
 }
 
@@ -285,8 +400,8 @@ export function loadListing(clientId, projectId, listingId) {
  * @param {Object} listingData - Données du listing
  * @returns {boolean} Succès de l'opération
  */
-export function saveListing(clientId, projectId, listingId, listingData) {
-  const data = loadData();
+export async function saveListing(clientId, projectId, listingId, listingData) {
+  const data = await loadData();
   const project = data.clients[clientId]?.projects[projectId];
 
   if (!project || !project.listings[listingId]) {
@@ -305,7 +420,7 @@ export function saveListing(clientId, projectId, listingId, listingData) {
     updatedAt: new Date().toISOString(),
   };
 
-  const result = saveData(data);
+  const result = await saveData(data);
   console.log('Résultat sauvegarde:', result);
 
   return result;
@@ -319,8 +434,8 @@ export function saveListing(clientId, projectId, listingId, listingData) {
  * @param {string} newName - Nouveau nom
  * @returns {boolean} Succès de l'opération
  */
-export function renameListing(clientId, projectId, listingId, newName) {
-  const data = loadData();
+export async function renameListing(clientId, projectId, listingId, newName) {
+  const data = await loadData();
   const listing = data.clients[clientId]?.projects[projectId]?.listings[listingId];
 
   if (!listing) {
@@ -329,7 +444,7 @@ export function renameListing(clientId, projectId, listingId, newName) {
 
   listing.name = newName;
   listing.updatedAt = new Date().toISOString();
-  return saveData(data);
+  return await saveData(data);
 }
 
 /**
@@ -339,8 +454,8 @@ export function renameListing(clientId, projectId, listingId, newName) {
  * @param {string} listingId - ID du listing à dupliquer
  * @returns {Object} Le nouveau listing créé
  */
-export function duplicateListing(clientId, projectId, listingId) {
-  const data = loadData();
+export async function duplicateListing(clientId, projectId, listingId) {
+  const data = await loadData();
   const listing = data.clients[clientId]?.projects[projectId]?.listings[listingId];
 
   if (!listing) {
@@ -357,7 +472,7 @@ export function duplicateListing(clientId, projectId, listingId) {
     updatedAt: new Date().toISOString(),
   };
 
-  saveData(data);
+  await saveData(data);
 
   return {
     id: newId,
@@ -375,8 +490,8 @@ export function duplicateListing(clientId, projectId, listingId) {
  * @param {string} listingId - ID du listing
  * @returns {boolean} Succès de l'opération
  */
-export function deleteListing(clientId, projectId, listingId) {
-  const data = loadData();
+export async function deleteListing(clientId, projectId, listingId) {
+  const data = await loadData();
   const project = data.clients[clientId]?.projects[projectId];
 
   if (!project || !project.listings[listingId]) {
@@ -384,7 +499,7 @@ export function deleteListing(clientId, projectId, listingId) {
   }
 
   delete project.listings[listingId];
-  return saveData(data);
+  return await saveData(data);
 }
 
 // ============= EXPORT / IMPORT =============
@@ -394,8 +509,8 @@ export function deleteListing(clientId, projectId, listingId) {
  * @param {string} clientId - ID du client
  * @returns {Object|null} Données du client ou null si inexistant
  */
-export function exportClient(clientId) {
-  const data = loadData();
+export async function exportClient(clientId) {
+  const data = await loadData();
   const client = data.clients[clientId];
 
   if (!client) {
@@ -419,12 +534,12 @@ export function exportClient(clientId) {
  * @param {Object} clientData - Données du client exporté
  * @returns {Object} Résultat de l'import avec le nouvel ID
  */
-export function importClient(clientData) {
+export async function importClient(clientData) {
   if (!clientData || clientData.type !== 'client') {
     throw new Error('Format de données invalide');
   }
 
-  const data = loadData();
+  const data = await loadData();
   const newId = Date.now().toString();
 
   // Créer le client avec un nouveau ID
@@ -434,7 +549,7 @@ export function importClient(clientData) {
     projects: clientData.data.projects || {},
   };
 
-  saveData(data);
+  await saveData(data);
 
   return {
     success: true,
@@ -450,8 +565,8 @@ export function importClient(clientData) {
  * @param {string} projectId - ID du projet
  * @returns {Object|null} Données du projet ou null si inexistant
  */
-export function exportProject(clientId, projectId) {
-  const data = loadData();
+export async function exportProject(clientId, projectId) {
+  const data = await loadData();
   const project = data.clients[clientId]?.projects[projectId];
 
   if (!project) {
@@ -476,12 +591,12 @@ export function exportProject(clientId, projectId) {
  * @param {Object} projectData - Données du projet exporté
  * @returns {Object} Résultat de l'import avec le nouvel ID
  */
-export function importProject(clientId, projectData) {
+export async function importProject(clientId, projectData) {
   if (!projectData || projectData.type !== 'project') {
     throw new Error('Format de données invalide');
   }
 
-  const data = loadData();
+  const data = await loadData();
   const client = data.clients[clientId];
 
   if (!client) {
@@ -500,7 +615,7 @@ export function importProject(clientId, projectData) {
     listings: projectData.data.listings || {},
   };
 
-  saveData(data);
+  await saveData(data);
 
   return {
     success: true,
@@ -517,8 +632,8 @@ export function importProject(clientId, projectData) {
  * @param {string} listingId - ID du listing
  * @returns {Object|null} Données du listing ou null si inexistant
  */
-export function exportListing(clientId, projectId, listingId) {
-  const data = loadData();
+export async function exportListing(clientId, projectId, listingId) {
+  const data = await loadData();
   const listing = data.clients[clientId]?.projects[projectId]?.listings[listingId];
 
   if (!listing) {
@@ -546,12 +661,12 @@ export function exportListing(clientId, projectId, listingId) {
  * @param {Object} listingData - Données du listing exporté
  * @returns {Object} Résultat de l'import avec le nouvel ID
  */
-export function importListing(clientId, projectId, listingData) {
+export async function importListing(clientId, projectId, listingData) {
   if (!listingData || listingData.type !== 'listing') {
     throw new Error('Format de données invalide');
   }
 
-  const data = loadData();
+  const data = await loadData();
   const project = data.clients[clientId]?.projects[projectId];
 
   if (!project) {
@@ -572,7 +687,7 @@ export function importListing(clientId, projectId, listingData) {
     settings: listingData.data.settings || {},
   };
 
-  saveData(data);
+  await saveData(data);
 
   return {
     success: true,

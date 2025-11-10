@@ -5,6 +5,7 @@ import { getClientProjects, createProject, renameProject, deleteProject, exportP
 import AppLayout from '../components/AppLayout';
 import InputDialog from '../components/InputDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
+import VersionBadge from '../components/VersionBadge';
 import listXLogo from '../assets/listX.svg';
 
 export default function ProjectsPage() {
@@ -19,36 +20,46 @@ export default function ProjectsPage() {
     if (selectedClient) {
       loadProjects();
     }
+
+    // Écouter les événements de mise à jour
+    const handleDataUpdated = () => {
+      if (selectedClient) {
+        loadProjects();
+      }
+    };
+    window.addEventListener('data-updated', handleDataUpdated);
+
+    return () => window.removeEventListener('data-updated', handleDataUpdated);
   }, [selectedClient]);
 
-  const loadProjects = () => {
-    const loadedProjects = getClientProjects(selectedClient.id);
+  const loadProjects = async () => {
+    const loadedProjects = await getClientProjects(selectedClient.id);
     setProjects(loadedProjects);
   };
 
-  const handleCreateProject = (name) => {
-    createProject(selectedClient.id, name);
-    loadProjects();
+  const handleCreateProject = async (name) => {
+    await createProject(selectedClient.id, name);
+    await loadProjects();
   };
 
-  const handleEditProject = (name) => {
+  const handleEditProject = async (name) => {
     if (selectedProject) {
-      renameProject(selectedClient.id, selectedProject.id, name);
-      loadProjects();
+      await renameProject(selectedClient.id, selectedProject.id, name);
+      await loadProjects();
       setSelectedProject(null);
     }
   };
 
-  const handleDeleteProject = () => {
+  const handleDeleteProject = async () => {
     if (selectedProject) {
-      deleteProject(selectedClient.id, selectedProject.id);
-      loadProjects();
+      await deleteProject(selectedClient.id, selectedProject.id);
+      await loadProjects();
       setSelectedProject(null);
     }
   };
 
-  const handleExportProject = (project) => {
-    const exportData = exportProject(selectedClient.id, project.id);
+  const handleExportProject = async (project) => {
+    const exportData = await exportProject(selectedClient.id, project.id);
     if (!exportData) {
       alert('Erreur lors de l\'export du projet');
       return;
@@ -79,13 +90,13 @@ export default function ProjectsPage() {
       if (!file) return;
 
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         try {
           const data = JSON.parse(event.target.result);
-          const result = importProject(selectedClient.id, data);
+          const result = await importProject(selectedClient.id, data);
 
           if (result.success) {
-            loadProjects();
+            await loadProjects();
             alert(`Projet "${result.name}" importé avec succès !\n${result.listingCount} listing(s) inclus.`);
           }
         } catch (error) {
@@ -269,6 +280,8 @@ export default function ProjectsPage() {
         confirmText="Supprimer"
         isDestructive
       />
+
+      <VersionBadge />
     </AppLayout>
   );
 }

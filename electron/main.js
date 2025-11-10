@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, nativeTheme } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
+const fs = require('fs');
 const isDev = process.env.NODE_ENV === 'development';
 
 // Forcer le thème sombre global
@@ -197,6 +198,101 @@ ipcMain.on('check-for-updates', () => {
 // Obtenir la version actuelle
 ipcMain.handle('get-app-version', () => {
   return app.getVersion();
+});
+
+// ==============================
+// STOCKAGE PARTAGÉ
+// ==============================
+
+const SHARED_STORAGE_PATH = 'Z:\\F - UTILITAIRES\\LISTX';
+const SHARED_DATA_FILE = path.join(SHARED_STORAGE_PATH, 'data.json');
+
+// Vérifier si le stockage partagé est accessible
+ipcMain.handle('check-shared-storage', async () => {
+  try {
+    // Vérifier si le dossier existe
+    if (!fs.existsSync(SHARED_STORAGE_PATH)) {
+      // Essayer de créer le dossier
+      fs.mkdirSync(SHARED_STORAGE_PATH, { recursive: true });
+    }
+
+    // Vérifier les permissions en essayant d'écrire un fichier de test
+    const testFile = path.join(SHARED_STORAGE_PATH, '.test');
+    fs.writeFileSync(testFile, 'test');
+    fs.unlinkSync(testFile);
+
+    return { accessible: true, path: SHARED_STORAGE_PATH };
+  } catch (error) {
+    console.error('Stockage partagé non accessible:', error);
+    return { accessible: false, error: error.message };
+  }
+});
+
+// Lire les données du stockage partagé
+ipcMain.handle('read-shared-data', async () => {
+  try {
+    if (!fs.existsSync(SHARED_DATA_FILE)) {
+      // Si le fichier n'existe pas, retourner une structure vide
+      return { success: true, data: { clients: {} } };
+    }
+
+    const fileContent = fs.readFileSync(SHARED_DATA_FILE, 'utf8');
+    const data = JSON.parse(fileContent);
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Erreur lecture données partagées:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Écrire les données dans le stockage partagé
+ipcMain.handle('write-shared-data', async (event, data) => {
+  try {
+    // Vérifier que le dossier existe
+    if (!fs.existsSync(SHARED_STORAGE_PATH)) {
+      fs.mkdirSync(SHARED_STORAGE_PATH, { recursive: true });
+    }
+
+    // Créer une sauvegarde avant d'écrire
+    if (fs.existsSync(SHARED_DATA_FILE)) {
+      const backupFile = path.join(SHARED_STORAGE_PATH, `data.backup.${Date.now()}.json`);
+      fs.copyFileSync(SHARED_DATA_FILE, backupFile);
+
+      // Garder seulement les 5 dernières sauvegardes
+      const backups = fs.readdirSync(SHARED_STORAGE_PATH)
+        .filter(f => f.startsWith('data.backup.'))
+        .sort()
+        .reverse();
+
+      backups.slice(5).forEach(backup => {
+        fs.unlinkSync(path.join(SHARED_STORAGE_PATH, backup));
+      });
+    }
+
+    // Écrire les nouvelles données
+    fs.writeFileSync(SHARED_DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
+
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur écriture données partagées:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Obtenir la date de dernière modification du fichier
+ipcMain.handle('get-file-mtime', async () => {
+  try {
+    if (!fs.existsSync(SHARED_DATA_FILE)) {
+      return { success: true, mtime: null };
+    }
+
+    const stats = fs.statSync(SHARED_DATA_FILE);
+    return { success: true, mtime: stats.mtimeMs };
+  } catch (error) {
+    console.error('Erreur lecture mtime:', error);
+    return { success: false, error: error.message };
+  }
 });
 
 console.log(`ListX v${app.getVersion()} démarré`);

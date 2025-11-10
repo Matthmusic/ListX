@@ -5,6 +5,7 @@ import { getAllClients, createClient, renameClient, deleteClient, exportClient, 
 import AppLayout from '../components/AppLayout';
 import InputDialog from '../components/InputDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
+import VersionBadge from '../components/VersionBadge';
 import listXLogo from '../assets/listX.svg';
 
 export default function ClientsPage() {
@@ -17,36 +18,44 @@ export default function ClientsPage() {
 
   useEffect(() => {
     loadClients();
+
+    // Écouter les événements de mise à jour
+    const handleDataUpdated = () => {
+      loadClients();
+    };
+    window.addEventListener('data-updated', handleDataUpdated);
+
+    return () => window.removeEventListener('data-updated', handleDataUpdated);
   }, []);
 
-  const loadClients = () => {
-    const loadedClients = getAllClients();
+  const loadClients = async () => {
+    const loadedClients = await getAllClients();
     setClients(loadedClients);
   };
 
-  const handleCreateClient = (name) => {
-    createClient(name);
-    loadClients();
+  const handleCreateClient = async (name) => {
+    await createClient(name);
+    await loadClients();
   };
 
-  const handleEditClient = (name) => {
+  const handleEditClient = async (name) => {
     if (selectedClient) {
-      renameClient(selectedClient.id, name);
-      loadClients();
+      await renameClient(selectedClient.id, name);
+      await loadClients();
       setSelectedClient(null);
     }
   };
 
-  const handleDeleteClient = () => {
+  const handleDeleteClient = async () => {
     if (selectedClient) {
-      deleteClient(selectedClient.id);
-      loadClients();
+      await deleteClient(selectedClient.id);
+      await loadClients();
       setSelectedClient(null);
     }
   };
 
-  const handleExportClient = (client) => {
-    const exportData = exportClient(client.id);
+  const handleExportClient = async (client) => {
+    const exportData = await exportClient(client.id);
     if (!exportData) {
       alert('Erreur lors de l\'export du client');
       return;
@@ -77,13 +86,13 @@ export default function ClientsPage() {
       if (!file) return;
 
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         try {
           const data = JSON.parse(event.target.result);
-          const result = importClient(data);
+          const result = await importClient(data);
 
           if (result.success) {
-            loadClients();
+            await loadClients();
             alert(`Client "${result.name}" importé avec succès !\n${result.projectCount} projet(s) inclus.`);
           }
         } catch (error) {
@@ -256,6 +265,8 @@ export default function ClientsPage() {
         confirmText="Supprimer"
         isDestructive
       />
+
+      <VersionBadge />
     </AppLayout>
   );
 }

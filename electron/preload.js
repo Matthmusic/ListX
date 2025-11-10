@@ -30,7 +30,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Nettoyer les listeners
   removeAllListeners: (channel) => {
     ipcRenderer.removeAllListeners(channel);
-  }
+  },
+
+  // Stockage partagé
+  checkSharedStorage: () => ipcRenderer.invoke('check-shared-storage'),
+  readSharedData: () => ipcRenderer.invoke('read-shared-data'),
+  writeSharedData: (data) => ipcRenderer.invoke('write-shared-data', data),
+  getFileMtime: () => ipcRenderer.invoke('get-file-mtime')
 });
 
 console.log('Preload script loaded - electronAPI exposed');

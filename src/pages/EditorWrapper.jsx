@@ -10,8 +10,9 @@ export default function EditorWrapper() {
 
   useEffect(() => {
     // Charger les données du listing au montage si on édite un listing existant
-    if (selectedClient && selectedProject && selectedListing) {
-      const listingData = loadListing(selectedClient.id, selectedProject.id, selectedListing.id);
+    const loadData = async () => {
+      if (selectedClient && selectedProject && selectedListing) {
+        const listingData = await loadListing(selectedClient.id, selectedProject.id, selectedListing.id);
 
       // Vérifier si les données actuelles dans localStorage correspondent déjà à ce listing
       const currentAffairesData = JSON.parse(localStorage.getItem('affairesData') || '{}');
@@ -72,11 +73,13 @@ export default function EditorWrapper() {
         localStorage.setItem('exportNomListe', selectedListing.name); // Nom du listing -> Titre de la liste
       }
       // Sinon : Listing déjà chargé ou documents existants dans affairesData
-    }
+      }
+    };
+    loadData();
   }, [selectedClient?.id, selectedProject?.id, selectedListing?.id]);
 
   // Fonction utilitaire pour sauvegarder l'état actuel
-  const saveCurrentState = () => {
+  const saveCurrentState = async () => {
     if (!selectedClient || !selectedProject || !selectedListing) return;
 
     // Utiliser currentListingKey qui est la clé technique stable
@@ -86,7 +89,7 @@ export default function EditorWrapper() {
     const documents = affairesData.affaires?.[listingKey] || [];
     const settings = affairesData.settings || {};
 
-    saveListing(selectedClient.id, selectedProject.id, selectedListing.id, {
+    await saveListing(selectedClient.id, selectedProject.id, selectedListing.id, {
       name: selectedListing.name,
       createdAt: selectedListing.createdAt,
       documents,

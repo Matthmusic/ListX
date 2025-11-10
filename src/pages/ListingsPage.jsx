@@ -5,6 +5,7 @@ import { getProjectListings, createListing, renameListing, deleteListing, duplic
 import AppLayout from '../components/AppLayout';
 import InputDialog from '../components/InputDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
+import VersionBadge from '../components/VersionBadge';
 import listXLogo from '../assets/listX.svg';
 
 export default function ListingsPage() {
@@ -21,41 +22,41 @@ export default function ListingsPage() {
     }
   }, [selectedClient, selectedProject]);
 
-  const loadListings = () => {
-    const loadedListings = getProjectListings(selectedClient.id, selectedProject.id);
+  const loadListings = async () => {
+    const loadedListings = await getProjectListings(selectedClient.id, selectedProject.id);
     setListings(loadedListings);
   };
 
-  const handleCreateListing = (name) => {
-    const newListing = createListing(selectedClient.id, selectedProject.id, name);
+  const handleCreateListing = async (name) => {
+    const newListing = await createListing(selectedClient.id, selectedProject.id, name);
     if (newListing) {
       navigateToEditor(selectedClient, selectedProject, newListing);
     }
   };
 
-  const handleEditListing = (name) => {
+  const handleEditListing = async (name) => {
     if (selectedListing) {
-      renameListing(selectedClient.id, selectedProject.id, selectedListing.id, name);
-      loadListings();
+      await renameListing(selectedClient.id, selectedProject.id, selectedListing.id, name);
+      await loadListings();
       setSelectedListing(null);
     }
   };
 
-  const handleDeleteListing = () => {
+  const handleDeleteListing = async () => {
     if (selectedListing) {
-      deleteListing(selectedClient.id, selectedProject.id, selectedListing.id);
-      loadListings();
+      await deleteListing(selectedClient.id, selectedProject.id, selectedListing.id);
+      await loadListings();
       setSelectedListing(null);
     }
   };
 
-  const handleDuplicateListing = (listing) => {
-    duplicateListing(selectedClient.id, selectedProject.id, listing.id);
-    loadListings();
+  const handleDuplicateListing = async (listing) => {
+    await duplicateListing(selectedClient.id, selectedProject.id, listing.id);
+    await loadListings();
   };
 
-  const handleExportListing = (listing) => {
-    const exportData = exportListing(selectedClient.id, selectedProject.id, listing.id);
+  const handleExportListing = async (listing) => {
+    const exportData = await exportListing(selectedClient.id, selectedProject.id, listing.id);
     if (!exportData) {
       alert('Erreur lors de l\'export du listing');
       return;
@@ -86,13 +87,13 @@ export default function ListingsPage() {
       if (!file) return;
 
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         try {
           const data = JSON.parse(event.target.result);
-          const result = importListing(selectedClient.id, selectedProject.id, data);
+          const result = await importListing(selectedClient.id, selectedProject.id, data);
 
           if (result.success) {
-            loadListings();
+            await loadListings();
             alert(`Listing "${result.name}" importé avec succès !\n${result.documentCount} document(s) inclus.`);
           }
         } catch (error) {
@@ -298,6 +299,8 @@ export default function ListingsPage() {
         confirmText="Supprimer"
         isDestructive
       />
+
+      <VersionBadge />
     </AppLayout>
   );
 }
