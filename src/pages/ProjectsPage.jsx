@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Plus, FolderOpen, Edit, Trash2, ChevronLeft } from 'lucide-react';
+import { Plus, FolderOpen, Edit, Trash2, ChevronLeft, Download, Upload } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { getClientProjects, createProject, renameProject, deleteProject } from '../services/storageService';
+import { getClientProjects, createProject, renameProject, deleteProject, exportProject, importProject } from '../services/storageService';
 import AppLayout from '../components/AppLayout';
 import InputDialog from '../components/InputDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -47,6 +47,56 @@ export default function ProjectsPage() {
     }
   };
 
+  const handleExportProject = (project) => {
+    const exportData = exportProject(selectedClient.id, project.id);
+    if (!exportData) {
+      alert('Erreur lors de l\'export du projet');
+      return;
+    }
+
+    // Formater la date au format AAMMJJ
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const dateStr = `${year}${month}${day}`;
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ListX_Project_${project.name.replace(/[^a-z0-9]/gi, '_')}_${dateStr}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportProject = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = JSON.parse(event.target.result);
+          const result = importProject(selectedClient.id, data);
+
+          if (result.success) {
+            loadProjects();
+            alert(`Projet "${result.name}" importé avec succès !\n${result.listingCount} listing(s) inclus.`);
+          }
+        } catch (error) {
+          alert('Erreur lors de l\'import : ' + error.message);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
   if (!selectedClient) {
     return null;
   }
@@ -68,13 +118,23 @@ export default function ProjectsPage() {
             <ChevronLeft className="w-5 h-5" />
             Retour aux clients
           </button>
-          <button
-            onClick={() => setShowCreateDialog(true)}
-            className="absolute right-0 top-0 flex items-center gap-2 px-4 py-2 bg-white text-blue-900 rounded-xl hover:bg-blue-50 transition-all duration-200 shadow-lg font-semibold"
-          >
-            <Plus className="w-5 h-5" />
-            Nouveau projet
-          </button>
+          <div className="absolute right-0 top-0 flex items-center gap-2">
+            <button
+              onClick={handleImportProject}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold transition-colors"
+              title="Importer un projet"
+            >
+              <Download className="w-4 h-4" />
+              Importer
+            </button>
+            <button
+              onClick={() => setShowCreateDialog(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-white text-blue-900 rounded-xl hover:bg-blue-50 transition-all duration-200 shadow-lg font-semibold"
+            >
+              <Plus className="w-5 h-5" />
+              Nouveau projet
+            </button>
+          </div>
           <h1 className="text-4xl font-bold text-white mb-3">{selectedClient.name}</h1>
           <p className="text-blue-200">Sélectionnez ou créez un projet</p>
         </div>
@@ -85,14 +145,23 @@ export default function ProjectsPage() {
             <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-12 text-center max-w-md">
               <FolderOpen className="w-20 h-20 text-white/60 mb-6 mx-auto" />
               <h2 className="text-2xl font-semibold text-white mb-3">Aucun projet</h2>
-              <p className="text-blue-200 mb-8">Créez votre premier projet pour ce client</p>
-              <button
-                onClick={() => setShowCreateDialog(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-white text-blue-900 rounded-xl hover:bg-blue-50 transition-all duration-200 shadow-lg hover:shadow-xl mx-auto font-semibold"
-              >
-                <Plus className="w-5 h-5" />
-                Créer mon premier projet
-              </button>
+              <p className="text-blue-200 mb-8">Créez votre premier projet ou importez-en un existant</p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={handleImportProject}
+                  className="flex items-center gap-2 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Importer un projet
+                </button>
+                <button
+                  onClick={() => setShowCreateDialog(true)}
+                  className="flex items-center gap-2 px-6 py-3 bg-white text-blue-900 rounded-xl hover:bg-blue-50 transition-all duration-200 shadow-lg hover:shadow-xl font-semibold"
+                >
+                  <Plus className="w-5 h-5" />
+                  Créer mon premier projet
+                </button>
+              </div>
             </div>
           </div>
         ) : (
@@ -122,6 +191,17 @@ export default function ProjectsPage() {
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleExportProject(project);
+                      }}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-green-500/20 text-green-200 rounded-lg hover:bg-green-500/30 transition-colors"
+                      title="Exporter ce projet"
+                    >
+                      <Upload className="w-4 h-4" />
+                      Exporter
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

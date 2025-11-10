@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Plus, Users, Edit, Trash2 } from 'lucide-react';
+import { Plus, Users, Edit, Trash2, Download, Upload } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { getAllClients, createClient, renameClient, deleteClient } from '../services/storageService';
+import { getAllClients, createClient, renameClient, deleteClient, exportClient, importClient } from '../services/storageService';
 import AppLayout from '../components/AppLayout';
 import InputDialog from '../components/InputDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -45,6 +45,56 @@ export default function ClientsPage() {
     }
   };
 
+  const handleExportClient = (client) => {
+    const exportData = exportClient(client.id);
+    if (!exportData) {
+      alert('Erreur lors de l\'export du client');
+      return;
+    }
+
+    // Formater la date au format AAMMJJ
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const dateStr = `${year}${month}${day}`;
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ListX_Client_${client.name.replace(/[^a-z0-9]/gi, '_')}_${dateStr}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportClient = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = JSON.parse(event.target.result);
+          const result = importClient(data);
+
+          if (result.success) {
+            loadClients();
+            alert(`Client "${result.name}" importé avec succès !\n${result.projectCount} projet(s) inclus.`);
+          }
+        } catch (error) {
+          alert('Erreur lors de l\'import : ' + error.message);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
   return (
     <AppLayout>
       <div className="max-w-7xl mx-auto">
@@ -53,15 +103,25 @@ export default function ClientsPage() {
           <img src={listXLogo} alt="ListX" className="h-20" />
         </div>
 
-        {/* Titre principal avec bouton création */}
+        {/* Titre principal avec boutons actions */}
         <div className="relative text-center mb-12">
-          <button
-            onClick={() => setShowCreateDialog(true)}
-            className="absolute right-0 top-0 flex items-center gap-2 px-4 py-2 bg-white text-blue-900 rounded-xl hover:bg-blue-50 transition-all duration-200 shadow-lg font-semibold"
-          >
-            <Plus className="w-5 h-5" />
-            Nouveau client
-          </button>
+          <div className="absolute right-0 top-0 flex items-center gap-2">
+            <button
+              onClick={handleImportClient}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold transition-colors"
+              title="Importer un client"
+            >
+              <Download className="w-4 h-4" />
+              Importer
+            </button>
+            <button
+              onClick={() => setShowCreateDialog(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-white text-blue-900 rounded-xl hover:bg-blue-50 transition-all duration-200 shadow-lg font-semibold"
+            >
+              <Plus className="w-5 h-5" />
+              Nouveau client
+            </button>
+          </div>
           <h1 className="text-4xl font-bold text-white mb-3">Gestion des Clients</h1>
           <p className="text-blue-200">Sélectionnez ou créez un client pour commencer</p>
         </div>
@@ -72,14 +132,23 @@ export default function ClientsPage() {
             <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-12 text-center max-w-md">
               <Users className="w-20 h-20 text-white/60 mb-6 mx-auto" />
               <h2 className="text-2xl font-semibold text-white mb-3">Aucun client</h2>
-              <p className="text-blue-200 mb-8">Créez votre premier client pour commencer à gérer vos projets</p>
-              <button
-                onClick={() => setShowCreateDialog(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-white text-blue-900 rounded-xl hover:bg-blue-50 transition-all duration-200 shadow-lg hover:shadow-xl mx-auto font-semibold"
-              >
-                <Plus className="w-5 h-5" />
-                Créer mon premier client
-              </button>
+              <p className="text-blue-200 mb-8">Créez votre premier client ou importez-en un existant</p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={handleImportClient}
+                  className="flex items-center gap-2 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Importer un client
+                </button>
+                <button
+                  onClick={() => setShowCreateDialog(true)}
+                  className="flex items-center gap-2 px-6 py-3 bg-white text-blue-900 rounded-xl hover:bg-blue-50 transition-all duration-200 shadow-lg hover:shadow-xl font-semibold"
+                >
+                  <Plus className="w-5 h-5" />
+                  Créer mon premier client
+                </button>
+              </div>
             </div>
           </div>
         ) : (
@@ -109,6 +178,17 @@ export default function ClientsPage() {
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleExportClient(client);
+                      }}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-green-500/20 text-green-200 rounded-lg hover:bg-green-500/30 transition-colors"
+                      title="Exporter ce client"
+                    >
+                      <Upload className="w-4 h-4" />
+                      Exporter
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

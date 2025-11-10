@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Plus, FileText, Copy, Edit, Trash2, Calendar, FileStack, ChevronLeft } from 'lucide-react';
+import { Plus, FileText, Copy, Edit, Trash2, Calendar, FileStack, ChevronLeft, Download, Upload } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { getProjectListings, createListing, renameListing, deleteListing, duplicateListing } from '../services/storageService';
+import { getProjectListings, createListing, renameListing, deleteListing, duplicateListing, exportListing, importListing } from '../services/storageService';
 import AppLayout from '../components/AppLayout';
 import InputDialog from '../components/InputDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -54,6 +54,56 @@ export default function ListingsPage() {
     loadListings();
   };
 
+  const handleExportListing = (listing) => {
+    const exportData = exportListing(selectedClient.id, selectedProject.id, listing.id);
+    if (!exportData) {
+      alert('Erreur lors de l\'export du listing');
+      return;
+    }
+
+    // Formater la date au format AAMMJJ
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const dateStr = `${year}${month}${day}`;
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ListX_Listing_${listing.name.replace(/[^a-z0-9]/gi, '_')}_${dateStr}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportListing = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = JSON.parse(event.target.result);
+          const result = importListing(selectedClient.id, selectedProject.id, data);
+
+          if (result.success) {
+            loadListings();
+            alert(`Listing "${result.name}" importé avec succès !\n${result.documentCount} document(s) inclus.`);
+          }
+        } catch (error) {
+          alert('Erreur lors de l\'import : ' + error.message);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -80,13 +130,23 @@ export default function ListingsPage() {
             <ChevronLeft className="w-5 h-5" />
             Retour aux projets
           </button>
-          <button
-            onClick={() => setShowCreateDialog(true)}
-            className="absolute right-0 top-0 flex items-center gap-2 px-4 py-2 bg-white text-blue-900 rounded-xl hover:bg-blue-50 transition-all duration-200 shadow-lg font-semibold"
-          >
-            <Plus className="w-5 h-5" />
-            Nouveau listing
-          </button>
+          <div className="absolute right-0 top-0 flex items-center gap-2">
+            <button
+              onClick={handleImportListing}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold transition-colors"
+              title="Importer un listing"
+            >
+              <Download className="w-4 h-4" />
+              Importer
+            </button>
+            <button
+              onClick={() => setShowCreateDialog(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-white text-blue-900 rounded-xl hover:bg-blue-50 transition-all duration-200 shadow-lg font-semibold"
+            >
+              <Plus className="w-5 h-5" />
+              Nouveau listing
+            </button>
+          </div>
           <p className="text-sm text-blue-300 mb-2">{selectedClient.name}</p>
           <h1 className="text-4xl font-bold text-white mb-3">{selectedProject.name}</h1>
           <p className="text-blue-200">Sélectionnez ou créez un listing</p>
@@ -98,14 +158,23 @@ export default function ListingsPage() {
             <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-12 text-center max-w-md">
               <FileText className="w-20 h-20 text-white/60 mb-6 mx-auto" />
               <h2 className="text-2xl font-semibold text-white mb-3">Aucun listing</h2>
-              <p className="text-blue-200 mb-8">Créez votre premier listing pour ce projet</p>
-              <button
-                onClick={() => setShowCreateDialog(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-white text-blue-900 rounded-xl hover:bg-blue-50 transition-all duration-200 shadow-lg hover:shadow-xl mx-auto font-semibold"
-              >
-                <Plus className="w-5 h-5" />
-                Créer mon premier listing
-              </button>
+              <p className="text-blue-200 mb-8">Créez votre premier listing ou importez-en un existant</p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={handleImportListing}
+                  className="flex items-center gap-2 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Importer un listing
+                </button>
+                <button
+                  onClick={() => setShowCreateDialog(true)}
+                  className="flex items-center gap-2 px-6 py-3 bg-white text-blue-900 rounded-xl hover:bg-blue-50 transition-all duration-200 shadow-lg hover:shadow-xl font-semibold"
+                >
+                  <Plus className="w-5 h-5" />
+                  Créer mon premier listing
+                </button>
+              </div>
             </div>
           </div>
         ) : (
@@ -141,6 +210,16 @@ export default function ListingsPage() {
 
                     {/* Actions */}
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleExportListing(listing);
+                        }}
+                        className="p-2.5 bg-green-500/20 text-green-200 rounded-lg hover:bg-green-500/30 transition-colors"
+                        title="Exporter ce listing"
+                      >
+                        <Upload className="w-5 h-5" />
+                      </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();

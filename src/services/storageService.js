@@ -386,3 +386,198 @@ export function deleteListing(clientId, projectId, listingId) {
   delete project.listings[listingId];
   return saveData(data);
 }
+
+// ============= EXPORT / IMPORT =============
+
+/**
+ * Exporte un client complet avec tous ses projets et listings
+ * @param {string} clientId - ID du client
+ * @returns {Object|null} Données du client ou null si inexistant
+ */
+export function exportClient(clientId) {
+  const data = loadData();
+  const client = data.clients[clientId];
+
+  if (!client) {
+    return null;
+  }
+
+  return {
+    type: 'client',
+    version: '1.0.0',
+    exportedAt: new Date().toISOString(),
+    data: {
+      name: client.name,
+      createdAt: client.createdAt,
+      projects: client.projects || {},
+    },
+  };
+}
+
+/**
+ * Importe un client complet
+ * @param {Object} clientData - Données du client exporté
+ * @returns {Object} Résultat de l'import avec le nouvel ID
+ */
+export function importClient(clientData) {
+  if (!clientData || clientData.type !== 'client') {
+    throw new Error('Format de données invalide');
+  }
+
+  const data = loadData();
+  const newId = Date.now().toString();
+
+  // Créer le client avec un nouveau ID
+  data.clients[newId] = {
+    name: clientData.data.name,
+    createdAt: new Date().toISOString(),
+    projects: clientData.data.projects || {},
+  };
+
+  saveData(data);
+
+  return {
+    success: true,
+    clientId: newId,
+    name: clientData.data.name,
+    projectCount: Object.keys(clientData.data.projects || {}).length,
+  };
+}
+
+/**
+ * Exporte un projet complet avec tous ses listings
+ * @param {string} clientId - ID du client
+ * @param {string} projectId - ID du projet
+ * @returns {Object|null} Données du projet ou null si inexistant
+ */
+export function exportProject(clientId, projectId) {
+  const data = loadData();
+  const project = data.clients[clientId]?.projects[projectId];
+
+  if (!project) {
+    return null;
+  }
+
+  return {
+    type: 'project',
+    version: '1.0.0',
+    exportedAt: new Date().toISOString(),
+    data: {
+      name: project.name,
+      createdAt: project.createdAt,
+      listings: project.listings || {},
+    },
+  };
+}
+
+/**
+ * Importe un projet dans un client
+ * @param {string} clientId - ID du client cible
+ * @param {Object} projectData - Données du projet exporté
+ * @returns {Object} Résultat de l'import avec le nouvel ID
+ */
+export function importProject(clientId, projectData) {
+  if (!projectData || projectData.type !== 'project') {
+    throw new Error('Format de données invalide');
+  }
+
+  const data = loadData();
+  const client = data.clients[clientId];
+
+  if (!client) {
+    throw new Error('Client introuvable');
+  }
+
+  const newId = Date.now().toString();
+
+  if (!client.projects) {
+    client.projects = {};
+  }
+
+  client.projects[newId] = {
+    name: projectData.data.name,
+    createdAt: new Date().toISOString(),
+    listings: projectData.data.listings || {},
+  };
+
+  saveData(data);
+
+  return {
+    success: true,
+    projectId: newId,
+    name: projectData.data.name,
+    listingCount: Object.keys(projectData.data.listings || {}).length,
+  };
+}
+
+/**
+ * Exporte un listing complet avec tous ses documents
+ * @param {string} clientId - ID du client
+ * @param {string} projectId - ID du projet
+ * @param {string} listingId - ID du listing
+ * @returns {Object|null} Données du listing ou null si inexistant
+ */
+export function exportListing(clientId, projectId, listingId) {
+  const data = loadData();
+  const listing = data.clients[clientId]?.projects[projectId]?.listings[listingId];
+
+  if (!listing) {
+    return null;
+  }
+
+  return {
+    type: 'listing',
+    version: '1.0.0',
+    exportedAt: new Date().toISOString(),
+    data: {
+      name: listing.name,
+      createdAt: listing.createdAt,
+      updatedAt: listing.updatedAt,
+      documents: listing.documents || [],
+      settings: listing.settings || {},
+    },
+  };
+}
+
+/**
+ * Importe un listing dans un projet
+ * @param {string} clientId - ID du client cible
+ * @param {string} projectId - ID du projet cible
+ * @param {Object} listingData - Données du listing exporté
+ * @returns {Object} Résultat de l'import avec le nouvel ID
+ */
+export function importListing(clientId, projectId, listingData) {
+  if (!listingData || listingData.type !== 'listing') {
+    throw new Error('Format de données invalide');
+  }
+
+  const data = loadData();
+  const project = data.clients[clientId]?.projects[projectId];
+
+  if (!project) {
+    throw new Error('Projet introuvable');
+  }
+
+  const newId = Date.now().toString();
+
+  if (!project.listings) {
+    project.listings = {};
+  }
+
+  project.listings[newId] = {
+    name: listingData.data.name,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    documents: listingData.data.documents || [],
+    settings: listingData.data.settings || {},
+  };
+
+  saveData(data);
+
+  return {
+    success: true,
+    listingId: newId,
+    name: listingData.data.name,
+    documentCount: (listingData.data.documents || []).length,
+  };
+}
