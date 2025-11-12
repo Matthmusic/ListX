@@ -2,6 +2,22 @@
 
 Toutes les modifications notables de ce projet seront documentées dans ce fichier.
 
+## [1.2.7] - 2025-11-12
+
+### 🐛 Correctifs
+
+- **Fix : Protection contre la sauvegarde pendant le chargement** : Les documents ne sont plus écrasés à 0 pendant le rechargement
+  - Ajout d'un flag `isLoadingDocuments` pour bloquer la sauvegarde pendant le chargement
+  - La sauvegarde ne se déclenche plus avec `Documents: 0` pendant le chargement
+  - Résolution de la séquence : chargement → sauvegarde à 0 → perte de documents
+
+### 📝 Note technique
+
+Le useEffect de sauvegarde se déclenchait pendant que le chargement était en cours, créant une fenêtre où `documents` était vide.
+Le flag `isLoadingDocuments` empêche maintenant la sauvegarde pendant cette période transitoire.
+
+---
+
 ## [1.2.6] - 2025-11-12
 
 ### 🐛 Correctifs

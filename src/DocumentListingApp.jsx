@@ -2411,6 +2411,7 @@ export default function DocumentListingApp() {
 
   // Créer une clé qui change à chaque chargement pour forcer le refresh
   const [loadKey, setLoadKey] = useState(0);
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
 
   // useEffect pour recharger les documents à chaque fois qu'on revient sur la page
   useEffect(() => {
@@ -2441,6 +2442,7 @@ export default function DocumentListingApp() {
       // Charger les documents depuis le storageService si un listing est sélectionné
       if (selectedClient && selectedProject && selectedListing) {
         try {
+          setIsLoadingDocuments(true); // Bloquer la sauvegarde pendant le chargement
           const listing = await loadListing(selectedClient.id, selectedProject.id, selectedListing.id);
           console.log('Listing chargé:', listing);
 
@@ -2466,6 +2468,8 @@ export default function DocumentListingApp() {
           }
         } catch (error) {
           console.error('Erreur chargement listing:', error);
+        } finally {
+          setIsLoadingDocuments(false); // Débloquer la sauvegarde
         }
       } else {
         // Fallback: charger depuis localStorage pour rétro-compatibilité
@@ -2547,6 +2551,12 @@ export default function DocumentListingApp() {
   // useEffect pour sauvegarder automatiquement les documents
   useEffect(() => {
     const saveDocuments = async () => {
+      // Ne pas sauvegarder pendant le chargement initial
+      if (isLoadingDocuments) {
+        console.log('Sauvegarde bloquée: chargement en cours');
+        return;
+      }
+
       // Sauvegarder dans le storageService si un listing est sélectionné
       if (selectedClient && selectedProject && selectedListing) {
         try {
@@ -2591,10 +2601,10 @@ export default function DocumentListingApp() {
     };
 
     // Ne sauvegarder que si on a chargé les données (éviter la sauvegarde au premier render)
-    if (selectedClient && selectedProject && selectedListing) {
+    if (selectedClient && selectedProject && selectedListing && !isLoadingDocuments) {
       saveDocuments();
     }
-  }, [documents, modeNumerotation, categoriesOrder, selectedClient, selectedProject, selectedListing]);
+  }, [documents, modeNumerotation, categoriesOrder, selectedClient, selectedProject, selectedListing, isLoadingDocuments]);
 
   // useEffect pour sauvegarder les paramètres
   useEffect(() => {
