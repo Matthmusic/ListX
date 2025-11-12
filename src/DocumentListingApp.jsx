@@ -2409,9 +2409,22 @@ export default function DocumentListingApp() {
     }
   }, [templateHasEtatField, etat]);
 
-  // useEffect pour charger les données au démarrage
+  // Créer une clé qui change à chaque chargement pour forcer le refresh
+  const [loadKey, setLoadKey] = useState(0);
+
+  // useEffect pour recharger les documents à chaque fois qu'on revient sur la page
+  useEffect(() => {
+    // Forcer le rechargement en incrémentant loadKey
+    setLoadKey(prev => prev + 1);
+  }, []); // Se déclenche à chaque montage du composant
+
+  // useEffect pour charger les données au démarrage ET à chaque changement de listing
   useEffect(() => {
     const loadListingData = async () => {
+      console.log('=== CHARGEMENT LISTING ===');
+      console.log('LoadKey:', loadKey);
+      console.log('Client:', selectedClient, 'Project:', selectedProject, 'Listing:', selectedListing);
+
       // Charger les affaires depuis le CSV
       const affaires = await chargerAffairesCSV();
       setAffairesList(affaires);
@@ -2429,11 +2442,16 @@ export default function DocumentListingApp() {
       if (selectedClient && selectedProject && selectedListing) {
         try {
           const listing = await loadListing(selectedClient, selectedProject, selectedListing);
+          console.log('Listing chargé:', listing);
 
           if (listing) {
             // Charger les documents
             if (listing.documents && Array.isArray(listing.documents)) {
+              console.log('Documents chargés:', listing.documents.length);
               setDocuments(listing.documents);
+            } else {
+              console.log('Aucun document dans le listing');
+              setDocuments([]);
             }
 
             // Charger les paramètres
@@ -2483,7 +2501,7 @@ export default function DocumentListingApp() {
     };
 
     loadListingData();
-  }, [selectedClient, selectedProject, selectedListing]);
+  }, [selectedClient, selectedProject, selectedListing, loadKey]);
 
   // useEffect pour charger la version de l'app
   useEffect(() => {
@@ -2530,17 +2548,19 @@ export default function DocumentListingApp() {
   useEffect(() => {
     const saveDocuments = async () => {
       // Sauvegarder dans le storageService si un listing est sélectionné
-      if (selectedClient && selectedProject && selectedListing && documents.length >= 0) {
+      if (selectedClient && selectedProject && selectedListing) {
         try {
-          const listing = await loadListing(selectedClient, selectedProject, selectedListing);
+          // Charger le listing actuel pour récupérer les autres données
+          const currentListing = await loadListing(selectedClient, selectedProject, selectedListing);
 
-          if (listing) {
-            // Préparer les données du listing avec documents et settings
+          if (currentListing) {
+            // Préparer les données du listing avec documents et settings mis à jour
             const updatedListing = {
-              ...listing,
+              name: currentListing.name,
+              createdAt: currentListing.createdAt,
+              updatedAt: currentListing.updatedAt,
               documents,
               settings: {
-                ...(listing.settings || {}),
                 modeNumerotation,
                 categoriesOrder,
               },
@@ -2557,7 +2577,7 @@ export default function DocumentListingApp() {
         // Fallback: sauvegarder dans localStorage pour rétro-compatibilité
         const listingKey = localStorage.getItem('currentListingKey') || '';
 
-        if (listingKey && documents.length >= 0) {
+        if (listingKey) {
           const data = JSON.parse(localStorage.getItem('affairesData') || '{}');
 
           if (!data.affaires) data.affaires = {};
@@ -2570,7 +2590,10 @@ export default function DocumentListingApp() {
       }
     };
 
-    saveDocuments();
+    // Ne sauvegarder que si on a chargé les données (éviter la sauvegarde au premier render)
+    if (selectedClient && selectedProject && selectedListing) {
+      saveDocuments();
+    }
   }, [documents, modeNumerotation, categoriesOrder, selectedClient, selectedProject, selectedListing]);
 
   // useEffect pour sauvegarder les paramètres

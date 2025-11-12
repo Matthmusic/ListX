@@ -1,7 +1,7 @@
 {
   "name": "listx",
   "private": true,
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "Application de gestion et génération de listings de documents techniques",
   "author": "Bureau d'Études",
   "main": "electron/main.js",

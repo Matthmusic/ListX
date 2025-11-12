@@ -2,6 +2,23 @@
 
 Toutes les modifications notables de ce projet seront documentées dans ce fichier.
 
+## [1.2.5] - 2025-11-12
+
+### 🐛 Correctifs
+
+- **Fix critique : Rechargement des documents** : Les documents sont maintenant correctement rechargés à chaque retour sur DocumentListingApp
+  - Ajout d'une clé de rechargement (loadKey) qui force le refresh à chaque montage
+  - Correction du useEffect de chargement qui ne se déclenchait pas au retour
+  - Amélioration des logs de debug pour le chargement
+  - Les documents ne disparaissent plus quand on navigue entre les pages
+
+### 🔧 Améliorations
+
+- Amélioration de la sauvegarde pour ne pas écraser les métadonnées du listing
+- Ajout de logs détaillés pour le debug du chargement/sauvegarde
+
+---
+
 ## [1.2.4] - 2025-11-12
 
 ### 🐛 Correctifs
