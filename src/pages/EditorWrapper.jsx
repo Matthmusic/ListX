@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { loadListing, saveListing } from '../services/storageService';
+import { loadListing } from '../services/storageService';
 import DocumentListingApp from '../DocumentListingApp';
 
 export default function EditorWrapper() {
@@ -82,52 +82,10 @@ export default function EditorWrapper() {
     loadData();
   }, [selectedClient?.id, selectedProject?.id, selectedListing?.id]);
 
-  // Fonction utilitaire pour sauvegarder l'état actuel
-  const saveCurrentState = async () => {
-    if (!selectedClient || !selectedProject || !selectedListing) return;
-
-    // Utiliser currentListingKey qui est la clé technique stable
-    const listingKey = localStorage.getItem('currentListingKey') || `listing_${selectedListing.id}`;
-
-    const affairesData = JSON.parse(localStorage.getItem('affairesData') || '{}');
-    const documents = affairesData.affaires?.[listingKey] || [];
-    const settings = affairesData.settings || {};
-
-    // Sauvegarder TOUTES les données du listing
-    await saveListing(selectedClient.id, selectedProject.id, selectedListing.id, {
-      id: selectedListing.id,
-      name: selectedListing.name,
-      createdAt: selectedListing.createdAt,
-      documents,
-      settings,
-      // Conserver toutes les autres données potentielles
-      affairesData: {
-        affaires: affairesData.affaires || {},
-        lastAffaire: affairesData.lastAffaire,
-        settings: affairesData.settings
-      }
-    });
-  };
-
-  // Écouter les changements du localStorage (quand DocumentListingApp sauvegarde)
-  useEffect(() => {
-    if (!selectedClient || !selectedProject || !selectedListing) return;
-
-    // Écouter les événements storage (ne fonctionne qu'entre onglets malheureusement)
-    // Donc on utilise un MutationObserver ou on se fie au cleanup
-
-    // Sauvegarde au démontage du composant
-    return () => {
-      saveCurrentState();
-    };
-  }, [selectedClient, selectedProject, selectedListing]);
-
-  // Gestionnaire pour le bouton retour avec sauvegarde
+  // Gestionnaire pour le bouton retour
   const handleBackClick = () => {
-    // Sauvegarder avant de naviguer
-    saveCurrentState();
-
-    // Puis naviguer
+    // DocumentListingApp gère déjà la sauvegarde automatique via useEffect
+    // Donc on navigue directement sans besoin de sauvegarder ici
     navigateToListings(selectedClient, selectedProject);
   };
 

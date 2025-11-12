@@ -560,7 +560,9 @@ export default function DocumentListingApp() {
         return doc;
       });
 
-      setDocuments(renumeroteDocuments(updatedDocs));
+      const renumberedDocs = renumeroteDocuments(updatedDocs);
+      setDocuments(renumberedDocs);
+      saveDocumentsToStorage(renumberedDocs); // Sauvegarder après modification
       showNotification('Document modifié avec succès !', 'success');
       setEditingDocId(null);
     } else {
@@ -592,7 +594,9 @@ export default function DocumentListingApp() {
       // Générer le nom complet
       newDoc.nomComplet = genererNomComplet(newDoc, numero);
 
-      setDocuments([...documents, newDoc]);
+      const updatedDocs = [...documents, newDoc];
+      setDocuments(updatedDocs);
+      saveDocumentsToStorage(updatedDocs); // Sauvegarder immédiatement
 
       // Notification de succès
       showNotification(`Document "${newDoc.nomComplet}" ajouté avec succès !`, 'success');
@@ -664,7 +668,9 @@ export default function DocumentListingApp() {
 
   const supprimerDocument = (id) => {
     const filtered = documents.filter(d => d.id !== id);
-    setDocuments(renumeroteDocuments(filtered));
+    const renumberedDocs = renumeroteDocuments(filtered);
+    setDocuments(renumberedDocs);
+    saveDocumentsToStorage(renumberedDocs); // Sauvegarder après suppression
   };
 
   // Handlers pour le drag and drop des documents avec dnd-kit
@@ -693,7 +699,9 @@ export default function DocumentListingApp() {
     const newIndex = documents.findIndex(d => d.id === over.id);
 
     const reorderedDocs = arrayMove(documents, oldIndex, newIndex);
-    setDocuments(renumeroteDocuments(reorderedDocs));
+    const renumberedDocs = renumeroteDocuments(reorderedDocs);
+    setDocuments(renumberedDocs);
+    saveDocumentsToStorage(renumberedDocs); // Sauvegarder après réorganisation
   };
 
   const exporterCSV = () => {
@@ -2419,6 +2427,11 @@ export default function DocumentListingApp() {
     setLoadKey(prev => prev + 1);
   }, []); // Se déclenche à chaque montage du composant
 
+  // useEffect pour marquer qu'on est en train de charger dès qu'on change de listing
+  useEffect(() => {
+    setIsLoadingDocuments(true);
+  }, [selectedClient?.id, selectedProject?.id, selectedListing?.id]);
+
   // useEffect pour charger les données au démarrage ET à chaque changement de listing
   useEffect(() => {
     const loadListingData = async () => {
@@ -2442,7 +2455,6 @@ export default function DocumentListingApp() {
       // Charger les documents depuis le storageService si un listing est sélectionné
       if (selectedClient && selectedProject && selectedListing) {
         try {
-          setIsLoadingDocuments(true); // Bloquer la sauvegarde pendant le chargement
           const listing = await loadListing(selectedClient.id, selectedProject.id, selectedListing.id);
           console.log('Listing chargé:', listing);
 
@@ -2466,10 +2478,12 @@ export default function DocumentListingApp() {
               }
             }
           }
+
+          // Débloquer la sauvegarde après le chargement
+          setIsLoadingDocuments(false);
         } catch (error) {
           console.error('Erreur chargement listing:', error);
-        } finally {
-          setIsLoadingDocuments(false); // Débloquer la sauvegarde
+          setIsLoadingDocuments(false);
         }
       } else {
         // Fallback: charger depuis localStorage pour rétro-compatibilité
@@ -2548,63 +2562,49 @@ export default function DocumentListingApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTemplate]);
 
-  // useEffect pour sauvegarder automatiquement les documents
-  useEffect(() => {
-    const saveDocuments = async () => {
-      // Ne pas sauvegarder pendant le chargement initial
-      if (isLoadingDocuments) {
-        console.log('Sauvegarde bloquée: chargement en cours');
-        return;
-      }
-
-      // Sauvegarder dans le storageService si un listing est sélectionné
-      if (selectedClient && selectedProject && selectedListing) {
-        try {
-          // Charger le listing actuel pour récupérer les autres données
-          const currentListing = await loadListing(selectedClient.id, selectedProject.id, selectedListing.id);
-
-          if (currentListing) {
-            // Préparer les données du listing avec documents et settings mis à jour
-            const updatedListing = {
-              name: currentListing.name,
-              createdAt: currentListing.createdAt,
-              updatedAt: currentListing.updatedAt,
-              documents,
-              settings: {
-                modeNumerotation,
-                categoriesOrder,
-              },
-            };
-
-            // Sauvegarder via le service
-            await saveListing(selectedClient.id, selectedProject.id, selectedListing.id, updatedListing);
-            console.log('Documents sauvegardés:', documents.length);
-          }
-        } catch (error) {
-          console.error('Erreur sauvegarde documents:', error);
-        }
-      } else {
-        // Fallback: sauvegarder dans localStorage pour rétro-compatibilité
-        const listingKey = localStorage.getItem('currentListingKey') || '';
-
-        if (listingKey) {
-          const data = JSON.parse(localStorage.getItem('affairesData') || '{}');
-
-          if (!data.affaires) data.affaires = {};
-          data.affaires[listingKey] = documents;
-          data.lastAffaire = listingKey;
-          data.settings = { modeNumerotation, categoriesOrder };
-
-          localStorage.setItem('affairesData', JSON.stringify(data));
-        }
-      }
-    };
-
-    // Ne sauvegarder que si on a chargé les données (éviter la sauvegarde au premier render)
-    if (selectedClient && selectedProject && selectedListing && !isLoadingDocuments) {
-      saveDocuments();
+  // Fonction pour sauvegarder les documents (appelée explicitement après chaque modification)
+  const saveDocumentsToStorage = async (docsToSave) => {
+    // Ne pas sauvegarder pendant le chargement
+    if (isLoadingDocuments) {
+      console.log('Sauvegarde bloquée: chargement en cours');
+      return;
     }
-  }, [documents, modeNumerotation, categoriesOrder, selectedClient, selectedProject, selectedListing, isLoadingDocuments]);
+
+    // Sauvegarder dans le storageService si un listing est sélectionné
+    if (selectedClient && selectedProject && selectedListing) {
+      try {
+        const updatedListing = {
+          name: selectedListing.name,
+          createdAt: selectedListing.createdAt,
+          updatedAt: new Date().toISOString(),
+          documents: docsToSave,
+          settings: {
+            modeNumerotation,
+            categoriesOrder,
+          },
+        };
+
+        await saveListing(selectedClient.id, selectedProject.id, selectedListing.id, updatedListing);
+        console.log('Documents sauvegardés:', docsToSave.length);
+      } catch (error) {
+        console.error('Erreur sauvegarde documents:', error);
+      }
+    } else {
+      // Fallback: sauvegarder dans localStorage pour rétro-compatibilité
+      const listingKey = localStorage.getItem('currentListingKey') || '';
+
+      if (listingKey) {
+        const data = JSON.parse(localStorage.getItem('affairesData') || '{}');
+
+        if (!data.affaires) data.affaires = {};
+        data.affaires[listingKey] = docsToSave;
+        data.lastAffaire = listingKey;
+        data.settings = { modeNumerotation, categoriesOrder };
+
+        localStorage.setItem('affairesData', JSON.stringify(data));
+      }
+    }
+  };
 
   // useEffect pour sauvegarder les paramètres
   useEffect(() => {

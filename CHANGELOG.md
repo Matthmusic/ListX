@@ -2,6 +2,23 @@
 
 Toutes les modifications notables de ce projet seront documentées dans ce fichier.
 
+## [1.2.8] - 2025-11-12
+
+### 🐛 Correctifs
+
+- **Fix CRITIQUE : Race condition de sauvegarde** : Correction définitive du problème de sauvegarde à 0 pendant le chargement
+  - Remplacement du système de déblocage dans `finally` par un useEffect de surveillance
+  - Ajout d'un compteur `loadingExpectedCount` pour attendre que React mette à jour l'état
+  - Le déblocage ne se fait plus qu'après confirmation que les documents sont réellement dans l'état
+  - Résolution définitive de la séquence : chargement → sauvegarde à 0 → perte de documents
+
+### 📝 Note technique
+
+React setState est asynchrone - le `finally` block s'exécutait avant que `setDocuments()` ne mette à jour l'état.
+Solution : un useEffect surveille `documents.length` et ne débloque la sauvegarde qu'après confirmation de la mise à jour.
+
+---
+
 ## [1.2.7] - 2025-11-12
 
 ### 🐛 Correctifs
