@@ -2441,7 +2441,7 @@ export default function DocumentListingApp() {
       // Charger les documents depuis le storageService si un listing est sélectionné
       if (selectedClient && selectedProject && selectedListing) {
         try {
-          const listing = await loadListing(selectedClient, selectedProject, selectedListing);
+          const listing = await loadListing(selectedClient.id, selectedProject.id, selectedListing.id);
           console.log('Listing chargé:', listing);
 
           if (listing) {
@@ -2551,7 +2551,7 @@ export default function DocumentListingApp() {
       if (selectedClient && selectedProject && selectedListing) {
         try {
           // Charger le listing actuel pour récupérer les autres données
-          const currentListing = await loadListing(selectedClient, selectedProject, selectedListing);
+          const currentListing = await loadListing(selectedClient.id, selectedProject.id, selectedListing.id);
 
           if (currentListing) {
             // Préparer les données du listing avec documents et settings mis à jour
@@ -2567,7 +2567,7 @@ export default function DocumentListingApp() {
             };
 
             // Sauvegarder via le service
-            await saveListing(selectedClient, selectedProject, selectedListing, updatedListing);
+            await saveListing(selectedClient.id, selectedProject.id, selectedListing.id, updatedListing);
             console.log('Documents sauvegardés:', documents.length);
           }
         } catch (error) {

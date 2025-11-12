@@ -2,6 +2,23 @@
 
 Toutes les modifications notables de ce projet seront documentées dans ce fichier.
 
+## [1.2.6] - 2025-11-12
+
+### 🐛 Correctifs
+
+- **Fix CRITIQUE : Extraction des IDs** : Correction majeure de l'utilisation des IDs pour le chargement/sauvegarde
+  - Les appels à `loadListing()` et `saveListing()` utilisent maintenant `.id` au lieu des objets complets
+  - Les documents sont maintenant réellement chargés depuis le Z: (ils retournaient null avant)
+  - Les documents sont maintenant réellement sauvegardés sur le Z: avec les bons IDs
+  - Résolution du problème "Listing chargé: null" dans les logs
+
+### 📝 Note technique
+
+Le contexte AppContext stocke des objets `{id, name, ...}` mais les fonctions de storage attendent des strings (IDs).
+Cette version corrige tous les appels pour extraire `.id` avant de passer aux fonctions de storage.
+
+---
+
 ## [1.2.5] - 2025-11-12
 
 ### 🐛 Correctifs
