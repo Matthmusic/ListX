@@ -2,6 +2,15 @@
 
 Toutes les modifications notables de ce projet seront documentées dans ce fichier.
 
+## [1.2.4] - 2025-11-12
+
+### 🐛 Correctifs
+
+- **Fix erreur de build** : Correction de l'import storageService (loadData → loadListing)
+- Validation du build avant release
+
+---
+
 ## [1.2.3] - 2025-11-12
 
 ### 🐛 Correctifs
