@@ -6,7 +6,7 @@ import { generateFilename, getExportHeaders, getDocumentValues, mergeFormFieldsO
 import { FieldSettingsModal } from './components/FieldSettingsModal';
 import { DynamicFormField } from './components/DynamicFormField';
 import AffairesModal from './components/AffairesModal';
-import { saveListing, loadData } from './services/storageService';
+import { saveListing, loadListing } from './services/storageService';
 import {
   DndContext,
   closestCenter,
@@ -2428,8 +2428,7 @@ export default function DocumentListingApp() {
       // Charger les documents depuis le storageService si un listing est sélectionné
       if (selectedClient && selectedProject && selectedListing) {
         try {
-          const data = await loadData();
-          const listing = data.clients?.[selectedClient]?.projects?.[selectedProject]?.listings?.[selectedListing];
+          const listing = await loadListing(selectedClient, selectedProject, selectedListing);
 
           if (listing) {
             // Charger les documents
@@ -2533,8 +2532,7 @@ export default function DocumentListingApp() {
       // Sauvegarder dans le storageService si un listing est sélectionné
       if (selectedClient && selectedProject && selectedListing && documents.length >= 0) {
         try {
-          const data = await loadData();
-          const listing = data.clients?.[selectedClient]?.projects?.[selectedProject]?.listings?.[selectedListing];
+          const listing = await loadListing(selectedClient, selectedProject, selectedListing);
 
           if (listing) {
             // Préparer les données du listing avec documents et settings
