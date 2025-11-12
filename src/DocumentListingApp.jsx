@@ -6,6 +6,7 @@ import { generateFilename, getExportHeaders, getDocumentValues, mergeFormFieldsO
 import { FieldSettingsModal } from './components/FieldSettingsModal';
 import { DynamicFormField } from './components/DynamicFormField';
 import AffairesModal from './components/AffairesModal';
+import { saveListing, loadData } from './services/storageService';
 import {
   DndContext,
   closestCenter,
@@ -2410,16 +2411,11 @@ export default function DocumentListingApp() {
 
   // useEffect pour charger les données au démarrage
   useEffect(() => {
-    const loadData = async () => {
+    const loadListingData = async () => {
       // Charger les affaires depuis le CSV
       const affaires = await chargerAffairesCSV();
       setAffairesList(affaires);
       setFilteredAffaires(affaires);
-
-      // Charger les données du listing actuel
-      const data = JSON.parse(localStorage.getItem('affairesData') || '{}');
-      // Utiliser currentListingKey qui est la clé stable du listing
-      const listingKey = localStorage.getItem('currentListingKey') || '';
 
       // Vérifier si c'est la première ouverture d'un nouveau listing
       const isFirstOpen = localStorage.getItem('isFirstOpen') === 'true';
@@ -2429,21 +2425,51 @@ export default function DocumentListingApp() {
         localStorage.removeItem('isFirstOpen');
       }
 
-      // Charger les documents du listing
-      if (listingKey && data.affaires?.[listingKey]) {
-        const docs = data.affaires[listingKey];
-        setDocuments(docs);
-      }
+      // Charger les documents depuis le storageService si un listing est sélectionné
+      if (selectedClient && selectedProject && selectedListing) {
+        try {
+          const data = await loadData();
+          const listing = data.clients?.[selectedClient]?.projects?.[selectedProject]?.listings?.[selectedListing];
 
-      if (data.settings) {
-        if (data.settings.modeNumerotation !== undefined) {
-          setModeNumerotation(data.settings.modeNumerotation);
-        } else if (data.settings.useRanges !== undefined) {
-          // Rétro-compatibilité avec l'ancien système useRanges
-          setModeNumerotation('categorie');
+          if (listing) {
+            // Charger les documents
+            if (listing.documents && Array.isArray(listing.documents)) {
+              setDocuments(listing.documents);
+            }
+
+            // Charger les paramètres
+            if (listing.settings) {
+              if (listing.settings.modeNumerotation !== undefined) {
+                setModeNumerotation(listing.settings.modeNumerotation);
+              }
+              if (listing.settings.categoriesOrder) {
+                setCategoriesOrder(listing.settings.categoriesOrder);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Erreur chargement listing:', error);
         }
-        if (data.settings.categoriesOrder) {
-          setCategoriesOrder(data.settings.categoriesOrder);
+      } else {
+        // Fallback: charger depuis localStorage pour rétro-compatibilité
+        const data = JSON.parse(localStorage.getItem('affairesData') || '{}');
+        const listingKey = localStorage.getItem('currentListingKey') || '';
+
+        if (listingKey && data.affaires?.[listingKey]) {
+          const docs = data.affaires[listingKey];
+          setDocuments(docs);
+        }
+
+        if (data.settings) {
+          if (data.settings.modeNumerotation !== undefined) {
+            setModeNumerotation(data.settings.modeNumerotation);
+          } else if (data.settings.useRanges !== undefined) {
+            // Rétro-compatibilité avec l'ancien système useRanges
+            setModeNumerotation('categorie');
+          }
+          if (data.settings.categoriesOrder) {
+            setCategoriesOrder(data.settings.categoriesOrder);
+          }
         }
       }
 
@@ -2457,8 +2483,8 @@ export default function DocumentListingApp() {
       }
     };
 
-    loadData();
-  }, []);
+    loadListingData();
+  }, [selectedClient, selectedProject, selectedListing]);
 
   // useEffect pour charger la version de l'app
   useEffect(() => {
@@ -2503,21 +2529,51 @@ export default function DocumentListingApp() {
 
   // useEffect pour sauvegarder automatiquement les documents
   useEffect(() => {
-    // Utiliser currentListingKey (clé technique du listing) pour la sauvegarde
-    // Cette clé ne doit jamais changer, même si l'utilisateur saisit quelque chose dans "Affaire"
-    const listingKey = localStorage.getItem('currentListingKey') || '';
+    const saveDocuments = async () => {
+      // Sauvegarder dans le storageService si un listing est sélectionné
+      if (selectedClient && selectedProject && selectedListing && documents.length >= 0) {
+        try {
+          const data = await loadData();
+          const listing = data.clients?.[selectedClient]?.projects?.[selectedProject]?.listings?.[selectedListing];
 
-    if (listingKey && documents.length >= 0) { // Sauvegarder même si vide (pour les suppressions)
-      const data = JSON.parse(localStorage.getItem('affairesData') || '{}');
+          if (listing) {
+            // Préparer les données du listing avec documents et settings
+            const updatedListing = {
+              ...listing,
+              documents,
+              settings: {
+                ...(listing.settings || {}),
+                modeNumerotation,
+                categoriesOrder,
+              },
+            };
 
-      if (!data.affaires) data.affaires = {};
-      data.affaires[listingKey] = documents;
-      data.lastAffaire = listingKey; // Garder la cohérence
-      data.settings = { modeNumerotation, categoriesOrder };
+            // Sauvegarder via le service
+            await saveListing(selectedClient, selectedProject, selectedListing, updatedListing);
+            console.log('Documents sauvegardés:', documents.length);
+          }
+        } catch (error) {
+          console.error('Erreur sauvegarde documents:', error);
+        }
+      } else {
+        // Fallback: sauvegarder dans localStorage pour rétro-compatibilité
+        const listingKey = localStorage.getItem('currentListingKey') || '';
 
-      localStorage.setItem('affairesData', JSON.stringify(data));
-    }
-  }, [documents, modeNumerotation, categoriesOrder]);
+        if (listingKey && documents.length >= 0) {
+          const data = JSON.parse(localStorage.getItem('affairesData') || '{}');
+
+          if (!data.affaires) data.affaires = {};
+          data.affaires[listingKey] = documents;
+          data.lastAffaire = listingKey;
+          data.settings = { modeNumerotation, categoriesOrder };
+
+          localStorage.setItem('affairesData', JSON.stringify(data));
+        }
+      }
+    };
+
+    saveDocuments();
+  }, [documents, modeNumerotation, categoriesOrder, selectedClient, selectedProject, selectedListing]);
 
   // useEffect pour sauvegarder les paramètres
   useEffect(() => {

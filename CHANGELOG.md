@@ -2,6 +2,24 @@
 
 Toutes les modifications notables de ce projet seront documentées dans ce fichier.
 
+## [1.2.3] - 2025-11-12
+
+### 🐛 Correctifs
+
+- **Fix critique : Export/Import des documents** : Les documents ajoutés dans les listes sont maintenant correctement inclus dans les exports JSON
+  - Les documents sont sauvegardés dans la structure centralisée (clients → projets → listes → documents)
+  - Les documents se synchronisent correctement sur le Z:
+  - Les documents sont restaurés lors des imports sur un autre poste
+  - Correction du système de sauvegarde qui utilisait uniquement localStorage
+
+### 🔧 Améliorations
+
+- Migration du stockage des documents vers le service centralisé (storageService)
+- Ajout d'un fallback pour la rétro-compatibilité avec l'ancien système localStorage
+- Amélioration de la robustesse du chargement et sauvegarde des documents
+
+---
+
 ## [1.1.1] - 2025-10-29
 
 ### 🔧 Améliorations
