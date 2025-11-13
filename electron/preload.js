@@ -33,10 +33,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // Stockage partagé
+  isStorageConfigured: () => ipcRenderer.invoke('is-storage-configured'),
+  getStoragePath: () => ipcRenderer.invoke('get-storage-path'),
+  selectStorageFolder: () => ipcRenderer.invoke('select-storage-folder'),
   checkSharedStorage: () => ipcRenderer.invoke('check-shared-storage'),
   readSharedData: () => ipcRenderer.invoke('read-shared-data'),
-  writeSharedData: (data) => ipcRenderer.invoke('write-shared-data', data),
-  getFileMtime: () => ipcRenderer.invoke('get-file-mtime')
+  writeSharedData: (data) => ipcRenderer.invoke('write-shared-data', data)
 });
 
 console.log('Preload script loaded - electronAPI exposed');

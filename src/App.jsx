@@ -1,29 +1,53 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useApp } from './context/AppContext'
 import UpdateNotification from './components/UpdateNotification'
-import SyncIndicator from './components/SyncIndicator'
+import StorageFolderSelector from './components/StorageFolderSelector'
 import ClientsPage from './pages/ClientsPage'
 import ProjectsPage from './pages/ProjectsPage'
 import ListingsPage from './pages/ListingsPage'
 import EditorWrapper from './pages/EditorWrapper'
-import { initializeStorage } from './services/storageService'
+import { isStorageConfigured } from './services/storageService'
 
 function App() {
   const { currentView } = useApp()
+  const [storageConfigured, setStorageConfigured] = useState(null)
 
-  // Initialiser le stockage au démarrage
+  // Vérifier si le stockage est configuré au démarrage
   useEffect(() => {
-    const init = async () => {
-      const result = await initializeStorage();
-      console.log('Stockage initialisé:', result);
+    const checkStorage = async () => {
+      const configured = await isStorageConfigured();
+      setStorageConfigured(configured);
     };
-    init();
+    checkStorage();
   }, []);
 
+  // Callback quand l'utilisateur sélectionne un dossier
+  const handleFolderSelected = (path) => {
+    console.log('Dossier de stockage configuré:', path);
+    setStorageConfigured(true);
+  };
+
+  // Afficher un loader pendant la vérification
+  if (storageConfigured === null) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-300 text-lg">Chargement de ListX...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Si le stockage n'est pas configuré, afficher le sélecteur
+  if (!storageConfigured) {
+    return <StorageFolderSelector onFolderSelected={handleFolderSelected} />;
+  }
+
+  // Application normale
   return (
     <>
       <UpdateNotification />
-      <SyncIndicator />
       {currentView === 'clients' && <ClientsPage />}
       {currentView === 'projects' && <ProjectsPage />}
       {currentView === 'listings' && <ListingsPage />}

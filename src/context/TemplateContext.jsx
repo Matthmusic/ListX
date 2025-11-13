@@ -1,13 +1,15 @@
-﻿import { createContext, useEffect, useState } from "react";
+import { createContext, useEffect, useState } from "react";
+import { getAllTemplates, saveTemplates as saveTemplatesToServer } from '../services/storageService';
+
 // Champs par defaut disponibles (predefinis dans l'application)
 export const DEFAULT_FIELDS = [
   { id: "AFFAIRE", label: "AFFAIRE", isDefault: true, type: "text-with-autocomplete" },
   { id: "PHASE", label: "PHASE", isDefault: true, type: "select" },
   { id: "LOT", label: "LOT", isDefault: true, type: "text" },
-  { id: "EMETTEUR", label: "\u00C9METTEUR", isDefault: true, type: "text" },
+  { id: "EMETTEUR", label: "ÉMETTEUR", isDefault: true, type: "text" },
   { id: "NATURE", label: "NATURE", isDefault: true, type: "select" },
   { id: "ETAT", label: "ETAT", isDefault: true, type: "select" },
-  { id: "NUMERO", label: "NUM\u00C9RO DOC", isDefault: true, type: "readonly" },
+  { id: "NUMERO", label: "NUMÉRO DOC", isDefault: true, type: "readonly" },
   { id: "ZONE", label: "ZONE", isDefault: true, type: "text" },
   { id: "NIVEAU", label: "NIVEAU", isDefault: true, type: "text" },
   { id: "FORMAT", label: "FORMAT", isDefault: true, type: "select" },
@@ -15,22 +17,22 @@ export const DEFAULT_FIELDS = [
 ];
 
 const defaultTemplate = {
-  name: "PAR D\u00C9FAUT",
+  name: "PAR DÉFAUT",
   // Ordre pour formulaire et exports (Excel/PDF)
   fieldsOrderDisplay: ["AFFAIRE", "PHASE", "LOT", "EMETTEUR", "NATURE", "ETAT", "NUMERO", "ZONE", "NIVEAU", "FORMAT", "INDICE"],
   // Ordre pour nom de fichier
   fieldsOrderFilename: ["AFFAIRE", "PHASE", "LOT", "EMETTEUR", "NATURE", "ETAT", "NUMERO", "ZONE", "NIVEAU", "FORMAT", "INDICE"],
-  // CompatibilitÃ© : ancien champ (Ã  supprimer plus tard)
+  // Compatibilité : ancien champ (à supprimer plus tard)
   fieldsOrder: ["AFFAIRE", "PHASE", "LOT", "EMETTEUR", "NATURE", "ETAT", "NUMERO", "ZONE", "NIVEAU", "FORMAT", "INDICE"],
-  // LibellÃ©s personnalisÃ©s pour chaque champ
+  // Libellés personnalisés pour chaque champ
   fieldsLabels: {
     AFFAIRE: "AFFAIRE",
     PHASE: "PHASE",
     LOT: "LOT",
-    EMETTEUR: "\u00C9METTEUR",
+    EMETTEUR: "ÉMETTEUR",
     NATURE: "NATURE",
     ETAT: "ETAT",
-    NUMERO: "NUM\u00C9RO DOC",
+    NUMERO: "NUMÉRO DOC",
     ZONE: "ZONE",
     NIVEAU: "NIVEAU",
     FORMAT: "FORMAT",
@@ -38,20 +40,44 @@ const defaultTemplate = {
   },
   // Champs actifs (visibles dans le formulaire)
   activeFields: ["AFFAIRE", "PHASE", "LOT", "EMETTEUR", "NATURE", "ETAT", "NUMERO", "ZONE", "NIVEAU", "FORMAT", "INDICE"],
-  // Champs personnalisÃ©s ajoutÃ©s par l'utilisateur
+  // Champs personnalisés ajoutés par l'utilisateur
   customFields: [],
 };
 
 export const TemplateContext = createContext();
 
 export const TemplateProvider = ({ children }) => {
-  const [templates, setTemplates] = useState(() => {
-    const savedTemplates = localStorage.getItem("listx-templates");
-    if (savedTemplates) {
+  const [templates, setTemplates] = useState({
+    templates: [defaultTemplate],
+    currentTemplate: defaultTemplate
+  });
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Charger les templates depuis le serveur au démarrage
+  useEffect(() => {
+    const loadTemplatesFromServer = async () => {
       try {
-        const parsed = JSON.parse(savedTemplates);
-        if (parsed.templates && parsed.currentTemplate) {
-          const validTemplates = parsed.templates.filter(
+        // Migrer d'abord les templates locaux vers le serveur si nécessaire
+        const localTemplates = localStorage.getItem("listx-templates");
+        if (localTemplates) {
+          try {
+            const parsed = JSON.parse(localTemplates);
+            if (parsed.templates && Array.isArray(parsed.templates) && parsed.templates.length > 0) {
+              console.log('Migration des templates locaux vers le serveur...');
+              await saveTemplatesToServer(parsed.templates);
+              localStorage.removeItem("listx-templates");
+              console.log('Templates migrés avec succès');
+            }
+          } catch (error) {
+            console.error('Erreur migration templates locaux:', error);
+          }
+        }
+
+        // Charger depuis le serveur
+        const serverTemplates = await getAllTemplates();
+
+        if (serverTemplates && serverTemplates.length > 0) {
+          const validTemplates = serverTemplates.filter(
             (t) =>
               t &&
               t.name &&
@@ -62,30 +88,41 @@ export const TemplateProvider = ({ children }) => {
           );
 
           if (validTemplates.length > 0) {
-            const currentExists = validTemplates.find((t) => t.name === parsed.currentTemplate.name);
-            return {
+            setTemplates({
               templates: validTemplates,
-              currentTemplate: currentExists || validTemplates[0],
-            };
+              currentTemplate: validTemplates[0],
+            });
+            setIsLoaded(true);
+            return;
           }
         }
+
+        // Si pas de templates sur le serveur, sauvegarder le template par défaut
+        await saveTemplatesToServer([defaultTemplate]);
+        setTemplates({ templates: [defaultTemplate], currentTemplate: defaultTemplate });
+        setIsLoaded(true);
       } catch (error) {
-        console.error("Erreur lors du chargement des templates :", error);
-        localStorage.removeItem("listx-templates");
+        console.error("Erreur lors du chargement des templates depuis le serveur:", error);
+        // En cas d'erreur, utiliser le template par défaut
+        setTemplates({ templates: [defaultTemplate], currentTemplate: defaultTemplate });
+        setIsLoaded(true);
       }
+    };
+
+    loadTemplatesFromServer();
+  }, []);
+
+  const saveTemplates = async (newTemplates) => {
+    try {
+      await saveTemplatesToServer(newTemplates.templates);
+      setTemplates(newTemplates);
+    } catch (error) {
+      console.error('Erreur sauvegarde templates:', error);
+      throw error;
     }
-    return { templates: [defaultTemplate], currentTemplate: defaultTemplate };
-  });
-
-  useEffect(() => {
-    localStorage.setItem("listx-templates", JSON.stringify(templates));
-  }, [templates]);
-
-  const saveTemplates = (newTemplates) => {
-    setTemplates(newTemplates);
   };
 
-  const addTemplate = (template) => {
+  const addTemplate = async (template) => {
     const cleanedTemplate = {
       ...template,
       fieldsOrder: [...new Set(template.fieldsOrder)],
@@ -109,17 +146,17 @@ export const TemplateProvider = ({ children }) => {
         currentTemplate: cleanedTemplate,
       };
     }
-    saveTemplates(newTemplates);
+    await saveTemplates(newTemplates);
   };
 
-  const applyTemplate = (templateName) => {
+  const applyTemplate = async (templateName) => {
     const template = templates.templates.find((t) => t.name === templateName);
     if (template) {
-      saveTemplates({ ...templates, currentTemplate: template });
+      await saveTemplates({ ...templates, currentTemplate: template });
     }
   };
 
-  const deleteTemplate = (templateName) => {
+  const deleteTemplate = async (templateName) => {
     if (templates.templates.length <= 1) {
       alert("Vous ne pouvez pas supprimer le dernier template.");
       return;
@@ -133,19 +170,24 @@ export const TemplateProvider = ({ children }) => {
       templates: filteredTemplates,
       currentTemplate: newCurrentTemplate,
     };
-    saveTemplates(newTemplates);
+    await saveTemplates(newTemplates);
   };
 
-  const importTemplates = (importedTemplates) => {
+  const importTemplates = async (importedTemplates) => {
     if (!Array.isArray(importedTemplates) || importedTemplates.length === 0) {
       throw new Error("Format de templates invalide");
     }
-    saveTemplates({ templates: importedTemplates, currentTemplate: importedTemplates[0] });
+    await saveTemplates({ templates: importedTemplates, currentTemplate: importedTemplates[0] });
   };
 
   const exportTemplates = () => {
     return JSON.stringify(templates.templates, null, 2);
   };
+
+  // Ne rien afficher tant que les templates ne sont pas chargés
+  if (!isLoaded) {
+    return null;
+  }
 
   return (
     <TemplateContext.Provider

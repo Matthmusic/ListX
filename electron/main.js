@@ -14,6 +14,13 @@ autoUpdater.autoInstallOnAppQuit = true;
 let mainWindow;
 let updateAvailable = false;
 
+// Chemin du fichier de configuration (dans userData)
+const CONFIG_FILE = path.join(app.getPath('userData'), 'config.json');
+
+// Variable pour stocker le chemin du dossier de stockage
+let SHARED_STORAGE_PATH = null;
+let SHARED_DATA_FILE = null;
+
 // Fonction pour obtenir le chemin de l'icône selon l'environnement
 function getIconPath() {
   if (isDev) {
@@ -201,15 +208,111 @@ ipcMain.handle('get-app-version', () => {
 });
 
 // ==============================
+// GESTION DE LA CONFIGURATION
+// ==============================
+
+/**
+ * Charge la configuration (chemin du dossier de stockage)
+ */
+function loadConfig() {
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+      if (config.storagePath) {
+        SHARED_STORAGE_PATH = config.storagePath;
+        SHARED_DATA_FILE = path.join(SHARED_STORAGE_PATH, 'data.json');
+        console.log('Configuration chargée:', SHARED_STORAGE_PATH);
+        return true;
+      }
+    }
+  } catch (error) {
+    console.error('Erreur chargement configuration:', error);
+  }
+  return false;
+}
+
+/**
+ * Sauvegarde la configuration
+ */
+function saveConfig(storagePath) {
+  try {
+    const config = { storagePath };
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
+    SHARED_STORAGE_PATH = storagePath;
+    SHARED_DATA_FILE = path.join(SHARED_STORAGE_PATH, 'data.json');
+    console.log('Configuration sauvegardée:', SHARED_STORAGE_PATH);
+    return true;
+  } catch (error) {
+    console.error('Erreur sauvegarde configuration:', error);
+    return false;
+  }
+}
+
+// ==============================
 // STOCKAGE PARTAGÉ
 // ==============================
 
-const SHARED_STORAGE_PATH = 'Z:\\F - UTILITAIRES\\LISTX';
-const SHARED_DATA_FILE = path.join(SHARED_STORAGE_PATH, 'data.json');
+// Charger la configuration au démarrage
+app.on('ready', () => {
+  loadConfig();
+});
+
+// Vérifier si le stockage est configuré
+ipcMain.handle('is-storage-configured', async () => {
+  return { configured: SHARED_STORAGE_PATH !== null };
+});
+
+// Obtenir le chemin de stockage actuel
+ipcMain.handle('get-storage-path', async () => {
+  return { path: SHARED_STORAGE_PATH };
+});
+
+// Ouvrir un dialogue pour sélectionner le dossier de stockage
+ipcMain.handle('select-storage-folder', async () => {
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory', 'createDirectory'],
+      title: 'Sélectionner le dossier de stockage ListX',
+      buttonLabel: 'Sélectionner',
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return { success: false, canceled: true };
+    }
+
+    const selectedPath = result.filePaths[0];
+
+    // Vérifier les permissions en essayant d'écrire un fichier de test
+    const testFile = path.join(selectedPath, '.listx-test');
+    try {
+      fs.writeFileSync(testFile, 'test');
+      fs.unlinkSync(testFile);
+    } catch (error) {
+      return {
+        success: false,
+        error: 'Impossible d\'écrire dans ce dossier. Vérifiez les permissions.'
+      };
+    }
+
+    // Sauvegarder la configuration
+    if (saveConfig(selectedPath)) {
+      return { success: true, path: selectedPath };
+    } else {
+      return { success: false, error: 'Erreur lors de la sauvegarde de la configuration' };
+    }
+  } catch (error) {
+    console.error('Erreur sélection dossier:', error);
+    return { success: false, error: error.message };
+  }
+});
 
 // Vérifier si le stockage partagé est accessible
 ipcMain.handle('check-shared-storage', async () => {
   try {
+    if (!SHARED_STORAGE_PATH) {
+      return { accessible: false, error: 'Aucun dossier de stockage configuré' };
+    }
+
     // Vérifier si le dossier existe
     if (!fs.existsSync(SHARED_STORAGE_PATH)) {
       // Essayer de créer le dossier
@@ -231,9 +334,13 @@ ipcMain.handle('check-shared-storage', async () => {
 // Lire les données du stockage partagé
 ipcMain.handle('read-shared-data', async () => {
   try {
+    if (!SHARED_STORAGE_PATH || !SHARED_DATA_FILE) {
+      return { success: false, error: 'Aucun dossier de stockage configuré' };
+    }
+
     if (!fs.existsSync(SHARED_DATA_FILE)) {
       // Si le fichier n'existe pas, retourner une structure vide
-      return { success: true, data: { clients: {} } };
+      return { success: true, data: { clients: {}, templates: [] } };
     }
 
     const fileContent = fs.readFileSync(SHARED_DATA_FILE, 'utf8');
@@ -249,6 +356,10 @@ ipcMain.handle('read-shared-data', async () => {
 // Écrire les données dans le stockage partagé
 ipcMain.handle('write-shared-data', async (event, data) => {
   try {
+    if (!SHARED_STORAGE_PATH || !SHARED_DATA_FILE) {
+      return { success: false, error: 'Aucun dossier de stockage configuré' };
+    }
+
     // Vérifier que le dossier existe
     if (!fs.existsSync(SHARED_STORAGE_PATH)) {
       fs.mkdirSync(SHARED_STORAGE_PATH, { recursive: true });
@@ -276,21 +387,6 @@ ipcMain.handle('write-shared-data', async (event, data) => {
     return { success: true };
   } catch (error) {
     console.error('Erreur écriture données partagées:', error);
-    return { success: false, error: error.message };
-  }
-});
-
-// Obtenir la date de dernière modification du fichier
-ipcMain.handle('get-file-mtime', async () => {
-  try {
-    if (!fs.existsSync(SHARED_DATA_FILE)) {
-      return { success: true, mtime: null };
-    }
-
-    const stats = fs.statSync(SHARED_DATA_FILE);
-    return { success: true, mtime: stats.mtimeMs };
-  } catch (error) {
-    console.error('Erreur lecture mtime:', error);
     return { success: false, error: error.message };
   }
 });

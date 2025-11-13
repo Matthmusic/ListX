@@ -1,279 +1,84 @@
 /**
- * Service de gestion du stockage des clients, projets et listings
- * Structure : clients/[clientName]/[projectName]/listings/[listingId].json
+ * Service de gestion du stockage sur serveur (dossier configurable)
+ * Structure : data.json contenant { clients, templates }
  */
-
-const STORAGE_KEY = 'listx_data';
-const USE_SHARED_STORAGE_KEY = 'listx_use_shared_storage';
-
-// Variable pour stocker l'état du stockage partagé
-let sharedStorageAvailable = false;
-let useSharedStorage = false;
 
 // Vérifier si on est dans Electron
 const isElectron = typeof window !== 'undefined' && window.electronAPI;
 
 /**
- * Initialise le stockage partagé
+ * Vérifie si le stockage est configuré
  */
-export async function initializeStorage() {
+export async function isStorageConfigured() {
   if (!isElectron) {
-    return { mode: 'local', accessible: false };
-  }
-
-  try {
-    // Vérifier si le stockage partagé est accessible
-    const result = await window.electronAPI.checkSharedStorage();
-    sharedStorageAvailable = result.accessible;
-
-    // Vérifier la préférence de l'utilisateur
-    const userPreference = localStorage.getItem(USE_SHARED_STORAGE_KEY);
-
-    if (userPreference === null && sharedStorageAvailable) {
-      // Première fois : proposer d'utiliser le stockage partagé
-      useSharedStorage = true;
-      localStorage.setItem(USE_SHARED_STORAGE_KEY, 'true');
-
-      // Migrer les données locales vers le stockage partagé
-      await migrateToSharedStorage();
-    } else {
-      useSharedStorage = userPreference === 'true' && sharedStorageAvailable;
-    }
-
-    return {
-      mode: useSharedStorage ? 'shared' : 'local',
-      accessible: sharedStorageAvailable,
-      path: result.path
-    };
-  } catch (error) {
-    console.error('Erreur initialisation stockage:', error);
-    useSharedStorage = false;
-    return { mode: 'local', accessible: false, error: error.message };
-  }
-}
-
-/**
- * Compte le nombre total d'éléments dans les données
- */
-function countDataElements(data) {
-  if (!data || !data.clients) return 0;
-
-  let count = 0;
-  const clients = Object.keys(data.clients);
-  count += clients.length;
-
-  clients.forEach(clientId => {
-    const client = data.clients[clientId];
-    if (client.projects) {
-      const projects = Object.keys(client.projects);
-      count += projects.length;
-
-      projects.forEach(projectId => {
-        const project = client.projects[projectId];
-        if (project.listings) {
-          count += Object.keys(project.listings).length;
-        }
-      });
-    }
-  });
-
-  return count;
-}
-
-/**
- * Merge intelligent de deux structures de données
- * Conserve toujours le maximum de données
- */
-function mergeData(local, remote) {
-  const merged = { clients: {} };
-
-  // Copier tous les clients du remote
-  if (remote && remote.clients) {
-    merged.clients = JSON.parse(JSON.stringify(remote.clients));
-  }
-
-  // Ajouter les clients manquants du local
-  if (local && local.clients) {
-    Object.keys(local.clients).forEach(clientId => {
-      if (!merged.clients[clientId]) {
-        // Client existe en local mais pas en remote
-        merged.clients[clientId] = local.clients[clientId];
-      } else {
-        // Client existe des deux côtés, merger les projets
-        const localClient = local.clients[clientId];
-        const mergedClient = merged.clients[clientId];
-
-        if (localClient.projects) {
-          if (!mergedClient.projects) {
-            mergedClient.projects = {};
-          }
-
-          Object.keys(localClient.projects).forEach(projectId => {
-            if (!mergedClient.projects[projectId]) {
-              // Projet existe en local mais pas en remote
-              mergedClient.projects[projectId] = localClient.projects[projectId];
-            } else {
-              // Projet existe des deux côtés, merger les listings
-              const localProject = localClient.projects[projectId];
-              const mergedProject = mergedClient.projects[projectId];
-
-              if (localProject.listings) {
-                if (!mergedProject.listings) {
-                  mergedProject.listings = {};
-                }
-
-                Object.keys(localProject.listings).forEach(listingId => {
-                  if (!mergedProject.listings[listingId]) {
-                    // Listing existe en local mais pas en remote
-                    mergedProject.listings[listingId] = localProject.listings[listingId];
-                  } else {
-                    // Listing existe des deux côtés, garder le plus récent
-                    const localListing = localProject.listings[listingId];
-                    const remoteListing = mergedProject.listings[listingId];
-
-                    // Comparer les timestamps si disponibles
-                    const localTime = localListing.metadata?.lastModified || 0;
-                    const remoteTime = remoteListing.metadata?.lastModified || 0;
-
-                    if (localTime > remoteTime) {
-                      mergedProject.listings[listingId] = localListing;
-                    }
-                  }
-                });
-              }
-            }
-          });
-        }
-      }
-    });
-  }
-
-  return merged;
-}
-
-/**
- * Migre les données de localStorage vers le stockage partagé avec merge intelligent
- */
-async function migrateToSharedStorage() {
-  try {
-    const localData = localStorage.getItem(STORAGE_KEY);
-    if (localData && isElectron) {
-      const local = JSON.parse(localData);
-
-      // Lire les données existantes sur le stockage partagé
-      const remoteResult = await window.electronAPI.readSharedData();
-      const remote = remoteResult.success ? remoteResult.data : { clients: {} };
-
-      // Compter les éléments
-      const localCount = countDataElements(local);
-      const remoteCount = countDataElements(remote);
-
-      console.log(`Données locales: ${localCount} éléments, Données partagées: ${remoteCount} éléments`);
-
-      let dataToSave;
-      if (localCount === 0 && remoteCount > 0) {
-        // Local vide, utiliser remote
-        dataToSave = remote;
-        console.log('→ Chargement depuis le stockage partagé');
-      } else if (remoteCount === 0 && localCount > 0) {
-        // Remote vide, utiliser local
-        dataToSave = local;
-        console.log('→ Migration des données locales vers le partagé');
-      } else if (localCount > 0 && remoteCount > 0) {
-        // Les deux ont des données, merger intelligemment
-        dataToSave = mergeData(local, remote);
-        const mergedCount = countDataElements(dataToSave);
-        console.log(`→ Merge intelligent: ${mergedCount} éléments (conserve tout)`);
-      } else {
-        // Tous vides
-        dataToSave = { clients: {} };
-      }
-
-      // Sauvegarder le résultat
-      await window.electronAPI.writeSharedData(dataToSave);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
-      console.log('Migration/Sync terminée avec succès');
-    }
-  } catch (error) {
-    console.error('Erreur migration données:', error);
-  }
-}
-
-/**
- * Change le mode de stockage
- */
-export async function setStorageMode(useShared) {
-  if (!isElectron || !sharedStorageAvailable) {
     return false;
   }
 
-  useSharedStorage = useShared;
-  localStorage.setItem(USE_SHARED_STORAGE_KEY, useShared.toString());
+  try {
+    const result = await window.electronAPI.isStorageConfigured();
+    return result.configured;
+  } catch (error) {
+    console.error('Erreur vérification configuration:', error);
+    return false;
+  }
+}
 
-  if (useShared) {
-    await migrateToSharedStorage();
+/**
+ * Obtient le chemin du dossier de stockage
+ */
+export async function getStoragePath() {
+  if (!isElectron) {
+    return null;
   }
 
-  return true;
+  try {
+    const result = await window.electronAPI.getStoragePath();
+    return result.path;
+  } catch (error) {
+    console.error('Erreur récupération chemin stockage:', error);
+    return null;
+  }
 }
 
 /**
- * Obtient le mode de stockage actuel
- */
-export function getStorageMode() {
-  return {
-    current: useSharedStorage ? 'shared' : 'local',
-    available: sharedStorageAvailable
-  };
-}
-
-/**
- * Charge toutes les données (depuis localStorage ou stockage partagé)
+ * Charge toutes les données depuis le serveur
  */
 async function loadData() {
-  try {
-    if (useSharedStorage && isElectron) {
-      const result = await window.electronAPI.readSharedData();
-      if (result.success) {
-        return result.data || { clients: {} };
-      } else {
-        console.error('Erreur lecture stockage partagé, fallback sur local');
-        useSharedStorage = false;
-      }
-    }
+  if (!isElectron) {
+    throw new Error('Electron API non disponible');
+  }
 
-    // Fallback sur localStorage
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : { clients: {} };
+  try {
+    const result = await window.electronAPI.readSharedData();
+    if (result.success) {
+      return result.data || { clients: {}, templates: [] };
+    } else {
+      throw new Error(result.error || 'Erreur lecture données');
+    }
   } catch (error) {
     console.error('Erreur lors du chargement des données:', error);
-    return { clients: {} };
+    throw error;
   }
 }
 
 /**
- * Sauvegarde toutes les données (dans localStorage ou stockage partagé)
+ * Sauvegarde toutes les données sur le serveur
  */
 async function saveData(data) {
-  try {
-    if (useSharedStorage && isElectron) {
-      const result = await window.electronAPI.writeSharedData(data);
-      if (result.success) {
-        // Aussi sauvegarder localement pour cache
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        return true;
-      } else {
-        console.error('Erreur écriture stockage partagé, fallback sur local');
-        useSharedStorage = false;
-      }
-    }
+  if (!isElectron) {
+    throw new Error('Electron API non disponible');
+  }
 
-    // Fallback sur localStorage
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    return true;
+  try {
+    const result = await window.electronAPI.writeSharedData(data);
+    if (result.success) {
+      return true;
+    } else {
+      throw new Error(result.error || 'Erreur écriture données');
+    }
   } catch (error) {
     console.error('Erreur lors de la sauvegarde des données:', error);
-    return false;
+    throw error;
   }
 }
 
@@ -635,6 +440,28 @@ export async function deleteListing(clientId, projectId, listingId) {
   }
 
   delete project.listings[listingId];
+  return await saveData(data);
+}
+
+// ============= TEMPLATES =============
+
+/**
+ * Récupère tous les templates
+ * @returns {Array} Liste des templates
+ */
+export async function getAllTemplates() {
+  const data = await loadData();
+  return data.templates || [];
+}
+
+/**
+ * Sauvegarde tous les templates
+ * @param {Array} templates - Liste des templates
+ * @returns {boolean} Succès de l'opération
+ */
+export async function saveTemplates(templates) {
+  const data = await loadData();
+  data.templates = templates;
   return await saveData(data);
 }
 
