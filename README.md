@@ -1,14 +1,34 @@
 # ListX - Générateur de Listing Documents
 
-Application web pour la génération et la gestion de listings de documents techniques pour les bureaux d'études.
+Application desktop (Electron) pour la génération et la gestion de listings de documents techniques pour les bureaux d'études.
+
+## ✨ Nouveautés v1.3.0
+
+### Stockage serveur configurable
+- **Dossier de stockage personnalisable** : Choisissez librement l'emplacement de vos données (réseau, local, cloud sync)
+- **Configuration au premier lancement** : Interface intuitive pour sélectionner le dossier
+- **Architecture simplifiée** : Suppression du mode localStorage (stockage serveur uniquement)
+- **Pas de synchronisation** : Plus besoin de gérer les conflits, source de vérité unique
+- **Migration automatique** : Vos templates existants migrent automatiquement vers le nouveau système
+- **Sauvegardes automatiques** : 5 backups conservés à chaque modification
+- **Partage facilité** : Plusieurs utilisateurs peuvent pointer vers le même dossier réseau
 
 ## Fonctionnalités principales
+
+### 📁 Gestion hiérarchique
+- **Clients** : Organisation par client
+- **Projets** : Plusieurs projets par client
+- **Listings** : Gestion de listes de documents par projet
+- Navigation intuitive avec fil d'Ariane
+- Export/Import à tous les niveaux (client, projet, listing)
 
 ### 📝 Gestion des documents
 - Ajout de documents avec métadonnées complètes (affaire, phase, lot, émetteur, nature, zone, niveau, format, indice, nom)
 - Numérotation automatique par catégorie dans l'ordre d'apparition
 - Glisser-déposer pour réorganiser les documents et les catégories
-- Suppression de documents
+- Duplication et suppression de documents
+- Conservation des informations du dernier document ajouté
+- Bouton "Modifier" pour éditer les documents existants
 - Validation des champs obligatoires
 - Limitation de caractères (5 max pour Lot, Zone, Niveau)
 
@@ -22,7 +42,7 @@ Application web pour la génération et la gestion de listings de documents tech
 
 ### 💾 Gestion des affaires
 - Système d'autocomplete pour les affaires existantes
-- Sauvegarde automatique dans le localStorage
+- Sauvegarde automatique dans le stockage serveur
 - Chargement de l'affaire précédente au démarrage
 - Création de nouvelles affaires à la volée
 
@@ -36,12 +56,11 @@ Application web pour la génération et la gestion de listings de documents tech
   - Nom de la liste en sous-titre
 - **Tableau dynamique** :
   - Ordre des colonnes optimisé :
-    1. N° (numéro de ligne)
-    2. AFFAIRE, PHASE, LOT, ÉMETTEUR, NATURE
-    3. N° DOC (numéro généré complet)
-    4. ETAT, ZONE, NIVEAU, FORMAT, INDICE
-    5. DESCRIPTION DU DOC
-    6. NOM DU FICHIER
+    1. AFFAIRE, PHASE, LOT, ÉMETTEUR, NATURE
+    2. N° DOC (numéro généré complet)
+    3. ETAT, ZONE, NIVEAU, FORMAT, INDICE
+    4. DESCRIPTION DU DOC
+    5. NOM DU FICHIER
   - Colonnes adaptées automatiquement aux champs utilisés
   - **Système de couleurs arc-en-ciel** basé sur l'ordre d'apparition des catégories :
     - 1ère catégorie utilisée → Bleu pâle
@@ -51,7 +70,7 @@ Application web pour la génération et la gestion de listings de documents tech
     - 5ème catégorie → Orange pâle
     - 6ème catégorie → Violet pâle
   - Largeurs de colonnes intelligentes :
-    - Colonnes compactes (N°, PHASE, NATURE, N° DOC, FORMAT, INDICE) : largeur 10
+    - Colonnes compactes (PHASE, NATURE, N° DOC, FORMAT, INDICE) : largeur 10
     - NOM DU FICHIER : auto-adaptatif selon contenu (min 25, max 60)
     - DESCRIPTION DU DOC : auto-adaptatif (min 20, max 45)
     - Autres colonnes : auto-adaptatif (min 12, max 20)
@@ -63,8 +82,7 @@ Application web pour la génération et la gestion de listings de documents tech
   - Upload de logos client et bureau d'études (ratios préservés)
   - Nom du projet et nom de la liste personnalisés
 - **Tableau dynamique** :
-  - Même ordre de colonnes que l'export Excel
-  - Numérotation de ligne (N°) pour faciliter les références
+  - Même ordre de colonnes que l'export Excel (sans colonne N° de ligne)
   - Même système de couleurs arc-en-ciel basé sur l'ordre des catégories
   - Format A4 paysage
   - Largeur optimisée (tableau aligné sur le titre)
@@ -74,11 +92,6 @@ Application web pour la génération et la gestion de listings de documents tech
 - Génération automatique de la structure de dossiers
 - Organisation par nature de document
 - Compatible avec l'API File System moderne
-
-### ⚙️ Paramètres
-- Mode de numérotation configurable (par plage/séquentiel)
-- Visualisation de l'ordre des catégories
-- Sauvegarde des préférences
 
 ### 🎯 Système de Templates et Champs Personnalisables
 
@@ -105,7 +118,7 @@ Application web pour la génération et la gestion de listings de documents tech
 - **Sauvegarde de configurations** : Créez plusieurs templates avec différentes organisations
 - **Import/Export** : Partagez vos templates en JSON
 - **Template par défaut** : Fourni avec tous les champs standards
-- **Persistance** : Sauvegarde automatique dans localStorage
+- **Persistance** : Sauvegarde automatique sur le serveur (partagés entre utilisateurs)
 - **Application rapide** : Basculez entre templates en un clic
 
 #### Ordres indépendants
@@ -117,6 +130,12 @@ Application web pour la génération et la gestion de listings de documents tech
 - **Design compact** : Tout tient sans scroll pour une utilisation rapide
 - **Codes couleur** : Gris (disponibles), Bleu (formulaire/exports), Vert (nom de fichier)
 - **Feedback visuel** : Animations au drag, boutons au survol, zones clairement identifiées
+
+### 🔄 Mises à jour automatiques
+- **Vérification automatique** au démarrage
+- **Notification dans l'interface** quand une mise à jour est disponible
+- **Installation en un clic** ou au prochain redémarrage
+- **Système sécurisé** via GitHub Releases
 
 ## Types de documents supportés
 
@@ -138,17 +157,26 @@ A0+, A0, A1, A2, A3, A4
 ## Technologies utilisées
 
 - **React 19** : Framework UI
-- **Vite** : Build tool et dev server
+- **Vite 7** : Build tool et dev server ultra-rapide
 - **Tailwind CSS** : Styling avec animations personnalisées (vagues animées)
-- **Lucide React** : Icônes
+- **Lucide React** : Icônes modernes
 - **@dnd-kit** : Bibliothèque drag-and-drop moderne et accessible (compatible React 19)
-- **jsPDF + jspdf-autotable** : Génération PDF
+- **jsPDF + jspdf-autotable** : Génération PDF professionnelle
 - **ExcelJS** : Génération Excel avec mise en forme avancée
-- **LocalStorage** : Persistence des données (documents, templates, affaires)
-- **Electron** : Application desktop native
+- **Electron 38** : Application desktop native multiplateforme
 - **electron-updater** : Système de mise à jour automatique
+- **Stockage serveur** : Fichiers JSON sur dossier configurable (réseau/local)
 
 ## Installation
+
+### En tant qu'utilisateur
+
+1. Téléchargez le dernier installateur depuis [Releases](https://github.com/Matthmusic/ListX/releases)
+2. Exécutez l'installateur `ListX-Setup-X.X.X.exe`
+3. Au premier démarrage, sélectionnez le dossier de stockage
+4. L'application se mettra à jour automatiquement
+
+### En tant que développeur
 
 ```bash
 npm install
@@ -164,13 +192,15 @@ npm run dev
 
 L'application sera accessible sur `http://localhost:5173/`
 
+**Note** : En mode web, certaines fonctionnalités Electron (sélection de dossier, auto-update) ne seront pas disponibles.
+
 ### Mode Desktop Electron (test complet)
 
 ```bash
 npm run electron:dev
 ```
 
-Une fenêtre Electron s'ouvrira avec votre application.
+Une fenêtre Electron s'ouvrira avec votre application complète.
 
 ## Build production
 
@@ -182,13 +212,61 @@ npm run electron:build:win
 
 L'installateur sera créé dans le dossier `release/`
 
-**Pour déployer en production** : Voir [QUICKSTART.md](QUICKSTART.md) ou [DEPLOIEMENT.md](DEPLOIEMENT.md)
+**Pour déployer en production** :
+1. Créez un tag Git : `git tag v1.X.X && git push origin v1.X.X`
+2. GitHub Actions build automatiquement et crée une release
+3. Les utilisateurs reçoivent la notification de mise à jour
 
 ### Version Web uniquement
 
 ```bash
 npm run build
 ```
+
+Les fichiers statiques seront générés dans `dist/`
+
+## Structure du stockage
+
+### Fichier de données (`data.json`)
+
+```json
+{
+  "clients": {
+    "1234567890": {
+      "name": "Client A",
+      "createdAt": "2025-01-13T...",
+      "projects": {
+        "1234567891": {
+          "name": "Projet 1",
+          "createdAt": "2025-01-13T...",
+          "listings": {
+            "1234567892": {
+              "name": "Liste documents",
+              "createdAt": "2025-01-13T...",
+              "updatedAt": "2025-01-13T...",
+              "documents": [...]
+            }
+          }
+        }
+      }
+    }
+  },
+  "templates": [
+    {
+      "name": "PAR DÉFAUT",
+      "fieldsOrderDisplay": [...],
+      "fieldsOrderFilename": [...],
+      "activeFields": [...],
+      "customFields": [...]
+    }
+  ]
+}
+```
+
+### Sauvegardes automatiques
+
+Le dossier contient également :
+- `data.backup.1234567890.json` (5 backups conservés)
 
 ## Structure des noms de fichiers
 
@@ -200,13 +278,13 @@ Exemple : `ASELYS_PRO_LOT1_BET_NDC_201_ZONE1_R+1_A3_A - BILAN DE PUISSANCE`
 
 ### Design
 - **Background animé** : Vagues animées en bleu foncé (#1e3a8a) pour une ambiance professionnelle
-- **Favicon personnalisé** : Logo ListX-cmpct.svg dans l'onglet du navigateur
-- **Boutons cohérents** : Bouton "Ajouter un document" avec la même couleur que le background (#1e3a8a)
+- **Favicon personnalisé** : Logo ListX-cmpct.svg dans l'onglet
 - **Système de couleurs arc-en-ciel** :
   - Badges de catégories colorés selon leur ordre d'apparition
   - Titres de sections avec fond coloré correspondant
   - Cohérence visuelle totale entre interface, exports Excel et PDF
 - **Responsive** : Interface adaptée aux différentes tailles d'écran
+- **Thème sombre** : Application en mode sombre (natif Windows)
 
 ## Fonctionnalités avancées
 
@@ -221,10 +299,19 @@ Exemple : `ASELYS_PRO_LOT1_BET_NDC_201_ZONE1_R+1_A3_A - BILAN DE PUISSANCE`
 - Limitation de caractères pour Lot, Zone et Niveau (5 caractères max)
 - Notification des erreurs et succès
 
-### Persistance
+### Persistance et sauvegarde
 - Sauvegarde automatique après chaque modification
-- Chargement automatique de la dernière affaire au démarrage
-- Historique des affaires accessibles via autocomplete
+- 5 backups automatiques conservés
+- Structure JSON lisible et versionnable
+- Partage facile entre utilisateurs (dossier réseau)
+
+## Sécurité
+
+- **Context Isolation** : Isolation complète du processus renderer
+- **Preload Script** : API stricte exposée via IPC
+- **Validation des permissions** : Vérification d'écriture avant configuration
+- **DevTools désactivés** en production
+- **Mises à jour signées** via GitHub
 
 ## Auteur
 
@@ -233,3 +320,21 @@ Bureau d'Études - Pièces Graphiques
 ## Licence
 
 Usage interne
+
+## Changelog
+
+### v1.3.0 (2025-01-13)
+- **BREAKING CHANGE** : Passage au stockage serveur uniquement
+- Ajout de la sélection du dossier de stockage au premier lancement
+- Suppression du mode localStorage
+- Migration automatique des templates
+- Suppression du système de synchronisation
+- Simplification de l'architecture (~300 lignes de code en moins)
+- Amélioration de la stabilité et des performances
+
+### v1.2.x
+- Export Excel/PDF professionnel
+- Système de templates
+- Gestion hiérarchique (Clients/Projets/Listings)
+- Drag & drop pour organisation
+- Mises à jour automatiques
