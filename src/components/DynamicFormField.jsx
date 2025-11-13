@@ -1,11 +1,12 @@
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useState, memo } from 'react';
 
 /**
  * Composant de champ de formulaire dynamique
  * Génère le bon type de champ selon le nom du champ
+ * Mémorisé pour éviter les re-renders inutiles
  */
-export const DynamicFormField = ({
+const DynamicFormFieldComponent = ({
   fieldName,
   label,
   value,
@@ -173,9 +174,9 @@ export const DynamicFormField = ({
         </div>
         {showAutocomplete && filteredAffaires.length > 0 && (
           <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-            {filteredAffaires.map((aff, idx) => (
+            {filteredAffaires.map((aff) => (
               <button
-                key={idx}
+                key={aff}
                 onClick={() => onAffaireSelect(aff)}
                 className="w-full text-left px-2 py-1.5 hover:bg-gray-100 border-b border-gray-100 last:border-b-0 text-xs"
               >
@@ -202,16 +203,16 @@ export const DynamicFormField = ({
             error ? 'border-red-500' : 'border-gray-300'
           }`}
         >
-          {config.options.map((opt, idx) => {
+          {config.options.map((opt) => {
             if (typeof opt === 'string') {
               return (
-                <option key={idx} value={opt}>
+                <option key={opt} value={opt}>
                   {opt}
                 </option>
               );
             } else {
               return (
-                <option key={idx} value={opt.value}>
+                <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
               );
@@ -293,9 +294,9 @@ export const DynamicFormField = ({
       />
       {showFieldAutocomplete && filteredHistory.length > 0 && (
         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-auto">
-          {filteredHistory.map((item, idx) => (
+          {filteredHistory.map((item) => (
             <button
-              key={idx}
+              key={item}
               onClick={() => handleHistorySelect(item)}
               className="w-full text-left px-2 py-1.5 hover:bg-blue-50 border-b border-gray-100 last:border-b-0 text-xs"
             >
@@ -307,3 +308,6 @@ export const DynamicFormField = ({
     </div>
   );
 };
+
+// Export avec React.memo pour éviter les re-renders inutiles
+export const DynamicFormField = memo(DynamicFormFieldComponent);

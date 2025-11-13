@@ -275,9 +275,9 @@ export default function AffairesModal({ isOpen, onClose }) {
                 </div>
               ) : (
                 <div className="divide-y divide-white/10">
-                  {filteredAffaires.map((affaire, index) => (
+                  {filteredAffaires.map((affaire) => (
                     <div
-                      key={index}
+                      key={affaire}
                       className="flex items-center justify-between p-4 hover:bg-white/10 transition-colors"
                     >
                       <span className="text-white font-medium">{affaire}</span>
