@@ -1,6 +1,33 @@
 import { useState, useEffect } from 'react';
 import { Download, RefreshCw, X, AlertCircle } from 'lucide-react';
 
+// Fonction pour nettoyer et formater les notes de release
+function formatReleaseNotes(notes) {
+  if (!notes || typeof notes !== 'string') return notes;
+
+  // Supprimer les balises HTML
+  let cleaned = notes.replace(/<[^>]*>/g, '');
+
+  // Décoder les entités HTML
+  cleaned = cleaned
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&');
+
+  // Limiter à un résumé court (premier paragraphe seulement)
+  const firstParagraph = cleaned.split('\n\n')[0];
+
+  // Si c'est un message de commit technique, extraire juste le titre
+  if (firstParagraph.startsWith('feat:') || firstParagraph.startsWith('fix:')) {
+    const title = firstParagraph.split('\n')[0].replace(/^(feat|fix|docs|style|refactor|test|chore):\s*/i, '');
+    return title;
+  }
+
+  return firstParagraph;
+}
+
 export default function UpdateNotification() {
   const [updateInfo, setUpdateInfo] = useState(null);
   const [downloadProgress, setDownloadProgress] = useState(null);
@@ -153,9 +180,11 @@ export default function UpdateNotification() {
                 est disponible.
               </p>
               {updateInfo?.releaseNotes && (
-                <div className="bg-gray-50 p-3 rounded mb-4 text-sm text-gray-700 max-h-32 overflow-y-auto">
-                  <p className="font-semibold mb-1">Nouveautés :</p>
-                  <div className="text-xs">{updateInfo.releaseNotes}</div>
+                <div className="bg-gray-50 p-3 rounded mb-4 text-sm text-gray-700">
+                  <p className="font-semibold mb-2">Nouveautés :</p>
+                  <div className="text-xs leading-relaxed">
+                    {formatReleaseNotes(updateInfo.releaseNotes)}
+                  </div>
                 </div>
               )}
               <div className="flex gap-2">
