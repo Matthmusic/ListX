@@ -54,6 +54,7 @@
   "build": {
     "appId": "com.bet.listx",
     "productName": "ListX",
+    "icon": "build/icon.ico",
     "artifactName": "${productName}-Setup-${version}.${ext}",
     "copyright": "Copyright © 2025 Bureau d'Études",
     "directories": {
