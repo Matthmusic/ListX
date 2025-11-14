@@ -23,14 +23,14 @@ let SHARED_DATA_FILE = null;
 
 // Fonction pour obtenir le chemin de l'icône selon l'environnement
 function getIconPath() {
-  if (isDev) {
-    // En développement, utiliser le chemin relatif
-    return path.join(__dirname, '../build/icon.ico');
-  } else {
-    // En production, l'icône est dans le dossier app ou à la racine de l'exe
-    // electron-builder gère automatiquement l'icône depuis build/icon.ico
-    return path.join(__dirname, '../build/icon.ico');
-  }
+  const iconPath = isDev
+    ? path.join(__dirname, '../build/icon.ico')
+    : path.join(process.resourcesPath, 'build', 'icon.ico');
+
+  console.log('Chemin icône:', iconPath);
+  console.log('Icône existe:', fs.existsSync(iconPath));
+
+  return iconPath;
 }
 
 function createWindow() {
