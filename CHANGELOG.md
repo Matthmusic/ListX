@@ -1,12 +1,20 @@
-# Changelog - ListX
+﻿# Changelog - ListX
 
-Toutes les modifications notables de ce projet seront documentées dans ce fichier.
+Toutes les modifications notables de ce projet seront document├®es dans ce fichier.
+
+## [1.3.9] - 2025-11-21
+
+### Correctifs
+
+- Icone ListX empaquetee comme ressource dediee (PNG/ICO/SVG) et chargee depuis resources/assets pour eviter toute chute sur licone Electron en production.
+
+---
 
 ## [1.3.8] - 2025-11-21
 
 ### Correctifs
 
-- Ic�ne Windows r�g�n�r�e (multi-tailles) et int�gr�e dans le build pour remplacer d�finitivement l'ic�ne Electron.
+- Ic¶ne Windows rÚgÚnÚrÚe (multi-tailles) et intÚgrÚe dans le build pour remplacer dÚfinitivement l'ic¶ne Electron.
 
 ---
 
@@ -14,7 +22,7 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 ### Correctifs
 
-- Nouveau logo ListX (LX) pour l'ic�ne applicative (ICO/PNG/SVG dans uild/) utilis� par l'installeur, la fen�tre et les raccourcis.
+- Nouveau logo ListX (LX) pour l'ic¶ne applicative (ICO/PNG/SVG dans uild/) utilisÚ par l'installeur, la fenÛtre et les raccourcis.
 
 ---
 
@@ -44,48 +52,48 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 ## [1.2.8] - 2025-11-12
 
-### 🐛 Correctifs
+### ­ƒÉø Correctifs
 
-- **Fix CRITIQUE : Race condition de sauvegarde** : Correction définitive du problème de sauvegarde à 0 pendant le chargement
-  - Remplacement du système de déblocage dans `finally` par un useEffect de surveillance
-  - Ajout d'un compteur `loadingExpectedCount` pour attendre que React mette à jour l'état
-  - Le déblocage ne se fait plus qu'après confirmation que les documents sont réellement dans l'état
-  - Résolution définitive de la séquence : chargement → sauvegarde à 0 → perte de documents
+- **Fix CRITIQUE : Race condition de sauvegarde** : Correction d├®finitive du probl├¿me de sauvegarde ├á 0 pendant le chargement
+  - Remplacement du syst├¿me de d├®blocage dans `finally` par un useEffect de surveillance
+  - Ajout d'un compteur `loadingExpectedCount` pour attendre que React mette ├á jour l'├®tat
+  - Le d├®blocage ne se fait plus qu'apr├¿s confirmation que les documents sont r├®ellement dans l'├®tat
+  - R├®solution d├®finitive de la s├®quence : chargement ÔåÆ sauvegarde ├á 0 ÔåÆ perte de documents
 
-### 📝 Note technique
+### ­ƒôØ Note technique
 
-React setState est asynchrone - le `finally` block s'exécutait avant que `setDocuments()` ne mette à jour l'état.
-Solution : un useEffect surveille `documents.length` et ne débloque la sauvegarde qu'après confirmation de la mise à jour.
+React setState est asynchrone - le `finally` block s'ex├®cutait avant que `setDocuments()` ne mette ├á jour l'├®tat.
+Solution : un useEffect surveille `documents.length` et ne d├®bloque la sauvegarde qu'apr├¿s confirmation de la mise ├á jour.
 
 ---
 
 ## [1.2.7] - 2025-11-12
 
-### 🐛 Correctifs
+### ­ƒÉø Correctifs
 
-- **Fix : Protection contre la sauvegarde pendant le chargement** : Les documents ne sont plus écrasés à 0 pendant le rechargement
+- **Fix : Protection contre la sauvegarde pendant le chargement** : Les documents ne sont plus ├®cras├®s ├á 0 pendant le rechargement
   - Ajout d'un flag `isLoadingDocuments` pour bloquer la sauvegarde pendant le chargement
-  - La sauvegarde ne se déclenche plus avec `Documents: 0` pendant le chargement
-  - Résolution de la séquence : chargement → sauvegarde à 0 → perte de documents
+  - La sauvegarde ne se d├®clenche plus avec `Documents: 0` pendant le chargement
+  - R├®solution de la s├®quence : chargement ÔåÆ sauvegarde ├á 0 ÔåÆ perte de documents
 
-### 📝 Note technique
+### ­ƒôØ Note technique
 
-Le useEffect de sauvegarde se déclenchait pendant que le chargement était en cours, créant une fenêtre où `documents` était vide.
-Le flag `isLoadingDocuments` empêche maintenant la sauvegarde pendant cette période transitoire.
+Le useEffect de sauvegarde se d├®clenchait pendant que le chargement ├®tait en cours, cr├®ant une fen├¬tre o├╣ `documents` ├®tait vide.
+Le flag `isLoadingDocuments` emp├¬che maintenant la sauvegarde pendant cette p├®riode transitoire.
 
 ---
 
 ## [1.2.6] - 2025-11-12
 
-### 🐛 Correctifs
+### ­ƒÉø Correctifs
 
 - **Fix CRITIQUE : Extraction des IDs** : Correction majeure de l'utilisation des IDs pour le chargement/sauvegarde
-  - Les appels à `loadListing()` et `saveListing()` utilisent maintenant `.id` au lieu des objets complets
-  - Les documents sont maintenant réellement chargés depuis le Z: (ils retournaient null avant)
-  - Les documents sont maintenant réellement sauvegardés sur le Z: avec les bons IDs
-  - Résolution du problème "Listing chargé: null" dans les logs
+  - Les appels ├á `loadListing()` et `saveListing()` utilisent maintenant `.id` au lieu des objets complets
+  - Les documents sont maintenant r├®ellement charg├®s depuis le Z: (ils retournaient null avant)
+  - Les documents sont maintenant r├®ellement sauvegard├®s sur le Z: avec les bons IDs
+  - R├®solution du probl├¿me "Listing charg├®: null" dans les logs
 
-### 📝 Note technique
+### ­ƒôØ Note technique
 
 Le contexte AppContext stocke des objets `{id, name, ...}` mais les fonctions de storage attendent des strings (IDs).
 Cette version corrige tous les appels pour extraire `.id` avant de passer aux fonctions de storage.
@@ -94,143 +102,143 @@ Cette version corrige tous les appels pour extraire `.id` avant de passer aux fo
 
 ## [1.2.5] - 2025-11-12
 
-### 🐛 Correctifs
+### ­ƒÉø Correctifs
 
-- **Fix critique : Rechargement des documents** : Les documents sont maintenant correctement rechargés à chaque retour sur DocumentListingApp
-  - Ajout d'une clé de rechargement (loadKey) qui force le refresh à chaque montage
-  - Correction du useEffect de chargement qui ne se déclenchait pas au retour
-  - Amélioration des logs de debug pour le chargement
+- **Fix critique : Rechargement des documents** : Les documents sont maintenant correctement recharg├®s ├á chaque retour sur DocumentListingApp
+  - Ajout d'une cl├® de rechargement (loadKey) qui force le refresh ├á chaque montage
+  - Correction du useEffect de chargement qui ne se d├®clenchait pas au retour
+  - Am├®lioration des logs de debug pour le chargement
   - Les documents ne disparaissent plus quand on navigue entre les pages
 
-### 🔧 Améliorations
+### ­ƒöº Am├®liorations
 
-- Amélioration de la sauvegarde pour ne pas écraser les métadonnées du listing
-- Ajout de logs détaillés pour le debug du chargement/sauvegarde
+- Am├®lioration de la sauvegarde pour ne pas ├®craser les m├®tadonn├®es du listing
+- Ajout de logs d├®taill├®s pour le debug du chargement/sauvegarde
 
 ---
 
 ## [1.2.4] - 2025-11-12
 
-### 🐛 Correctifs
+### ­ƒÉø Correctifs
 
-- **Fix erreur de build** : Correction de l'import storageService (loadData → loadListing)
+- **Fix erreur de build** : Correction de l'import storageService (loadData ÔåÆ loadListing)
 - Validation du build avant release
 
 ---
 
 ## [1.2.3] - 2025-11-12
 
-### 🐛 Correctifs
+### ­ƒÉø Correctifs
 
-- **Fix critique : Export/Import des documents** : Les documents ajoutés dans les listes sont maintenant correctement inclus dans les exports JSON
-  - Les documents sont sauvegardés dans la structure centralisée (clients → projets → listes → documents)
+- **Fix critique : Export/Import des documents** : Les documents ajout├®s dans les listes sont maintenant correctement inclus dans les exports JSON
+  - Les documents sont sauvegard├®s dans la structure centralis├®e (clients ÔåÆ projets ÔåÆ listes ÔåÆ documents)
   - Les documents se synchronisent correctement sur le Z:
-  - Les documents sont restaurés lors des imports sur un autre poste
-  - Correction du système de sauvegarde qui utilisait uniquement localStorage
+  - Les documents sont restaur├®s lors des imports sur un autre poste
+  - Correction du syst├¿me de sauvegarde qui utilisait uniquement localStorage
 
-### 🔧 Améliorations
+### ­ƒöº Am├®liorations
 
-- Migration du stockage des documents vers le service centralisé (storageService)
-- Ajout d'un fallback pour la rétro-compatibilité avec l'ancien système localStorage
-- Amélioration de la robustesse du chargement et sauvegarde des documents
+- Migration du stockage des documents vers le service centralis├® (storageService)
+- Ajout d'un fallback pour la r├®tro-compatibilit├® avec l'ancien syst├¿me localStorage
+- Am├®lioration de la robustesse du chargement et sauvegarde des documents
 
 ---
 
 ## [1.1.1] - 2025-10-29
 
-### 🔧 Améliorations
+### ­ƒöº Am├®liorations
 
-- **Inversion des icônes Import/Export** : Icônes plus intuitives
-  - Import : Icône Download (⬇️) - télécharger/importer des données
-  - Export : Icône Upload (⬆️) - envoyer/exporter des données
-- **Réorganisation de l'ordre des boutons** : Import à gauche, Export à droite
-- Amélioration de la cohérence visuelle dans toute l'application
+- **Inversion des ic├┤nes Import/Export** : Ic├┤nes plus intuitives
+  - Import : Ic├┤ne Download (Ô¼ç´©Å) - t├®l├®charger/importer des donn├®es
+  - Export : Ic├┤ne Upload (Ô¼å´©Å) - envoyer/exporter des donn├®es
+- **R├®organisation de l'ordre des boutons** : Import ├á gauche, Export ├á droite
+- Am├®lioration de la coh├®rence visuelle dans toute l'application
 
 ---
 
 ## [1.1.0] - 2025-10-29
 
-### ✨ Nouveautés
+### Ô£¿ Nouveaut├®s
 
-#### Système de Templates et Champs Personnalisables
-- **Interface horizontale à 3 zones** pour une configuration intuitive
+#### Syst├¿me de Templates et Champs Personnalisables
+- **Interface horizontale ├á 3 zones** pour une configuration intuitive
   - Zone 1 : Champs disponibles
   - Zone 2 : Ordre formulaire et exports (Excel/PDF)
   - Zone 3 : Ordre nom de fichier
-- **Champs personnalisés** : Créez vos propres champs avec libellés modifiables
+- **Champs personnalis├®s** : Cr├®ez vos propres champs avec libell├®s modifiables
 - **Drag & Drop moderne** avec @dnd-kit (compatible React 19)
-  - Glissez entre zones pour activer/désactiver
-  - Réorganisez l'ordre au sein de chaque zone
-  - Auto-ajout : ajouter à une zone ajoute automatiquement aux deux
+  - Glissez entre zones pour activer/d├®sactiver
+  - R├®organisez l'ordre au sein de chaque zone
+  - Auto-ajout : ajouter ├á une zone ajoute automatiquement aux deux
 - **Bouton X au survol** pour retirer rapidement un champ d'une zone
 - **Boutons de copie rapide** pour dupliquer l'ordre entre zones
-- **Prévisualisation en temps réel** du nom de fichier généré
+- **Pr├®visualisation en temps r├®el** du nom de fichier g├®n├®r├®
 - **Gestion des templates**
   - Sauvegardez plusieurs configurations
   - Import/Export en JSON
   - Basculez entre templates en un clic
-- **Ordres indépendants** : Formulaire/Exports vs Nom de fichier
+- **Ordres ind├®pendants** : Formulaire/Exports vs Nom de fichier
 
-### 🔧 Améliorations
+### ­ƒöº Am├®liorations
 
-- **Interface optimisée** : Design compact qui tient sans scroll
-- **Détection de zone améliorée** : Chaque zone utilise des IDs préfixés pour éviter les conflits
+- **Interface optimis├®e** : Design compact qui tient sans scroll
+- **D├®tection de zone am├®lior├®e** : Chaque zone utilise des IDs pr├®fix├®s pour ├®viter les conflits
 - **Suppression intelligente** : Retirer d'une zone ne retire que de cette zone
-- **Blocage des mouvements directs** : Impossible de passer directement de Zone 2 à Zone 3 (passer par Zone 1 ou boutons de copie)
+- **Blocage des mouvements directs** : Impossible de passer directement de Zone 2 ├á Zone 3 (passer par Zone 1 ou boutons de copie)
 - **Feedback visuel** : Codes couleur (Gris/Bleu/Vert), animations au drag, boutons au survol
-- **Persistance** : Templates et configurations sauvegardés dans localStorage
+- **Persistance** : Templates et configurations sauvegard├®s dans localStorage
 
-### 🐛 Correctifs
+### ­ƒÉø Correctifs
 
-- Correction de la détection de collision lors du drag-and-drop
-- Fix de la limite de 8 éléments dans les zones droppables
+- Correction de la d├®tection de collision lors du drag-and-drop
+- Fix de la limite de 8 ├®l├®ments dans les zones droppables
 - Correction de l'ordre des champs dans le formulaire
-- Fix des champs personnalisés en minuscules (maintenant en MAJUSCULES)
+- Fix des champs personnalis├®s en minuscules (maintenant en MAJUSCULES)
 
 ---
 
 ## [1.0.4] - 2025-10-28
 
-### ✨ Nouveautés
-- Suppression de la colonne N° dans les exports Excel et PDF
-- Alignement des noms de colonnes entre PDF et Excel (ÉMETTEUR, N° DOC)
-- Remplacement des 2 boutons d'export par un bouton unique avec popup de sélection
+### Ô£¿ Nouveaut├®s
+- Suppression de la colonne N┬░ dans les exports Excel et PDF
+- Alignement des noms de colonnes entre PDF et Excel (├ëMETTEUR, N┬░ DOC)
+- Remplacement des 2 boutons d'export par un bouton unique avec popup de s├®lection
 - Conservation des infos du dernier document dans les champs de saisie
-- Ajout d'un bouton Modifier pour éditer les documents existants
+- Ajout d'un bouton Modifier pour ├®diter les documents existants
 
-### 🔧 Améliorations
-- Simplification de la configuration d'icône (suppression des scripts de génération)
-- Modification de la copie d'arborescence (suppression du préfixe avant @)
-- Amélioration des animations du glisser-déposer avec feedback visuel
-- Suppression du panneau de paramètres (barre d'options)
+### ­ƒöº Am├®liorations
+- Simplification de la configuration d'ic├┤ne (suppression des scripts de g├®n├®ration)
+- Modification de la copie d'arborescence (suppression du pr├®fixe avant @)
+- Am├®lioration des animations du glisser-d├®poser avec feedback visuel
+- Suppression du panneau de param├¿tres (barre d'options)
 
 ---
 
 ## [1.0.3] - 2025-10-27
 
-### ✨ Nouveautés
-- Système de numérotation par ordre d'apparition des catégories
-- Couleurs arc-en-ciel basées sur l'ordre d'apparition
-- Drag & drop pour réorganiser les documents et catégories
-- Renumérotation automatique lors des modifications
+### Ô£¿ Nouveaut├®s
+- Syst├¿me de num├®rotation par ordre d'apparition des cat├®gories
+- Couleurs arc-en-ciel bas├®es sur l'ordre d'apparition
+- Drag & drop pour r├®organiser les documents et cat├®gories
+- Renum├®rotation automatique lors des modifications
 
-### 🔧 Améliorations
-- Interface utilisateur améliorée avec background animé
-- Favicon personnalisé
+### ­ƒöº Am├®liorations
+- Interface utilisateur am├®lior├®e avec background anim├®
+- Favicon personnalis├®
 - Export Excel avec largeurs de colonnes intelligentes
-- Export PDF format A4 paysage optimisé
+- Export PDF format A4 paysage optimis├®
 
 ---
 
 ## [1.0.2] - 2025-10-26
 
-### ✨ Nouveautés
+### Ô£¿ Nouveaut├®s
 - Export Excel professionnel avec logos
 - Export PDF professionnel avec logos
-- Création d'arborescence de dossiers
+- Cr├®ation d'arborescence de dossiers
 
-### 🔧 Améliorations
-- Système d'autocomplete pour les affaires
+### ­ƒöº Am├®liorations
+- Syst├¿me d'autocomplete pour les affaires
 - Validation des champs obligatoires
 - Conversion automatique en majuscules
 
@@ -238,20 +246,20 @@ Cette version corrige tous les appels pour extraire `.id` avant de passer aux fo
 
 ## [1.0.1] - 2025-10-25
 
-### ✨ Nouveautés
-- Ajout de documents avec métadonnées complètes
-- Numérotation automatique par catégorie
+### Ô£¿ Nouveaut├®s
+- Ajout de documents avec m├®tadonn├®es compl├¿tes
+- Num├®rotation automatique par cat├®gorie
 - Suppression de documents
 
 ---
 
 ## [1.0.0] - 2025-10-24
 
-### ✨ Release initiale
+### Ô£¿ Release initiale
 - Application de base pour la gestion de listings de documents
 - Support Electron pour version desktop
 - Persistance localStorage
 
 ---
 
-*Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/)*
+*Format bas├® sur [Keep a Changelog](https://keepachangelog.com/fr/)*
