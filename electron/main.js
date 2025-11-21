@@ -28,8 +28,8 @@ let SHARED_DATA_FILE = null;
 // Resolve icon path for dev/prod
 function getIconPath() {
   const candidates = [
-    path.join(__dirname, '../build/icon.ico'),
     path.join(process.resourcesPath, 'build', 'icon.ico'),
+    path.join(__dirname, '../build/icon.ico'),
     path.join(process.resourcesPath, 'app.asar', 'build', 'icon.ico'),
     path.join(process.resourcesPath, 'app.asar.unpacked', 'build', 'icon.ico')
   ];
