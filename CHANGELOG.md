@@ -2,6 +2,14 @@
 
 Toutes les modifications notables de ce projet seront documentÃ©es dans ce fichier.
 
+## [1.3.7] - 2025-11-21
+
+### Correctifs
+
+- Nouveau logo ListX (LX) pour l'icône applicative (ICO/PNG/SVG dans uild/) utilisé par l'installeur, la fenêtre et les raccourcis.
+
+---
+
 ## [1.3.6] - 2025-11-21
 
 ### Correctifs

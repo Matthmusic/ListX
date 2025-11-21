@@ -1,22 +1,22 @@
-# GÃ©nÃ©ration de l'icÃ´ne .ico
+# Génération de l'icône .ico
 
-Pour gÃ©nÃ©rer un fichier icon.ico Ã  partir du SVG, vous avez plusieurs options :
+Pour générer un fichier icon.ico à partir du SVG, vous avez plusieurs options :
 
-## Option 1 : Utiliser un service en ligne (RECOMMANDÃ‰ - SIMPLE)
+## Option 1 : Utiliser un service en ligne (RECOMMANDÉ - SIMPLE)
 
 1. Allez sur https://cloudconvert.com/svg-to-ico
 2. Uploadez le fichier `icon.svg`
-3. Configurez la taille : 256x256 (pour une bonne qualitÃ©)
-4. TÃ©lÃ©chargez le fichier `icon.ico`
+3. Configurez la taille : 256x256 (pour une bonne qualité)
+4. Téléchargez le fichier `icon.ico`
 5. Placez-le dans ce dossier `build/`
 
-## Option 2 : Utiliser ImageMagick (si installÃ©)
+## Option 2 : Utiliser ImageMagick (si installé)
 
 ```bash
 magick convert -background none -density 256 icon.svg -define icon:auto-resize=256,128,96,64,48,32,16 icon.ico
 ```
 
-## Option 3 : Utiliser Inkscape (si installÃ©)
+## Option 3 : Utiliser Inkscape (si installé)
 
 ```bash
 inkscape icon.svg --export-type=png --export-width=256 --export-filename=icon-256.png
@@ -32,8 +32,8 @@ svg2ico icon.svg icon.ico
 
 ## Note importante
 
-Le build Electron fonctionnera SANS l'icÃ´ne .ico, mais :
-- Windows affichera une icÃ´ne par dÃ©faut (icÃ´ne Electron)
-- Pour une version professionnelle, il est recommandÃ© d'ajouter l'icÃ´ne
+Le build Electron fonctionnera SANS l'icône .ico, mais :
+- Windows affichera une icône par défaut (icône Electron)
+- Pour une version professionnelle, il est recommandé d'ajouter l'icône
 
-Si vous ne gÃ©nÃ©rez pas l'icÃ´ne maintenant, vous pourrez toujours le faire plus tard et rebuild l'application.
+Si vous ne générez pas l'icône maintenant, vous pourrez toujours le faire plus tard et rebuild l'application.
