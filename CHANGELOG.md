@@ -2,6 +2,13 @@
 
 Toutes les modifications notables de ce projet seront document├®es dans ce fichier.
 
+## [1.3.12] - 2025-11-21
+
+### Correctifs
+
+- Retour à la config d'icône validée (v1.3.10) : icône LX en PNG/ICO packagée dans resources/assets et utilisée pour l'installeur/raccourcis.
+
+---
 ## [1.3.11] - 2025-11-21
 
 ### Correctifs
