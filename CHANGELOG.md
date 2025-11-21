@@ -2,6 +2,14 @@
 
 Toutes les modifications notables de ce projet seront documentÃ©es dans ce fichier.
 
+## [1.3.8] - 2025-11-21
+
+### Correctifs
+
+- Icône Windows régénérée (multi-tailles) et intégrée dans le build pour remplacer définitivement l'icône Electron.
+
+---
+
 ## [1.3.7] - 2025-11-21
 
 ### Correctifs
