@@ -1,7 +1,7 @@
 {
   "name": "listx",
   "private": true,
-  "version": "1.3.12",
+  "version": "1.3.13",
   "description": "Application de gestion et g├®n├®ration de listings de documents techniques",
   "author": "Bureau d'├ëtudes",
   "main": "electron/main.js",
@@ -54,7 +54,7 @@
   "build": {
     "appId": "com.bet.listx",
     "productName": "ListX",
-    "icon": "src/assets/LX.png",
+    "icon": "build/icon.ico",
     "artifactName": "${productName}-Setup-${version}.${ext}",
     "copyright": "Copyright ┬® 2025 Bureau d'├ëtudes",
     "directories": {
@@ -91,7 +91,7 @@
           ]
         }
       ],
-      "icon": "src/assets/LX.png",
+      "icon": "build/icon.ico",
       "signAndEditExecutable": false
     },
     "nsis": {
