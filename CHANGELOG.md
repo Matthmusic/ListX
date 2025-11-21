@@ -2,7 +2,7 @@
 
 Toutes les modifications notables de ce projet seront document├®es dans ce fichier.
 
-## [1.3.9] - 2025-11-21
+## [1.3.10] - 2025-11-21
 
 ### Correctifs
 

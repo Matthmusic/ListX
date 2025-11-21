@@ -25,24 +25,23 @@ const CONFIG_FILE = path.join(app.getPath('userData'), 'config.json');
 let SHARED_STORAGE_PATH = null;
 let SHARED_DATA_FILE = null;
 
-// Resolve icon path for dev/prod (prioritize unpacked assets to avoid Electron default icon)
+// Resolve icon path for dev/prod (mirrors To-DoX strategy: packaged assets in resources/assets)
 function getIconPath() {
-  const candidates = [
-    // Packaged extraResources (preferred)
+  const packagedCandidates = [
     path.join(process.resourcesPath, 'assets', 'LX.png'),
-    path.join(process.resourcesPath, 'LX.png'),
-    // Build folder (fallbacks)
+    path.join(process.resourcesPath, 'assets', 'LX.ico'),
     path.join(process.resourcesPath, 'build', 'icon.ico'),
-    path.join(process.resourcesPath, 'build', 'icon.png'),
-    // App.asar fallbacks
-    path.join(process.resourcesPath, 'app.asar', 'build', 'icon.ico'),
-    path.join(process.resourcesPath, 'app.asar.unpacked', 'build', 'icon.ico'),
-    // Dev/local fallbacks
+    path.join(process.resourcesPath, 'build', 'icon.png')
+  ];
+
+  const devCandidates = [
     path.join(__dirname, '../src/assets/LX.png'),
+    path.join(__dirname, '../src/assets/LX.ico'),
     path.join(__dirname, '../build/icon.png'),
     path.join(__dirname, '../build/icon.ico')
   ];
 
+  const candidates = app.isPackaged ? packagedCandidates : devCandidates;
   const iconPath = candidates.find((p) => fs.existsSync(p)) || candidates[0];
 
   console.log('Icon path selected:', iconPath);
