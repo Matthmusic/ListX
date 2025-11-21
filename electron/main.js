@@ -3,6 +3,10 @@ const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
 const isDev = process.env.NODE_ENV === 'development';
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.bet.listx');
+}
+
 
 // Forcer le thème sombre global
 nativeTheme.themeSource = 'dark';
@@ -21,14 +25,19 @@ const CONFIG_FILE = path.join(app.getPath('userData'), 'config.json');
 let SHARED_STORAGE_PATH = null;
 let SHARED_DATA_FILE = null;
 
-// Fonction pour obtenir le chemin de l'icône selon l'environnement
+// Resolve icon path for dev/prod
 function getIconPath() {
-  const iconPath = isDev
-    ? path.join(__dirname, '../build/icon.ico')
-    : path.join(process.resourcesPath, 'build', 'icon.ico');
+  const candidates = [
+    path.join(__dirname, '../build/icon.ico'),
+    path.join(process.resourcesPath, 'build', 'icon.ico'),
+    path.join(process.resourcesPath, 'app.asar', 'build', 'icon.ico'),
+    path.join(process.resourcesPath, 'app.asar.unpacked', 'build', 'icon.ico')
+  ];
 
-  console.log('Chemin icône:', iconPath);
-  console.log('Icône existe:', fs.existsSync(iconPath));
+  const iconPath = candidates.find((p) => fs.existsSync(p)) || candidates[0];
+
+  console.log('Icon path selected:', iconPath);
+  console.log('Icon exists:', fs.existsSync(iconPath));
 
   return iconPath;
 }

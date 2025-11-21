@@ -2,6 +2,14 @@
 
 Toutes les modifications notables de ce projet seront documentées dans ce fichier.
 
+## [1.3.4] - 2025-11-14
+
+### Correctifs
+
+- Ic?ne Windows : AppUserModelID forc? et recherche ?largie dans les ressources (asar/unpacked) pour afficher le logo ListX dans la barre des t?ches et les raccourcis.
+
+---
+
 ## [1.2.8] - 2025-11-12
 
 ### 🐛 Correctifs
