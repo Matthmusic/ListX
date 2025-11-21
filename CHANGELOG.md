@@ -2,6 +2,14 @@
 
 Toutes les modifications notables de ce projet seront documentées dans ce fichier.
 
+## [1.3.5] - 2025-11-21
+
+### Correctifs
+
+- Ic?ne Windows forc?e hors de l'asar (copie en ressources + chemin prioritaire) pour que le logo ListX apparaisse sur la fen?tre, la barre des t?ches et les raccourcis.
+
+---
+
 ## [1.3.4] - 2025-11-14
 
 ### Correctifs
