@@ -25,20 +25,20 @@ const CONFIG_FILE = path.join(app.getPath('userData'), 'config.json');
 let SHARED_STORAGE_PATH = null;
 let SHARED_DATA_FILE = null;
 
-// Resolve icon path for dev/prod (mirrors To-DoX strategy: packaged assets in resources/assets)
+// Resolve icon path for dev/prod (prefer .ico in packaged build resources)
 function getIconPath() {
   const packagedCandidates = [
-    path.join(process.resourcesPath, 'assets', 'LX.png'),
-    path.join(process.resourcesPath, 'assets', 'LX.ico'),
     path.join(process.resourcesPath, 'build', 'icon.ico'),
-    path.join(process.resourcesPath, 'build', 'icon.png')
+    path.join(process.resourcesPath, 'build', 'icon.png'),
+    path.join(process.resourcesPath, 'assets', 'LX.ico'),
+    path.join(process.resourcesPath, 'assets', 'LX.png')
   ];
 
   const devCandidates = [
-    path.join(__dirname, '../src/assets/LX.png'),
-    path.join(__dirname, '../src/assets/LX.ico'),
+    path.join(__dirname, '../build/icon.ico'),
     path.join(__dirname, '../build/icon.png'),
-    path.join(__dirname, '../build/icon.ico')
+    path.join(__dirname, '../src/assets/LX.ico'),
+    path.join(__dirname, '../src/assets/LX.png')
   ];
 
   const candidates = app.isPackaged ? packagedCandidates : devCandidates;

@@ -2,6 +2,14 @@
 
 Toutes les modifications notables de ce projet seront document├®es dans ce fichier.
 
+## [1.3.11] - 2025-11-21
+
+### Correctifs
+
+- Icône ListX forçée en .ico (multi-tailles) dans le runner Windows et packagée en resources/build pour la barre des tâches/raccourcis.
+
+---
+
 ## [1.3.10] - 2025-11-21
 
 ### Correctifs
