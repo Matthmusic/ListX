@@ -27,26 +27,37 @@ let SHARED_DATA_FILE = null;
 
 // Resolve icon path for dev/prod (mirrors To-DoX strategy: packaged assets in resources/assets)
 function getIconPath() {
-  const packagedCandidates = [
-    path.join(process.resourcesPath, 'assets', 'LX.png'),
-    path.join(process.resourcesPath, 'assets', 'LX.ico'),
-    path.join(process.resourcesPath, 'build', 'icon.ico'),
-    path.join(process.resourcesPath, 'build', 'icon.png')
-  ];
+  // En production, on force le chemin vers l'icone dans les ressources
+  if (app.isPackaged) {
+    // Note: electron-builder copies build/icon.ico to resources/build/icon.ico if listed in files
+    // But we also have it in resources/assets/LX.ico via extraResources
+    // Let's try to use the standard build/icon.ico location if possible, or fallback
+    const iconPath = path.join(process.resourcesPath, 'build', 'icon.ico');
+    // If we want to stick to the one we just copied:
+    // const iconPath = path.join(process.resourcesPath, 'assets', 'LX.ico');
 
+    // Let's use the one we know is correct now (src/assets/LX.ico copied to build/icon.ico)
+    // In packaged app, files in 'build' are usually not copied unless specified in "files".
+    // package.json has "build/icon.ico" in "files".
+    // So it should be at resources/app.asar.unpacked/build/icon.ico OR resources/build/icon.ico depending on config.
+    // Actually, "files" puts it inside app.asar usually.
+    // "extraResources" puts it outside.
+
+    // Let's rely on the extraResources one which is definitely accessible as a file
+    const safeIconPath = path.join(process.resourcesPath, 'assets', 'LX.ico');
+    console.log('Production icon path:', safeIconPath);
+    return safeIconPath;
+  }
+
+  // En dev
   const devCandidates = [
-    path.join(__dirname, '../src/assets/LX.png'),
     path.join(__dirname, '../src/assets/LX.ico'),
-    path.join(__dirname, '../build/icon.png'),
+    path.join(__dirname, '../src/assets/LX.png'),
     path.join(__dirname, '../build/icon.ico')
   ];
 
-  const candidates = app.isPackaged ? packagedCandidates : devCandidates;
-  const iconPath = candidates.find((p) => fs.existsSync(p)) || candidates[0];
-
-  console.log('Icon path selected:', iconPath);
-  console.log('Icon exists:', fs.existsSync(iconPath));
-
+  const iconPath = devCandidates.find((p) => fs.existsSync(p)) || devCandidates[0];
+  console.log('Dev icon path:', iconPath);
   return iconPath;
 }
 
