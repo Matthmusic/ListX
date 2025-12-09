@@ -6,6 +6,7 @@ import { generateFilename, getExportHeaders, getDocumentValues, mergeFormFieldsO
 import { FieldSettingsModal } from './components/FieldSettingsModal';
 import { DynamicFormField } from './components/DynamicFormField';
 import AffairesModal from './components/AffairesModal';
+import ExportPreview from './components/ExportPreview';
 import { saveListing, loadListing } from './services/storageService';
 import {
   DndContext,
@@ -40,7 +41,7 @@ import numGenIcon from './assets/num-gen.svg';
 import numCatIcon from './assets/num-cat.svg';
 
 // Composant SortableDocument pour le drag and drop avec dnd-kit
-function SortableDocument({ doc, categoryColor, templateHasEtatField, onEdit, onDelete }) {
+function SortableDocument({ doc, categoryColor, templateHasEtatField, onEdit, onDelete, onCopyFilename }) {
   const {
     attributes,
     listeners,
@@ -54,6 +55,15 @@ function SortableDocument({ doc, categoryColor, templateHasEtatField, onEdit, on
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.3 : 1,
+  };
+
+  const handleCopyFilename = async () => {
+    try {
+      await navigator.clipboard.writeText(doc.nomComplet);
+      if (onCopyFilename) onCopyFilename(doc.nomComplet);
+    } catch (err) {
+      console.error('Erreur copie:', err);
+    }
   };
 
   return (
@@ -80,7 +90,13 @@ function SortableDocument({ doc, categoryColor, templateHasEtatField, onEdit, on
       )}
       <span className="bg-gray-100 px-2 py-1 rounded text-xs flex-shrink-0">{doc.indice}</span>
       <span className="flex-grow">{doc.nom}</span>
-      <span className="text-xs text-gray-600 font-mono hidden md:block">{doc.nomComplet}</span>
+      <span
+        onClick={handleCopyFilename}
+        className="text-xs text-gray-600 font-mono hidden md:block cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
+        title="Cliquer pour copier"
+      >
+        {doc.nomComplet}
+      </span>
       <button
         onClick={() => onEdit(doc.id)}
         className="text-blue-600 hover:text-blue-800 flex-shrink-0"
@@ -225,7 +241,7 @@ const getSectionLayout = (docs = []) => {
 
 export default function DocumentListingApp() {
   // Import du contexte des templates
-  const { currentTemplate } = useContext(TemplateContext);
+  const { currentTemplate, applyTemplate, allTemplates } = useContext(TemplateContext);
   const { selectedClient, selectedProject, selectedListing } = useApp();
   const formFieldsOrder = currentTemplate ? mergeFormFieldsOrder(currentTemplate) : [];
   const templateHasEtatField = !currentTemplate || formFieldsOrder.includes('ETAT');
@@ -2477,6 +2493,15 @@ export default function DocumentListingApp() {
                 setCategoriesOrder(listing.settings.categoriesOrder);
               }
             }
+
+            // Appliquer la template sauvegardée si elle existe
+            if (listing.templateName && allTemplates) {
+              const savedTemplate = allTemplates.find(t => t.name === listing.templateName);
+              if (savedTemplate && currentTemplate?.name !== listing.templateName) {
+                console.log('Application de la template sauvegardée:', listing.templateName);
+                applyTemplate(listing.templateName);
+              }
+            }
           }
 
           // Débloquer la sauvegarde après le chargement
@@ -2506,6 +2531,15 @@ export default function DocumentListingApp() {
             setCategoriesOrder(data.settings.categoriesOrder);
           }
         }
+
+        // Appliquer la template sauvegardée depuis localStorage
+        if (data.templateName && allTemplates) {
+          const savedTemplate = allTemplates.find(t => t.name === data.templateName);
+          if (savedTemplate && currentTemplate?.name !== data.templateName) {
+            console.log('Application de la template sauvegardée (localStorage):', data.templateName);
+            applyTemplate(data.templateName);
+          }
+        }
       }
 
       // Charger l'historique des champs
@@ -2519,7 +2553,7 @@ export default function DocumentListingApp() {
     };
 
     loadListingData();
-  }, [selectedClient, selectedProject, selectedListing, loadKey]);
+  }, [selectedClient, selectedProject, selectedListing, loadKey, allTemplates]);
 
   // useEffect pour charger la version de l'app
   useEffect(() => {
@@ -2582,10 +2616,12 @@ export default function DocumentListingApp() {
             modeNumerotation,
             categoriesOrder,
           },
+          // Sauvegarder le nom de la template associée
+          templateName: currentTemplate?.name || null,
         };
 
         await saveListing(selectedClient.id, selectedProject.id, selectedListing.id, updatedListing);
-        console.log('Documents sauvegardés:', docsToSave.length);
+        console.log('Documents sauvegardés:', docsToSave.length, '- Template:', currentTemplate?.name);
       } catch (error) {
         console.error('Erreur sauvegarde documents:', error);
       }
@@ -2600,6 +2636,7 @@ export default function DocumentListingApp() {
         data.affaires[listingKey] = docsToSave;
         data.lastAffaire = listingKey;
         data.settings = { modeNumerotation, categoriesOrder };
+        data.templateName = currentTemplate?.name || null;
 
         localStorage.setItem('affairesData', JSON.stringify(data));
       }
@@ -2612,6 +2649,38 @@ export default function DocumentListingApp() {
     data.settings = { modeNumerotation, categoriesOrder };
     localStorage.setItem('affairesData', JSON.stringify(data));
   }, [modeNumerotation, categoriesOrder]);
+
+  // useEffect pour sauvegarder la template quand elle change
+  useEffect(() => {
+    // Ne pas sauvegarder pendant le chargement initial
+    if (isLoadingDocuments || !currentTemplate) return;
+
+    const saveTemplateAssociation = async () => {
+      if (selectedClient && selectedProject && selectedListing) {
+        try {
+          const listing = await loadListing(selectedClient.id, selectedProject.id, selectedListing.id);
+          if (listing && listing.templateName !== currentTemplate.name) {
+            const updatedListing = {
+              ...listing,
+              templateName: currentTemplate.name,
+              updatedAt: new Date().toISOString(),
+            };
+            await saveListing(selectedClient.id, selectedProject.id, selectedListing.id, updatedListing);
+            console.log('Template associée sauvegardée:', currentTemplate.name);
+          }
+        } catch (error) {
+          console.error('Erreur sauvegarde template:', error);
+        }
+      } else {
+        // Fallback localStorage
+        const data = JSON.parse(localStorage.getItem('affairesData') || '{}');
+        data.templateName = currentTemplate.name;
+        localStorage.setItem('affairesData', JSON.stringify(data));
+      }
+    };
+
+    saveTemplateAssociation();
+  }, [currentTemplate?.name, selectedClient, selectedProject, selectedListing, isLoadingDocuments]);
 
   // Grouper documents par nature pour affichage
   const documentsGroupes = documents.reduce((acc, doc) => {
@@ -2702,8 +2771,8 @@ export default function DocumentListingApp() {
 
       {/* Popup d'export unifiée */}
       {showExportPopup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto py-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
                 <FileDown size={24} />
@@ -2832,6 +2901,19 @@ export default function DocumentListingApp() {
                   Afficher les lignes de catégories (NOT, NDC, PLN, etc.)
                 </label>
               </div>
+
+              {/* Aperçu de l'export */}
+              <ExportPreview
+                documents={documents}
+                exportHeaders={getExportHeaders(currentTemplate, documents)}
+                exportNomProjet={exportNomProjet}
+                exportNomListe={exportNomListe}
+                exportDateListe={exportDateListe}
+                exportIndiceListe={exportIndiceListe}
+                exportAfficherCategories={exportAfficherCategories}
+                exportLogoClient={exportLogoClient}
+                exportLogoBE={exportLogoBE}
+              />
 
               {/* Info */}
               <div className="bg-blue-50 p-3 rounded-md">
@@ -3125,6 +3207,7 @@ export default function DocumentListingApp() {
                                     templateHasEtatField={templateHasEtatField}
                                     onEdit={modifierDocument}
                                     onDelete={supprimerDocument}
+                                    onCopyFilename={(text) => showNotification(`Copié : ${text}`, 'success')}
                                   />
                                 ))}
                               </div>
