@@ -1,6 +1,16 @@
 ﻿# Changelog - ListX
 
-Toutes les modifications notables de ce projet seront document├®es dans ce fichier.
+## [1.3.17] - 2025-12-29
+
+### Correctifs
+
+- **Correction CRITIQUE de l'icône Windows** : Résolution du problème d'icône Electron dans la barre des tâches.
+  - Activation de la modification de l'exécutable (`signAndEditExecutable` rétabli).
+  - Intégration réelle du logo LX.ico dans l'exécutable via rcedit.
+  - Utilisation de `src/assets/LX.ico` comme source officielle pour le build.
+  - Script de nettoyage du cache d'icônes Windows amélioré.
+
+---
 
 ## [1.3.12] - 2025-11-21
 

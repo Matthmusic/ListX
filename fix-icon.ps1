@@ -10,7 +10,8 @@ if ($processes) {
         Write-Host "  - Arrêt de $($_.ProcessName) (PID: $($_.Id))"
         Stop-Process -Id $_.Id -Force
     }
-} else {
+}
+else {
     Write-Host "  - Aucun processus ListX en cours"
 }
 
@@ -57,27 +58,39 @@ foreach ($shortcut in $shortcuts) {
     }
 }
 
-# 4. Nettoyer le cache des icônes Windows
-Write-Host "`n4. Nettoyage du cache des icônes..." -ForegroundColor Yellow
+# 4. Nettoyer le cache des icônes Windows (Méthode Agressive)
+Write-Host "`n4. Nettoyage du cache des icônes (FORCE)..." -ForegroundColor Yellow
 
 # Arrêter l'explorateur
 Write-Host "  - Arrêt de l'explorateur Windows..."
-Stop-Process -Name explorer -Force
+Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
 
 Start-Sleep -Seconds 2
 
 # Supprimer les fichiers de cache d'icônes
 $iconCachePaths = @(
     "$env:LOCALAPPDATA\IconCache.db",
-    "$env:LOCALAPPDATA\Microsoft\Windows\Explorer\iconcache_*.db"
+    "$env:LOCALAPPDATA\Microsoft\Windows\Explorer\iconcache_*.db",
+    "$env:LOCALAPPDATA\Microsoft\Windows\Explorer\thumbcache_*.db"
 )
 
-foreach ($cachePath in $iconCachePaths) {
-    Get-Item $cachePath -ErrorAction SilentlyContinue | ForEach-Object {
-        Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
-        Write-Host "  - Supprimé: $($_.FullName)" -ForegroundColor Green
+foreach ($pathPattern in $iconCachePaths) {
+    Get-ChildItem -Path $pathPattern -ErrorAction SilentlyContinue | ForEach-Object {
+        try {
+            Remove-Item $_.FullName -Force -ErrorAction Stop
+            Write-Host "  - Supprimé: $($_.Name)" -ForegroundColor Green
+        }
+        catch {
+            Write-Host "  - Impossible de supprimer: $($_.Name) (Verrouillé)" -ForegroundColor Red
+        }
     }
 }
+
+# Supprimer les clés de registre associées aux icônes (parfois nécessaire)
+# Attention: cela réinitialise les positions des icônes du bureau
+# Write-Host "  - Nettoyage du registre..."
+# Remove-ItemProperty -Path "HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\TrayNotify" -Name "IconStreams" -ErrorAction SilentlyContinue
+# Remove-ItemProperty -Path "HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\TrayNotify" -Name "PastIconsStream" -ErrorAction SilentlyContinue
 
 # Redémarrer l'explorateur
 Write-Host "  - Redémarrage de l'explorateur Windows..."
@@ -85,8 +98,7 @@ Start-Process explorer.exe
 
 Write-Host "`n=== Nettoyage terminé ===" -ForegroundColor Cyan
 Write-Host "`nVous pouvez maintenant:" -ForegroundColor Yellow
-Write-Host "  1. Télécharger la nouvelle version depuis GitHub Releases"
-Write-Host "  2. Installer ListX-Setup-1.3.3.exe"
-Write-Host "  3. L'icône devrait maintenant s'afficher correctement"
+Write-Host "  1. Réinstaller l'application"
+Write-Host "  2. Si l'icône est toujours incorrecte, redémarrez votre PC."
 Write-Host "`nAppuyez sur une touche pour fermer..."
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
