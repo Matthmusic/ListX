@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "app": {
+    "id": "listx",
+    "name": "ListX",
+    "version": "1.3.18",
+    "description": {
+      "short": "Générateur de listings de documents techniques pour bureaux d'études",
+      "long": "ListX est une application desktop professionnelle de génération et gestion de listings de documents techniques. Elle permet de créer rapidement des inventaires de fichiers avec organisation hiérarchique (clients/projets/listings), système de templates personnalisables, numérotation automatique intelligente, et exports PDF et Excel professionnels avec logos personnalisables. Parfaite pour la documentation de projets industriels et techniques avec gestion d'arborescence de dossiers."
+    }
+  },
+  "resources": {
+    "logo": {
+      "path": "build/icon.png",
+      "url": "https://raw.githubusercontent.com/Matthmusic/ListX/main/build/icon.png"
+    },
+    "icon": {
+      "path": "build/icon.ico",
+      "url": "https://raw.githubusercontent.com/Matthmusic/ListX/main/build/icon.ico"
+    }
+  },
+  "detection": {
+    "windows": {
+      "files": [
+        {
+          "path": "C:\\Program Files\\ListX\\ListX.exe",
+          "description": "Installation standard 64-bit"
+        }
+      ],
+      "directories": [
+        {
+          "path": "%APPDATA%\\ListX",
+          "description": "Dossier de données utilisateur"
+        }
+      ],
+      "registry": [
+        {
+          "key": "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{com.bet.listx}",
+          "description": "Clé d'installation Windows"
+        }
+      ]
+    },
+    "priority": "files"
+  },
+  "metadata": {
+    "author": {
+      "name": "Matthmusic",
+      "url": "https://github.com/Matthmusic"
+    },
+    "category": "Productivité",
+    "tags": [
+      "productivite",
+      "documents",
+      "listing",
+      "pdf",
+      "excel",
+      "bureaux-etudes",
+      "technique",
+      "arborescence"
+    ],
+    "repository": {
+      "type": "github",
+      "url": "https://github.com/Matthmusic/ListX",
+      "branch": "main"
+    },
+    "license": "MIT",
+    "compatibility": {
+      "os": ["windows"],
+      "minVersion": "Windows 10"
+    }
+  },
+  "installation": {
+    "type": "installer",
+    "downloadUrl": "https://github.com/Matthmusic/ListX/releases/latest/download/ListX-Setup-1.3.18.exe"
+  },
+  "changelog": {
+    "1.3.18": {
+      "date": "2025-12-30",
+      "changes": [
+        "Ajout du fichier cea-app.json pour intégration CEA App Store",
+        "Préparation pour le déploiement automatisé"
+      ]
+    },
+    "1.3.17": {
+      "date": "2025-12-30",
+      "changes": [
+        "Correction de l'icône de la barre des tâches Windows",
+        "Amélioration de la configuration de build"
+      ]
+    },
+    "1.3.0": {
+      "date": "2025-01-13",
+      "changes": [
+        "BREAKING CHANGE: Passage au stockage serveur uniquement",
+        "Sélection du dossier de stockage au premier lancement",
+        "Suppression du mode localStorage",
+        "Migration automatique des templates",
+        "Simplification de l'architecture"
+      ]
+    },
+    "1.2.0": {
+      "date": "2025-01-01",
+      "changes": [
+        "Export Excel/PDF professionnel avec logos",
+        "Système de templates personnalisables",
+        "Gestion hiérarchique (Clients/Projets/Listings)",
+        "Drag & drop pour organisation",
+        "Mises à jour automatiques"
+      ]
+    }
+  }
+}
