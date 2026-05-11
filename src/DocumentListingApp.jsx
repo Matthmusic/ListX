@@ -54,9 +54,10 @@ function SortableDocument({ doc, categoryColor, templateHasEtatField, onEdit, on
   } = useSortable({ id: doc.id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: CSS.Translate.toString(transform),
     transition,
-    opacity: isDragging ? 0.3 : 1,
+    opacity: isDragging ? 0 : 1,
+    zIndex: isDragging ? 50 : undefined,
   };
 
   const handleCopyFilename = async () => {
@@ -72,10 +73,8 @@ function SortableDocument({ doc, categoryColor, templateHasEtatField, onEdit, on
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-3 p-3 border rounded-md hover:bg-gray-50 transition-all duration-200 ${
-        isDragging
-          ? 'bg-blue-50 scale-95 shadow-xl z-50'
-          : 'bg-white'
+      className={`flex items-center gap-3 p-3 border rounded-md hover:bg-gray-50 transition-colors bg-white ${
+        isDragging ? 'shadow-lg' : ''
       }`}
     >
       <div {...attributes} {...listeners} className="cursor-move touch-none">
@@ -348,8 +347,7 @@ export default function DocumentListingApp() {
   // État pour la popup de confirmation de vidage
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  // États pour le drag and drop avec dnd-kit
-  const [activeDocId, setActiveDocId] = useState(null);
+  // État pour le drag and drop avec dnd-kit (catégories uniquement — les documents suivent le curseur via transform)
   const [activeCategoryId, setActiveCategoryId] = useState(null);
 
   // État pour l'ordre des catégories (pour la persistance)
@@ -694,14 +692,8 @@ export default function DocumentListingApp() {
   };
 
   // Handlers pour le drag and drop des documents avec dnd-kit
-  const handleDocumentDragStart = (event) => {
-    setActiveDocId(event.active.id);
-  };
-
   const handleDocumentDragEnd = (event) => {
     const { active, over } = event;
-    setActiveDocId(null);
-
     if (!over || active.id === over.id) return;
 
     const activeDoc = documents.find(d => d.id === active.id);
@@ -3189,7 +3181,6 @@ export default function DocumentListingApp() {
                             sensors={sensors}
                             collisionDetection={closestCenter}
                             modifiers={[restrictToVerticalAxis]}
-                            onDragStart={handleDocumentDragStart}
                             onDragEnd={handleDocumentDragEnd}
                           >
                             <SortableContext
@@ -3210,22 +3201,6 @@ export default function DocumentListingApp() {
                                 ))}
                               </div>
                             </SortableContext>
-                            <DragOverlay>
-                              {activeDocId ? (
-                                <div className="flex items-center gap-3 p-3 border rounded-md bg-white shadow-2xl opacity-90">
-                                  <GripVertical size={20} className="text-gray-400 flex-shrink-0" />
-                                  <span className={`${categoryColor.tailwindBg} ${categoryColor.tailwindText} px-2 py-1 rounded text-xs font-medium flex-shrink-0`}>
-                                    {documents.find(d => d.id === activeDocId)?.nature}
-                                  </span>
-                                  <span className="font-mono text-gray-600 flex-shrink-0 font-semibold">
-                                    {documents.find(d => d.id === activeDocId)?.numero}
-                                  </span>
-                                  <span className="flex-grow">
-                                    {documents.find(d => d.id === activeDocId)?.nom}
-                                  </span>
-                                </div>
-                              ) : null}
-                            </DragOverlay>
                           </DndContext>
                         </div>
                       );
