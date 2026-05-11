@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, FileText, Table } from 'lucide-react';
+import { useNatures } from '../context/NaturesContext';
 
 // Palette de couleurs pour les catégories (identique à DocumentListingApp)
 const COLOR_PALETTE = [
@@ -25,6 +26,7 @@ export default function ExportPreview({
   exportLogoClient,
   exportLogoBE,
 }) {
+  const { naturesMap } = useNatures();
   const [isVisible, setIsVisible] = useState(false);
   const [previewMode, setPreviewMode] = useState('table'); // 'table' ou 'pdf'
 
@@ -42,15 +44,7 @@ export default function ExportPreview({
     return COLOR_PALETTE[index % COLOR_PALETTE.length];
   };
 
-  // Labels des catégories
-  const categoryLabels = {
-    'NOT': 'Notice',
-    'NDC': 'Note de Calcul',
-    'PLN': 'Plan',
-    'SYN': 'Synoptique',
-    'SCH': 'Schéma',
-    'LST': 'Listing'
-  };
+  const categoryLabels = naturesMap;
 
   if (documents.length === 0) {
     return null;

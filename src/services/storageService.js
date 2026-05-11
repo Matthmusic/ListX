@@ -443,6 +443,29 @@ export async function deleteListing(clientId, projectId, listingId) {
   return await saveData(data);
 }
 
+// ============= NATURES =============
+
+const DEFAULT_NATURES = [
+  { code: 'NOT', label: 'Notice' },
+  { code: 'NDC', label: 'Note de Calcul' },
+  { code: 'PLN', label: 'Plan' },
+  { code: 'SYN', label: 'Synoptique' },
+  { code: 'SCH', label: 'Schéma' },
+  { code: 'LST', label: 'Listing' },
+];
+
+export async function loadNatures() {
+  const data = await loadData();
+  return data.settings?.natures || DEFAULT_NATURES;
+}
+
+export async function saveNatures(natures) {
+  const data = await loadData();
+  if (!data.settings) data.settings = {};
+  data.settings.natures = natures;
+  return await saveData(data);
+}
+
 // ============= TEMPLATES =============
 
 /**

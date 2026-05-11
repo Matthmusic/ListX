@@ -4,12 +4,15 @@ import './index.css'
 import App from './App.jsx'
 import { AppProvider } from './context/AppContext.jsx'
 import { TemplateProvider } from './context/TemplateContext.jsx'
+import { NaturesProvider } from './context/NaturesContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AppProvider>
       <TemplateProvider>
-        <App />
+        <NaturesProvider>
+          <App />
+        </NaturesProvider>
       </TemplateProvider>
     </AppProvider>
   </StrictMode>,

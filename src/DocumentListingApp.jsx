@@ -2,6 +2,8 @@ import { useState, useEffect, useContext } from 'react';
 import { Plus, Download, Trash2, FolderTree, GripVertical, X, CheckCircle, AlertCircle, Info, FileText, ListOrdered, FileDown, Edit, Settings, Upload, ListChecks } from 'lucide-react';
 import { TemplateContext } from './context/TemplateContext';
 import { useApp } from './context/AppContext';
+import { useNatures } from './context/NaturesContext';
+import NaturesManagerModal from './components/NaturesManagerModal';
 import { generateFilename, getExportHeaders, getDocumentValues, mergeFormFieldsOrder } from './utils/filename';
 import { FieldSettingsModal } from './components/FieldSettingsModal';
 import { DynamicFormField } from './components/DynamicFormField';
@@ -243,6 +245,8 @@ export default function DocumentListingApp() {
   // Import du contexte des templates
   const { currentTemplate, applyTemplate, allTemplates } = useContext(TemplateContext);
   const { selectedClient, selectedProject, selectedListing } = useApp();
+  const { natures, naturesMap } = useNatures();
+  const [showNaturesManager, setShowNaturesManager] = useState(false);
   const formFieldsOrder = currentTemplate ? mergeFormFieldsOrder(currentTemplate) : [];
   const templateHasEtatField = !currentTemplate || formFieldsOrder.includes('ETAT');
 
@@ -250,7 +254,7 @@ export default function DocumentListingApp() {
   const [phase, setPhase] = useState('PRO');
   const [lot, setLot] = useState('');
   const [emetteur, setEmetteur] = useState('');
-  const [nature, setNature] = useState('NDC');
+  const [nature, setNature] = useState(() => natures[0]?.code ?? '');
   const [etat, setEtat] = useState(''); // ACTUEL, PROJET ou vide
   const [niveauCoupe, setNiveauCoupe] = useState('');
   const [zone, setZone] = useState('');
@@ -258,6 +262,13 @@ export default function DocumentListingApp() {
   const [indice, setIndice] = useState('A');
   const [nom, setNom] = useState('');
   const [documents, setDocuments] = useState([]);
+
+  // Revalider la nature sélectionnée si la liste des natures change (ex : suppression de NDC)
+  useEffect(() => {
+    if (natures.length > 0 && !natures.some(n => n.code === nature)) {
+      setNature(natures[0].code);
+    }
+  }, [natures]);
 
   // État pour les champs personnalisés (dynamiques)
   const [customFieldsValues, setCustomFieldsValues] = useState({});
@@ -393,14 +404,7 @@ export default function DocumentListingApp() {
     }, 5000);
   };
 
-  const natures = [
-    { code: 'NOT', label: 'Notice' },
-    { code: 'NDC', label: 'Note de Calcul' },
-    { code: 'PLN', label: 'Plan' },
-    { code: 'SYN', label: 'Synoptique' },
-    { code: 'SCH', label: 'Schéma' },
-    { code: 'LST', label: 'Listing' }
-  ];
+  // natures provient du contexte NaturesContext
 
   const formats = ['A0+', 'A0', 'A1', 'A2', 'A3', 'A4'];
 
@@ -1163,15 +1167,7 @@ export default function DocumentListingApp() {
           }
         });
 
-        // Définition des labels de catégories
-        const categoryLabels = {
-          'NOT': 'Notice',
-          'NDC': 'Note de Calcul',
-          'PLN': 'Plan',
-          'SYN': 'Synoptique',
-          'SCH': 'Schéma',
-          'LST': 'Listing'
-        };
+        const categoryLabels = naturesMap;
 
         // Compteur de ligne pour toute la liste
         let numeroLigne = 1;
@@ -1728,14 +1724,7 @@ export default function DocumentListingApp() {
           }
         });
 
-        const categoryLabels = {
-          'NOT': 'Notice',
-          'NDC': 'Note de Calcul',
-          'PLN': 'Plan',
-          'SYN': 'Synoptique',
-          'SCH': 'Schéma',
-          'LST': 'Listing'
-        };
+        const categoryLabels = naturesMap;
 
         categoriesPresentes.forEach(category => {
           // Ajouter la ligne de catégorie
@@ -2991,6 +2980,14 @@ export default function DocumentListingApp() {
                 <span>Affaires</span>
               </button>
               <button
+                onClick={() => setShowNaturesManager(true)}
+                className="flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+                title="Gérer les natures de document"
+              >
+                <FileText size={18} />
+                <span>Natures</span>
+              </button>
+              <button
                 onClick={() => setShowFieldSettings(true)}
                 className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                 title="Paramètres des champs"
@@ -3054,6 +3051,7 @@ export default function DocumentListingApp() {
                         // Props pour l'historique des champs
                         fieldHistory={getSuggestionsForField(affaire, fieldName)}
                         currentAffaire={affaire}
+                        naturesOptions={fieldNameLower === 'nature' ? natures.map(n => ({ value: n.code, label: `${n.code} - ${n.label}` })) : undefined}
                       />
                     );
                   })}
@@ -3367,6 +3365,13 @@ export default function DocumentListingApp() {
       {showFieldSettings && (
         <FieldSettingsModal onClose={() => setShowFieldSettings(false)} />
       )}
+
+      {/* Modale de gestion des natures */}
+      <NaturesManagerModal
+        isOpen={showNaturesManager}
+        onClose={() => setShowNaturesManager(false)}
+        documents={documents}
+      />
 
       {/* Modale de gestion des affaires */}
       <AffairesModal

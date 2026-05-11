@@ -27,6 +27,8 @@ const DynamicFormFieldComponent = ({
   // Props pour l'historique des champs
   fieldHistory = [],
   currentAffaire,
+  // Options dynamiques pour la nature
+  naturesOptions,
 }) => {
   const fieldNameLower = fieldName.toLowerCase();
 
@@ -64,7 +66,7 @@ const DynamicFormFieldComponent = ({
     },
     nature: {
       type: 'select',
-      options: [
+      options: naturesOptions ?? [
         { value: 'NOT', label: 'NOT - Notice' },
         { value: 'NDC', label: 'NDC - Note de Calcul' },
         { value: 'PLN', label: 'PLN - Plan' },
