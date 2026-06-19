@@ -1,14 +1,17 @@
 import { useState, useEffect, useContext } from 'react';
-import { Plus, Download, Trash2, FolderTree, GripVertical, X, CheckCircle, AlertCircle, Info, FileText, ListOrdered, FileDown, Edit, Settings, Upload, ListChecks } from 'lucide-react';
+import { Plus, Trash2, FolderTree, GripVertical, X, CheckCircle, AlertCircle, Info, FileText, ListOrdered, FileDown, Edit, Settings, Upload, Download, ListChecks } from 'lucide-react';
 import { TemplateContext } from './context/TemplateContext';
 import { useApp } from './context/AppContext';
 import { useNatures } from './context/NaturesContext';
 import NaturesManagerModal from './components/NaturesManagerModal';
-import { generateFilename, getExportHeaders, getDocumentValues, mergeFormFieldsOrder } from './utils/filename';
+import { generateFilename, getExportHeaders, mergeFormFieldsOrder } from './utils/filename';
 import { FieldSettingsModal } from './components/FieldSettingsModal';
 import { DynamicFormField } from './components/DynamicFormField';
 import AffairesModal from './components/AffairesModal';
 import ExportPreview from './components/ExportPreview';
+import SortableDocument from './components/SortableDocument';
+import SortableCategory from './components/SortableCategory';
+import { COLOR_PALETTE } from './utils/colors';
 import { saveListing, loadListing } from './services/storageService';
 import {
   DndContext,
@@ -23,168 +26,20 @@ import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ExcelJS from 'exceljs';
-import listXLogo from './assets/listX.svg';
-import systemeIcon from './assets/systeme.png';
+import listXLogo from './assets/ListX.svg';
 import pdfIcon from './assets/pdf.png';
 import xlsIcon from './assets/xls.png';
-import arborescenceIcon from './assets/arborescence-des-fichiers.png';
-import exportIcon from './assets/exporter-le-fichier.png';
 import copierIcon from './assets/coller-le-presse-papiers (1).png';
 import creerIcon from './assets/nouveau-dossier.png';
 import numGenIcon from './assets/num-gen.svg';
 import numCatIcon from './assets/num-cat.svg';
 
-// Composant SortableDocument pour le drag and drop avec dnd-kit
-function SortableDocument({ doc, categoryColor, templateHasEtatField, onEdit, onDelete, onCopyFilename }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: doc.id });
-
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    transition,
-    opacity: isDragging ? 0 : 1,
-    zIndex: isDragging ? 50 : undefined,
-  };
-
-  const handleCopyFilename = async () => {
-    try {
-      await navigator.clipboard.writeText(doc.nomComplet);
-      if (onCopyFilename) onCopyFilename(doc.nomComplet);
-    } catch (err) {
-      console.error('Erreur copie:', err);
-    }
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`flex items-center gap-3 p-3 border rounded-md hover:bg-gray-50 transition-colors bg-white ${
-        isDragging ? 'shadow-lg' : ''
-      }`}
-    >
-      <div {...attributes} {...listeners} className="cursor-move touch-none">
-        <GripVertical size={20} className="text-gray-400 flex-shrink-0" />
-      </div>
-      <span className={`${categoryColor.tailwindBg} ${categoryColor.tailwindText} px-2 py-1 rounded text-xs font-medium flex-shrink-0`}>
-        {doc.nature}
-      </span>
-      <span className="font-mono text-gray-600 flex-shrink-0 font-semibold">{doc.numero}</span>
-      {templateHasEtatField && doc.etat && doc.etat.trim() !== '' && (
-        <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-medium flex-shrink-0">
-          {doc.etat}
-        </span>
-      )}
-      <span className="bg-gray-100 px-2 py-1 rounded text-xs flex-shrink-0">{doc.indice}</span>
-      <span className="flex-grow">{doc.nom}</span>
-      <span
-        onClick={handleCopyFilename}
-        className="text-xs text-gray-600 font-mono hidden md:block cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
-        title="Cliquer pour copier"
-      >
-        {doc.nomComplet}
-      </span>
-      <button
-        onClick={() => onEdit(doc.id)}
-        className="text-blue-600 hover:text-blue-800 flex-shrink-0"
-        title="Modifier"
-      >
-        <Edit size={16} />
-      </button>
-      <button
-        onClick={() => onDelete(doc.id)}
-        className="text-red-600 hover:text-red-800 flex-shrink-0"
-        title="Supprimer"
-      >
-        <Trash2 size={16} />
-      </button>
-    </div>
-  );
-}
-
-// Composant SortableCategory pour le drag and drop des catégories avec dnd-kit
-function SortableCategory({ natureCode, label, categoryColor, isDragging }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id: `category-${natureCode}` });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <h3
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className={`font-semibold text-lg mb-2 ${categoryColor.tailwindText} ${categoryColor.tailwindBg} px-3 py-2 rounded cursor-move hover:opacity-90 transition-all flex items-center gap-2`}
-    >
-      <GripVertical size={20} className="text-gray-400" />
-      {natureCode} - {label}
-    </h3>
-  );
-}
-
-// Palette de couleurs arc-en-ciel pour les catégories (6 couleurs)
-const COLOR_PALETTE = [
-  {
-    bg: 'FFCCE5FF', // Bleu pâle
-    bgRGB: [204, 229, 255],
-    tailwindBg: 'bg-blue-100',
-    tailwindText: 'text-blue-800'
-  },
-  {
-    bg: 'FFCCFFFF', // Cyan pâle
-    bgRGB: [204, 255, 255],
-    tailwindBg: 'bg-cyan-100',
-    tailwindText: 'text-cyan-800'
-  },
-  {
-    bg: 'FFCCFFCC', // Vert pâle
-    bgRGB: [204, 255, 204],
-    tailwindBg: 'bg-green-100',
-    tailwindText: 'text-green-800'
-  },
-  {
-    bg: 'FFFFFFCC', // Jaune pâle
-    bgRGB: [255, 255, 204],
-    tailwindBg: 'bg-yellow-100',
-    tailwindText: 'text-yellow-800'
-  },
-  {
-    bg: 'FFFFE6CC', // Orange pâle
-    bgRGB: [255, 230, 204],
-    tailwindBg: 'bg-orange-100',
-    tailwindText: 'text-orange-800'
-  },
-  {
-    bg: 'FFE5CCFF', // Violet pâle
-    bgRGB: [229, 204, 255],
-    tailwindBg: 'bg-purple-100',
-    tailwindText: 'text-purple-800'
-  }
-];
 
 const ARBO_SECTION_DEFINITIONS = [
   { nature: 'NOT', root: 'A - PIECES ECRITES', sectionCode: 'A1', label: 'NOTICE' },
@@ -714,35 +569,6 @@ export default function DocumentListingApp() {
     const renumberedDocs = renumeroteDocuments(reorderedDocs);
     setDocuments(renumberedDocs);
     saveDocumentsToStorage(renumberedDocs); // Sauvegarder après réorganisation
-  };
-
-  const exporterCSV = () => {
-    const headers = ['Affaire', 'Phase', 'Lot', 'Émetteur', 'Nature', 'N° Document', 'Niveau Coupe', 'Zone', 'Format', 'Indice', 'Nom', 'Nom Complet Fichier'];
-    const rows = documents.map(d => [
-      d.affaire,
-      d.phase,
-      d.lot || '',
-      d.emetteur || '',
-      d.nature,
-      d.numero,
-      d.niveauCoupe || '',
-      d.zone || '',
-      d.format,
-      d.indice,
-      d.nom,
-      d.nomComplet
-    ]);
-
-    const csv = [
-      headers.join(';'),
-      ...rows.map(row => row.join(';'))
-    ].join('\n');
-
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `listing_${affaire}_${phase}_${Date.now()}.csv`;
-    link.click();
   };
 
   const exporterExcel = async () => {
@@ -2089,26 +1915,6 @@ export default function DocumentListingApp() {
     }
   };
 
-  const getPhaseFolder = (p) => {
-    const mapping = {
-      'DIAG': '03 - DIAG',
-      'APS': '04 - APS',
-      'APD': '05 - APD',
-      'AVP': '06 - AVP',
-      'PRO': '07 - PRO',
-      'DCE': '08 - DCE',
-      'ACT': '09 - ACT'
-    };
-    return mapping[p] || '07 - PRO';
-  };
-
-  const toggleMode = () => {
-    const newMode = !useRanges;
-    setUseRanges(newMode);
-    if (documents.length > 0) {
-      setDocuments(renumeroteDocuments(documents));
-    }
-  };
 
   // Fonctions de gestion des affaires
   const handleAffaireChange = (value) => {
@@ -2159,26 +1965,6 @@ export default function DocumentListingApp() {
     setDocuments([]);
     setAffaire('');
     setShowAutocomplete(false);
-  };
-
-  // Sauvegarder les affaires dans le CSV
-  const sauvegarderAffairesCSV = async (affaires) => {
-    const csv = affaires.join('\n');
-    try {
-      const handle = await window.showSaveFilePicker({
-        suggestedName: 'affaires.csv',
-        types: [{
-          description: 'CSV Files',
-          accept: { 'text/csv': ['.csv'] }
-        }]
-      });
-      const writable = await handle.createWritable();
-      await writable.write('\ufeff' + csv); // BOM UTF-8
-      await writable.close();
-    } catch (error) {
-      // Fallback si l'API File System n'est pas supportée
-      console.log('Utilisation du localStorage pour les affaires');
-    }
   };
 
   // Charger les affaires depuis le CSV
@@ -2432,9 +2218,6 @@ export default function DocumentListingApp() {
   // useEffect pour charger les données au démarrage ET à chaque changement de listing
   useEffect(() => {
     const loadListingData = async () => {
-      console.log('=== CHARGEMENT LISTING ===');
-      console.log('LoadKey:', loadKey);
-      console.log('Client:', selectedClient, 'Project:', selectedProject, 'Listing:', selectedListing);
 
       // Charger les affaires depuis le CSV
       const affaires = await chargerAffairesCSV();
@@ -2453,15 +2236,12 @@ export default function DocumentListingApp() {
       if (selectedClient && selectedProject && selectedListing) {
         try {
           const listing = await loadListing(selectedClient.id, selectedProject.id, selectedListing.id);
-          console.log('Listing chargé:', listing);
 
           if (listing) {
             // Charger les documents
             if (listing.documents && Array.isArray(listing.documents)) {
-              console.log('Documents chargés:', listing.documents.length);
               setDocuments(listing.documents);
             } else {
-              console.log('Aucun document dans le listing');
               setDocuments([]);
             }
 
@@ -2479,7 +2259,6 @@ export default function DocumentListingApp() {
             if (listing.templateName && allTemplates) {
               const savedTemplate = allTemplates.find(t => t.name === listing.templateName);
               if (savedTemplate && currentTemplate?.name !== listing.templateName) {
-                console.log('Application de la template sauvegardée:', listing.templateName);
                 applyTemplate(listing.templateName);
               }
             }
@@ -2517,7 +2296,6 @@ export default function DocumentListingApp() {
         if (data.templateName && allTemplates) {
           const savedTemplate = allTemplates.find(t => t.name === data.templateName);
           if (savedTemplate && currentTemplate?.name !== data.templateName) {
-            console.log('Application de la template sauvegardée (localStorage):', data.templateName);
             applyTemplate(data.templateName);
           }
         }
@@ -2581,7 +2359,6 @@ export default function DocumentListingApp() {
   const saveDocumentsToStorage = async (docsToSave) => {
     // Ne pas sauvegarder pendant le chargement
     if (isLoadingDocuments) {
-      console.log('Sauvegarde bloquée: chargement en cours');
       return;
     }
 
@@ -2602,7 +2379,6 @@ export default function DocumentListingApp() {
         };
 
         await saveListing(selectedClient.id, selectedProject.id, selectedListing.id, updatedListing);
-        console.log('Documents sauvegardés:', docsToSave.length, '- Template:', currentTemplate?.name);
       } catch (error) {
         console.error('Erreur sauvegarde documents:', error);
       }
@@ -2647,7 +2423,6 @@ export default function DocumentListingApp() {
               updatedAt: new Date().toISOString(),
             };
             await saveListing(selectedClient.id, selectedProject.id, selectedListing.id, updatedListing);
-            console.log('Template associée sauvegardée:', currentTemplate.name);
           }
         } catch (error) {
           console.error('Erreur sauvegarde template:', error);

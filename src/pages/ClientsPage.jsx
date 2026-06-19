@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Users, Edit, Trash2, Download, Upload } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { getAllClients, createClient, renameClient, deleteClient, exportClient, importClient } from '../services/storageService';
@@ -6,31 +7,34 @@ import AppLayout from '../components/AppLayout';
 import InputDialog from '../components/InputDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
 import VersionBadge from '../components/VersionBadge';
-import listXLogo from '../assets/listX.svg';
+import listXLogo from '../assets/ListX.svg';
 
 export default function ClientsPage() {
-  const { navigateToProjects } = useApp();
+  const { setSelectedClient, setSelectedProject, setSelectedListing } = useApp();
+  const navigate = useNavigate();
   const [clients, setClients] = useState([]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedClient, setSelectedClient] = useState(null);
+  const [selectedClient, setLocalSelectedClient] = useState(null);
 
   useEffect(() => {
     loadClients();
 
-    // Écouter les événements de mise à jour
-    const handleDataUpdated = () => {
-      loadClients();
-    };
+    const handleDataUpdated = () => loadClients();
     window.addEventListener('data-updated', handleDataUpdated);
-
     return () => window.removeEventListener('data-updated', handleDataUpdated);
   }, []);
 
   const loadClients = async () => {
-    const loadedClients = await getAllClients();
-    setClients(loadedClients);
+    setClients(await getAllClients());
+  };
+
+  const handleClientClick = (client) => {
+    setSelectedClient(client);
+    setSelectedProject(null);
+    setSelectedListing(null);
+    navigate('/projects');
   };
 
   const handleCreateClient = async (name) => {
@@ -42,7 +46,7 @@ export default function ClientsPage() {
     if (selectedClient) {
       await renameClient(selectedClient.id, name);
       await loadClients();
-      setSelectedClient(null);
+      setLocalSelectedClient(null);
     }
   };
 
@@ -50,7 +54,7 @@ export default function ClientsPage() {
     if (selectedClient) {
       await deleteClient(selectedClient.id);
       await loadClients();
-      setSelectedClient(null);
+      setLocalSelectedClient(null);
     }
   };
 
@@ -60,14 +64,8 @@ export default function ClientsPage() {
       alert('Erreur lors de l\'export du client');
       return;
     }
-
-    // Formater la date au format AAMMJJ
     const now = new Date();
-    const year = now.getFullYear().toString().slice(-2);
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');
-    const dateStr = `${year}${month}${day}`;
-
+    const dateStr = `${now.getFullYear().toString().slice(-2)}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -84,13 +82,11 @@ export default function ClientsPage() {
     input.onchange = (e) => {
       const file = e.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
       reader.onload = async (event) => {
         try {
           const data = JSON.parse(event.target.result);
           const result = await importClient(data);
-
           if (result.success) {
             await loadClients();
             alert(`Client "${result.name}" importé avec succès !\n${result.projectCount} projet(s) inclus.`);
@@ -107,18 +103,15 @@ export default function ClientsPage() {
   return (
     <AppLayout>
       <div className="max-w-7xl mx-auto">
-        {/* Header avec logo */}
         <div className="flex items-center justify-center mb-6">
           <img src={listXLogo} alt="ListX" className="h-20" />
         </div>
 
-        {/* Titre principal avec boutons actions */}
         <div className="relative text-center mb-12">
           <div className="absolute right-0 top-0 flex items-center gap-2">
             <button
               onClick={handleImportClient}
               className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold transition-colors"
-              title="Importer un client"
             >
               <Download className="w-4 h-4" />
               Importer
@@ -136,7 +129,6 @@ export default function ClientsPage() {
         </div>
 
         {clients.length === 0 ? (
-          // Empty State
           <div className="flex flex-col items-center justify-center py-12">
             <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-12 text-center max-w-md">
               <Users className="w-20 h-20 text-white/60 mb-6 mx-auto" />
@@ -161,15 +153,13 @@ export default function ClientsPage() {
             </div>
           </div>
         ) : (
-          // Card container
           <div className="space-y-6">
-            {/* Grid de clients */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {clients.map((client) => (
                 <div
                   key={client.id}
                   className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 hover:bg-white/20 transition-all duration-200 cursor-pointer group shadow-lg hover:shadow-2xl"
-                  onClick={() => navigateToProjects(client)}
+                  onClick={() => handleClientClick(client)}
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
@@ -185,36 +175,23 @@ export default function ClientsPage() {
                     </div>
                   </div>
 
-                  {/* Actions */}
                   <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleExportClient(client);
-                      }}
+                      onClick={(e) => { e.stopPropagation(); handleExportClient(client); }}
                       className="flex items-center gap-1 px-3 py-1.5 text-sm bg-green-500/20 text-green-200 rounded-lg hover:bg-green-500/30 transition-colors"
-                      title="Exporter ce client"
                     >
                       <Upload className="w-4 h-4" />
                       Exporter
                     </button>
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedClient(client);
-                        setShowEditDialog(true);
-                      }}
+                      onClick={(e) => { e.stopPropagation(); setLocalSelectedClient(client); setShowEditDialog(true); }}
                       className="flex items-center gap-1 px-3 py-1.5 text-sm bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
                     >
                       <Edit className="w-4 h-4" />
                       Renommer
                     </button>
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedClient(client);
-                        setShowDeleteDialog(true);
-                      }}
+                      onClick={(e) => { e.stopPropagation(); setLocalSelectedClient(client); setShowDeleteDialog(true); }}
                       className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-500/20 text-red-200 rounded-lg hover:bg-red-500/30 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -228,7 +205,6 @@ export default function ClientsPage() {
         )}
       </div>
 
-      {/* Dialogs */}
       <InputDialog
         isOpen={showCreateDialog}
         onClose={() => setShowCreateDialog(false)}
@@ -241,10 +217,7 @@ export default function ClientsPage() {
 
       <InputDialog
         isOpen={showEditDialog}
-        onClose={() => {
-          setShowEditDialog(false);
-          setSelectedClient(null);
-        }}
+        onClose={() => { setShowEditDialog(false); setLocalSelectedClient(null); }}
         onConfirm={handleEditClient}
         title="Renommer le client"
         label="Nouveau nom"
@@ -255,10 +228,7 @@ export default function ClientsPage() {
 
       <ConfirmDialog
         isOpen={showDeleteDialog}
-        onClose={() => {
-          setShowDeleteDialog(false);
-          setSelectedClient(null);
-        }}
+        onClose={() => { setShowDeleteDialog(false); setLocalSelectedClient(null); }}
         onConfirm={handleDeleteClient}
         title="Supprimer le client"
         message={`Êtes-vous sûr de vouloir supprimer "${selectedClient?.name}" ? Tous les projets et listings associés seront également supprimés.`}

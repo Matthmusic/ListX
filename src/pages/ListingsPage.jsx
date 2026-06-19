@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, FileText, Copy, Edit, Trash2, Calendar, FileStack, ChevronLeft, Download, Upload } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { getProjectListings, createListing, renameListing, deleteListing, duplicateListing, exportListing, importListing } from '../services/storageService';
@@ -6,15 +7,16 @@ import AppLayout from '../components/AppLayout';
 import InputDialog from '../components/InputDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
 import VersionBadge from '../components/VersionBadge';
-import listXLogo from '../assets/listX.svg';
+import listXLogo from '../assets/ListX.svg';
 
 export default function ListingsPage() {
-  const { selectedClient, selectedProject, navigateToProjects, navigateToEditor } = useApp();
+  const { selectedClient, selectedProject, setSelectedListing } = useApp();
+  const navigate = useNavigate();
   const [listings, setListings] = useState([]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedListing, setSelectedListing] = useState(null);
+  const [selectedListing, setLocalSelectedListing] = useState(null);
 
   useEffect(() => {
     if (selectedClient && selectedProject) {
@@ -23,14 +25,19 @@ export default function ListingsPage() {
   }, [selectedClient, selectedProject]);
 
   const loadListings = async () => {
-    const loadedListings = await getProjectListings(selectedClient.id, selectedProject.id);
-    setListings(loadedListings);
+    setListings(await getProjectListings(selectedClient.id, selectedProject.id));
+  };
+
+  const handleListingClick = (listing) => {
+    setSelectedListing(listing);
+    navigate('/editor');
   };
 
   const handleCreateListing = async (name) => {
     const newListing = await createListing(selectedClient.id, selectedProject.id, name);
     if (newListing) {
-      navigateToEditor(selectedClient, selectedProject, newListing);
+      setSelectedListing(newListing);
+      navigate('/editor');
     }
   };
 
@@ -38,7 +45,7 @@ export default function ListingsPage() {
     if (selectedListing) {
       await renameListing(selectedClient.id, selectedProject.id, selectedListing.id, name);
       await loadListings();
-      setSelectedListing(null);
+      setLocalSelectedListing(null);
     }
   };
 
@@ -46,7 +53,7 @@ export default function ListingsPage() {
     if (selectedListing) {
       await deleteListing(selectedClient.id, selectedProject.id, selectedListing.id);
       await loadListings();
-      setSelectedListing(null);
+      setLocalSelectedListing(null);
     }
   };
 
@@ -61,14 +68,8 @@ export default function ListingsPage() {
       alert('Erreur lors de l\'export du listing');
       return;
     }
-
-    // Formater la date au format AAMMJJ
     const now = new Date();
-    const year = now.getFullYear().toString().slice(-2);
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');
-    const dateStr = `${year}${month}${day}`;
-
+    const dateStr = `${now.getFullYear().toString().slice(-2)}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -85,13 +86,11 @@ export default function ListingsPage() {
     input.onchange = (e) => {
       const file = e.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
       reader.onload = async (event) => {
         try {
           const data = JSON.parse(event.target.result);
           const result = await importListing(selectedClient.id, selectedProject.id, data);
-
           if (result.success) {
             await loadListings();
             alert(`Listing "${result.name}" importé avec succès !\n${result.documentCount} document(s) inclus.`);
@@ -106,26 +105,21 @@ export default function ListingsPage() {
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return new Date(dateString).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
-  if (!selectedClient || !selectedProject) {
-    return null;
-  }
+  if (!selectedClient || !selectedProject) return null;
 
   return (
     <AppLayout>
       <div className="max-w-7xl mx-auto">
-        {/* Header avec logo centré */}
         <div className="flex items-center justify-center mb-6">
           <img src={listXLogo} alt="ListX" className="h-20" />
         </div>
 
-        {/* Titre avec boutons retour et création */}
         <div className="relative text-center mb-12">
           <button
-            onClick={() => navigateToProjects(selectedClient)}
+            onClick={() => navigate('/projects')}
             className="absolute left-0 top-0 flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-xl hover:bg-white/20 transition-all duration-200"
           >
             <ChevronLeft className="w-5 h-5" />
@@ -135,7 +129,6 @@ export default function ListingsPage() {
             <button
               onClick={handleImportListing}
               className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold transition-colors"
-              title="Importer un listing"
             >
               <Download className="w-4 h-4" />
               Importer
@@ -154,7 +147,6 @@ export default function ListingsPage() {
         </div>
 
         {listings.length === 0 ? (
-          // Empty State
           <div className="flex flex-col items-center justify-center py-12">
             <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-12 text-center max-w-md">
               <FileText className="w-20 h-20 text-white/60 mb-6 mx-auto" />
@@ -179,15 +171,13 @@ export default function ListingsPage() {
             </div>
           </div>
         ) : (
-          // List container
           <div className="space-y-6">
-            {/* Liste des listings */}
             <div className="space-y-4">
               {listings.map((listing) => (
                 <div
                   key={listing.id}
                   className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 hover:bg-white/20 transition-all duration-200 cursor-pointer group shadow-lg hover:shadow-2xl"
-                  onClick={() => navigateToEditor(selectedClient, selectedProject, listing)}
+                  onClick={() => handleListingClick(listing)}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4 flex-1">
@@ -209,45 +199,30 @@ export default function ListingsPage() {
                       </div>
                     </div>
 
-                    {/* Actions */}
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleExportListing(listing);
-                        }}
+                        onClick={(e) => { e.stopPropagation(); handleExportListing(listing); }}
                         className="p-2.5 bg-green-500/20 text-green-200 rounded-lg hover:bg-green-500/30 transition-colors"
-                        title="Exporter ce listing"
+                        title="Exporter"
                       >
                         <Upload className="w-5 h-5" />
                       </button>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDuplicateListing(listing);
-                        }}
+                        onClick={(e) => { e.stopPropagation(); handleDuplicateListing(listing); }}
                         className="p-2.5 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
                         title="Dupliquer"
                       >
                         <Copy className="w-5 h-5" />
                       </button>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedListing(listing);
-                          setShowEditDialog(true);
-                        }}
+                        onClick={(e) => { e.stopPropagation(); setLocalSelectedListing(listing); setShowEditDialog(true); }}
                         className="p-2.5 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
                         title="Renommer"
                       >
                         <Edit className="w-5 h-5" />
                       </button>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedListing(listing);
-                          setShowDeleteDialog(true);
-                        }}
+                        onClick={(e) => { e.stopPropagation(); setLocalSelectedListing(listing); setShowDeleteDialog(true); }}
                         className="p-2.5 bg-red-500/20 text-red-200 rounded-lg hover:bg-red-500/30 transition-colors"
                         title="Supprimer"
                       >
@@ -262,7 +237,6 @@ export default function ListingsPage() {
         )}
       </div>
 
-      {/* Dialogs */}
       <InputDialog
         isOpen={showCreateDialog}
         onClose={() => setShowCreateDialog(false)}
@@ -275,10 +249,7 @@ export default function ListingsPage() {
 
       <InputDialog
         isOpen={showEditDialog}
-        onClose={() => {
-          setShowEditDialog(false);
-          setSelectedListing(null);
-        }}
+        onClose={() => { setShowEditDialog(false); setLocalSelectedListing(null); }}
         onConfirm={handleEditListing}
         title="Renommer le listing"
         label="Nouveau nom"
@@ -289,10 +260,7 @@ export default function ListingsPage() {
 
       <ConfirmDialog
         isOpen={showDeleteDialog}
-        onClose={() => {
-          setShowDeleteDialog(false);
-          setSelectedListing(null);
-        }}
+        onClose={() => { setShowDeleteDialog(false); setLocalSelectedListing(null); }}
         onConfirm={handleDeleteListing}
         title="Supprimer le listing"
         message={`Êtes-vous sûr de vouloir supprimer "${selectedListing?.name}" ? Cette action est irréversible.`}
