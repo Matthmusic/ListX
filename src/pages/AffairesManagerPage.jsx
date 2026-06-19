@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Download, Upload, Search, X, ChevronLeft } from 'lucide-react';
-import { useApp } from '../context/AppContext';
 import AppLayout from '../components/AppLayout';
 
 export default function AffairesManagerPage() {
-  const { navigateToClients } = useApp();
+  const navigate = useNavigate();
   const [affaires, setAffaires] = useState([]);
   const [filteredAffaires, setFilteredAffaires] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -169,7 +169,7 @@ export default function AffairesManagerPage() {
       {/* Bouton retour */}
       <div className="mb-6">
         <button
-          onClick={() => navigateToClients()}
+          onClick={() => navigate('/')}
           className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-xl hover:bg-white/20 transition-all duration-200"
         >
           <ChevronLeft className="w-5 h-5" />

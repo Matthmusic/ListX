@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useApp } from './context/AppContext'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import UpdateNotification from './components/UpdateNotification'
 import StorageFolderSelector from './components/StorageFolderSelector'
 import ClientsPage from './pages/ClientsPage'
@@ -9,25 +9,12 @@ import EditorWrapper from './pages/EditorWrapper'
 import { isStorageConfigured } from './services/storageService'
 
 function App() {
-  const { currentView } = useApp()
   const [storageConfigured, setStorageConfigured] = useState(null)
 
-  // Vérifier si le stockage est configuré au démarrage
   useEffect(() => {
-    const checkStorage = async () => {
-      const configured = await isStorageConfigured();
-      setStorageConfigured(configured);
-    };
-    checkStorage();
+    isStorageConfigured().then(setStorageConfigured);
   }, []);
 
-  // Callback quand l'utilisateur sélectionne un dossier
-  const handleFolderSelected = (path) => {
-    console.log('Dossier de stockage configuré:', path);
-    setStorageConfigured(true);
-  };
-
-  // Afficher un loader pendant la vérification
   if (storageConfigured === null) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
@@ -39,19 +26,20 @@ function App() {
     );
   }
 
-  // Si le stockage n'est pas configuré, afficher le sélecteur
   if (!storageConfigured) {
-    return <StorageFolderSelector onFolderSelected={handleFolderSelected} />;
+    return <StorageFolderSelector onFolderSelected={() => setStorageConfigured(true)} />;
   }
 
-  // Application normale
   return (
     <>
       <UpdateNotification />
-      {currentView === 'clients' && <ClientsPage />}
-      {currentView === 'projects' && <ProjectsPage />}
-      {currentView === 'listings' && <ListingsPage />}
-      {currentView === 'editor' && <EditorWrapper />}
+      <Routes>
+        <Route path="/" element={<ClientsPage />} />
+        <Route path="/projects" element={<ProjectsPage />} />
+        <Route path="/listings" element={<ListingsPage />} />
+        <Route path="/editor" element={<EditorWrapper />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </>
   )
 }

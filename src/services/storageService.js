@@ -1,14 +1,11 @@
-/**
- * Service de gestion du stockage sur serveur (dossier configurable)
- * Structure : data.json contenant { clients, templates }
- */
-
-// Vérifier si on est dans Electron
 const isElectron = typeof window !== 'undefined' && window.electronAPI;
 
-/**
- * Vérifie si le stockage est configuré
- */
+let cache = null;
+
+export function clearStorageCache() {
+  cache = null;
+}
+
 export async function isStorageConfigured() {
   if (!isElectron) {
     return false;
@@ -40,44 +37,33 @@ export async function getStoragePath() {
   }
 }
 
-/**
- * Charge toutes les données depuis le serveur
- */
 async function loadData() {
-  if (!isElectron) {
-    throw new Error('Electron API non disponible');
-  }
-
+  if (!isElectron) throw new Error('Electron API non disponible');
+  if (cache) return cache;
   try {
     const result = await window.electronAPI.readSharedData();
     if (result.success) {
-      return result.data || { clients: {}, templates: [] };
-    } else {
-      throw new Error(result.error || 'Erreur lecture données');
+      cache = result.data || { clients: {}, templates: [] };
+      return cache;
     }
+    throw new Error(result.error || 'Erreur lecture données');
   } catch (error) {
-    console.error('Erreur lors du chargement des données:', error);
+    console.error('Erreur chargement données:', error);
     throw error;
   }
 }
 
-/**
- * Sauvegarde toutes les données sur le serveur
- */
 async function saveData(data) {
-  if (!isElectron) {
-    throw new Error('Electron API non disponible');
-  }
-
+  if (!isElectron) throw new Error('Electron API non disponible');
   try {
     const result = await window.electronAPI.writeSharedData(data);
     if (result.success) {
+      cache = data;
       return true;
-    } else {
-      throw new Error(result.error || 'Erreur écriture données');
     }
+    throw new Error(result.error || 'Erreur écriture données');
   } catch (error) {
-    console.error('Erreur lors de la sauvegarde des données:', error);
+    console.error('Erreur sauvegarde données:', error);
     throw error;
   }
 }
@@ -105,7 +91,7 @@ export async function getAllClients() {
  */
 export async function createClient(name) {
   const data = await loadData();
-  const id = Date.now().toString();
+  const id = crypto.randomUUID();
 
   data.clients[id] = {
     name,
@@ -193,7 +179,7 @@ export async function createProject(clientId, name) {
     return null;
   }
 
-  const id = Date.now().toString();
+  const id = crypto.randomUUID();
 
   if (!client.projects) {
     client.projects = {};
@@ -292,7 +278,7 @@ export async function createListing(clientId, projectId, name) {
     return null;
   }
 
-  const id = Date.now().toString();
+  const id = crypto.randomUUID();
 
   if (!project.listings) {
     project.listings = {};
@@ -341,15 +327,8 @@ export async function saveListing(clientId, projectId, listingId, listingData) {
   const project = data.clients[clientId]?.projects[projectId];
 
   if (!project || !project.listings[listingId]) {
-    console.error('Impossible de sauvegarder le listing:', { clientId, projectId, listingId });
     return false;
   }
-
-  console.log('=== SAUVEGARDE STORAGE SERVICE ===');
-  console.log('Client ID:', clientId);
-  console.log('Project ID:', projectId);
-  console.log('Listing ID:', listingId);
-  console.log('Documents:', listingData.documents?.length || 0);
 
   const now = Date.now();
   project.listings[listingId] = {
@@ -361,10 +340,7 @@ export async function saveListing(clientId, projectId, listingId, listingData) {
     }
   };
 
-  const result = await saveData(data);
-  console.log('Résultat sauvegarde:', result);
-
-  return result;
+  return await saveData(data);
 }
 
 /**
@@ -403,11 +379,11 @@ export async function duplicateListing(clientId, projectId, listingId) {
     return null;
   }
 
-  const newId = Date.now().toString();
+  const newId = crypto.randomUUID();
   const project = data.clients[clientId].projects[projectId];
 
   project.listings[newId] = {
-    ...JSON.parse(JSON.stringify(listing)), // Deep clone
+    ...structuredClone(listing),
     name: `${listing.name} (copie)`,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -526,7 +502,7 @@ export async function importClient(clientData) {
   }
 
   const data = await loadData();
-  const newId = Date.now().toString();
+  const newId = crypto.randomUUID();
 
   // Créer le client avec un nouveau ID
   data.clients[newId] = {
@@ -589,7 +565,7 @@ export async function importProject(clientId, projectData) {
     throw new Error('Client introuvable');
   }
 
-  const newId = Date.now().toString();
+  const newId = crypto.randomUUID();
 
   if (!client.projects) {
     client.projects = {};
@@ -659,7 +635,7 @@ export async function importListing(clientId, projectId, listingData) {
     throw new Error('Projet introuvable');
   }
 
-  const newId = Date.now().toString();
+  const newId = crypto.randomUUID();
 
   if (!project.listings) {
     project.listings = {};
