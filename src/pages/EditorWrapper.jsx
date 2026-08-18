@@ -104,8 +104,11 @@ export default function EditorWrapper() {
 
       {/* Éditeur de listing avec bouton retour */}
       <div className="relative z-10">
-        {/* Bouton retour positionné pour s'aligner avec la section titre */}
-        <div className="absolute left-8 right-8 z-20" style={{ top: 'calc(2rem + 5rem + 1.5rem)' }}>
+        {/* Bouton retour positionné pour s'aligner avec la section titre.
+            Pas de z-index propre : le parent (z-10) suffit à le placer
+            au-dessus du fond animé, et ça évite qu'il passe devant les
+            popups de DocumentListingApp (export, confirmations...). */}
+        <div className="absolute left-8 right-8" style={{ top: 'calc(2rem + 5rem + 1.5rem)' }}>
           <div className="max-w-7xl mx-auto">
             <div className="relative text-center">
               <button
