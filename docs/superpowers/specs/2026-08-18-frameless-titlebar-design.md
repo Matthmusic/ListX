@@ -73,9 +73,9 @@ Cohérence avec l'existant : nettoyage des listeners via `electronAPI.removeAllL
 | `clients` | « ListX » |
 | `projects` | « ListX — {selectedClient.name} » |
 | `listings` | « ListX — {selectedClient.name} / {selectedProject.name} » |
-| `editor` | « ListX — {selectedListing?.name ?? 'Nouvelle liste'} » |
+| `editor` | « ListX — {selectedClient.name} / {selectedProject.name} / {selectedListing?.name ?? 'Nouvelle liste'} » |
 
-(Vérifié dans `src/services/storageService.js` : les objets client/projet/listing exposent tous `.name`, pas `.nom`.)
+(Vérifié dans `src/services/storageService.js` : les objets client/projet/listing exposent tous `.name`, pas `.nom`. Mis à jour après retour utilisateur post-implémentation : le titre en vue éditeur affiche le fil complet client/projet/liste, pas seulement le nom de la liste. La titlebar est également passée en thème sombre `#1e3a8a`, identique au fond ondulé de l'app, au lieu du thème clair initialement retenu — le logo est rendu en blanc via un filtre CSS pour rester visible sur ce fond.)
 
 ## Edge cases
 

@@ -29,8 +29,8 @@ export default function TitleBar() {
     if (currentView === 'listings' && selectedClient && selectedProject) {
       return `ListX — ${selectedClient.name} / ${selectedProject.name}`;
     }
-    if (currentView === 'editor') {
-      return `ListX — ${selectedListing?.name ?? 'Nouvelle liste'}`;
+    if (currentView === 'editor' && selectedClient && selectedProject) {
+      return `ListX — ${selectedClient.name} / ${selectedProject.name} / ${selectedListing?.name ?? 'Nouvelle liste'}`;
     }
     return 'ListX';
   };
