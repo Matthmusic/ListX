@@ -1729,17 +1729,18 @@ export default function DocumentListingApp() {
       // Nom de la liste au centre
       doc.text(exportNomListe, pageWidth / 2, 37, { align: 'center' });
 
-      // Date à gauche (si renseignée)
+      // Date centrée dans sa case à gauche (même largeur de case que l'aperçu)
+      const DATE_INDICE_BOX_WIDTH = 35;
       if (exportDateListe) {
         doc.setFontSize(10);
         const dateFormatted = new Date(exportDateListe).toLocaleDateString('fr-FR');
-        doc.text(dateFormatted, 15, 37, { align: 'left' });
+        doc.text(dateFormatted, 10 + DATE_INDICE_BOX_WIDTH / 2, 37, { align: 'center' });
       }
 
-      // Indice à droite (si renseigné)
+      // Indice centré dans sa case à droite
       if (exportIndiceListe) {
         doc.setFontSize(10);
-        doc.text(`Indice : ${exportIndiceListe}`, pageWidth - 15, 37, { align: 'right' });
+        doc.text(`Indice : ${exportIndiceListe}`, pageWidth - 10 - DATE_INDICE_BOX_WIDTH / 2, 37, { align: 'center' });
       }
 
       // Restaurer la taille de police

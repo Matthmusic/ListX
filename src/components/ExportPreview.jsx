@@ -136,13 +136,13 @@ export default function ExportPreview({
 
                   {/* Bande de sous-titre */}
                   <div className="flex items-center bg-blue-400 text-white border-x-2 border-b-2 border-black" style={{ height: '28px' }}>
-                    <div className="w-24 px-2 text-xs font-bold border-r border-white/30">
+                    <div className="w-24 px-2 text-xs font-bold text-center border-r border-white/30">
                       {exportDateListe ? new Date(exportDateListe).toLocaleDateString('fr-FR') : ''}
                     </div>
                     <div className="flex-1 text-center font-bold text-sm" style={{ fontFamily: 'Helvetica, Arial, sans-serif' }}>
                       {exportNomListe || 'NOM DE LA LISTE'}
                     </div>
-                    <div className="w-24 px-2 text-xs font-bold text-right">
+                    <div className="w-24 px-2 text-xs font-bold text-center">
                       {exportIndiceListe ? `Indice : ${exportIndiceListe}` : ''}
                     </div>
                   </div>
