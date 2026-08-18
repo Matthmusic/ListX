@@ -19,6 +19,9 @@ out/
 # Electron generated files
 build/icon-256.png
 
+# Superpowers subagent-driven-development scratch workspace
+.superpowers/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
