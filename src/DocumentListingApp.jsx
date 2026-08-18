@@ -266,6 +266,11 @@ export default function DocumentListingApp() {
   const [showNaturesManager, setShowNaturesManager] = useState(false);
   const formFieldsOrder = currentTemplate ? mergeFormFieldsOrder(currentTemplate) : [];
   const templateHasEtatField = !currentTemplate || formFieldsOrder.includes('ETAT');
+  // Un champ retiré du template (ex: FORMAT) ne doit pas rester obligatoire à
+  // la validation : il n'a alors aucun moyen d'être rempli dans le formulaire.
+  const templateHasPhaseField = !currentTemplate || formFieldsOrder.includes('PHASE');
+  const templateHasFormatField = !currentTemplate || formFieldsOrder.includes('FORMAT');
+  const templateHasIndiceField = !currentTemplate || formFieldsOrder.includes('INDICE');
 
   const [affaire, setAffaire] = useState('');
   const [phase, setPhase] = useState('PRO');
@@ -584,15 +589,17 @@ export default function DocumentListingApp() {
     // Validation des champs obligatoires
     // Note: Le champ "Affaire" est maintenant optionnel car on travaille dans un listing spécifique
     const errors = {};
-    if (!phase) errors.phase = true;
-    if (!nature) errors.nature = true;
-    if (!format) errors.format = true;
-    if (!indice) errors.indice = true;
-    if (!nom) errors.nom = true;
+    if (templateHasPhaseField && !phase) errors.phase = true;
+    if (!nature) errors.nature = true; // toujours affiché (mergeFormFieldsOrder l'impose)
+    if (templateHasFormatField && !format) errors.format = true;
+    if (templateHasIndiceField && !indice) errors.indice = true;
+    if (!nom) errors.nom = true; // toujours affiché, hors template ("Description du document")
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
-      showNotification('Veuillez renseigner tous les champs obligatoires (Phase, Nature, Format, Indice, Nom)', 'error');
+      const errorLabels = { phase: 'Phase', nature: 'Nature', format: 'Format', indice: 'Indice', nom: 'Nom' };
+      const champsManquants = Object.keys(errors).map(key => errorLabels[key]).join(', ');
+      showNotification(`Veuillez renseigner tous les champs obligatoires (${champsManquants})`, 'error');
       return;
     }
 
