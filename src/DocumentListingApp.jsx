@@ -117,7 +117,7 @@ function SortableDocument({ doc, categoryColor, templateHasEtatField, onEdit, on
 }
 
 // Composant SortableCategory pour le drag and drop des catégories avec dnd-kit
-function SortableCategory({ natureCode, label, categoryColor, isDragging }) {
+function SortableCategory({ natureCode, label, categoryColor, isDragging, dizaineIndex, dizaineOptionsCount, onDizaineChange }) {
   const {
     attributes,
     listeners,
@@ -141,7 +141,24 @@ function SortableCategory({ natureCode, label, categoryColor, isDragging }) {
       className={`font-semibold text-lg mb-2 ${categoryColor.tailwindText} ${categoryColor.tailwindBg} px-3 py-2 rounded cursor-move hover:opacity-90 transition-all flex items-center gap-2`}
     >
       <GripVertical size={20} className="text-gray-400" />
-      {natureCode} - {label}
+      <span className="flex-1">{natureCode} - {label}</span>
+      {onDizaineChange && (
+        <label
+          className="flex items-center gap-1 text-sm font-normal cursor-auto"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          Dizaine :
+          <select
+            value={dizaineIndex}
+            onChange={(e) => onDizaineChange(natureCode, Number(e.target.value))}
+            className="border border-gray-300 rounded px-1 py-0.5 text-sm text-gray-800 bg-white"
+          >
+            {Array.from({ length: dizaineOptionsCount }, (_, i) => i).map(i => (
+              <option key={i} value={i}>{i}</option>
+            ))}
+          </select>
+        </label>
+      )}
     </h3>
   );
 }
@@ -1892,6 +1909,32 @@ export default function DocumentListingApp() {
     showNotification('Ordre des catégories modifié et documents renumérotés', 'success');
   };
 
+  // Choix manuel de la tranche de dizaine d'une catégorie (mode 'dizaine') :
+  // équivaut à déplacer la catégorie à cette position, comme le glisser-déposer.
+  const handleCategoryDizaineChange = (natureCode, newIndex) => {
+    const categoriesPresentes = [];
+    documents.forEach(doc => {
+      if (!categoriesPresentes.includes(doc.nature)) {
+        categoriesPresentes.push(doc.nature);
+      }
+    });
+
+    const oldIndex = categoriesPresentes.indexOf(natureCode);
+    const clampedIndex = Math.max(0, Math.min(newIndex, categoriesPresentes.length - 1));
+    if (oldIndex === -1 || oldIndex === clampedIndex) return;
+
+    const reorderedCategories = arrayMove(categoriesPresentes, oldIndex, clampedIndex);
+
+    const newDocuments = [];
+    reorderedCategories.forEach(nc => {
+      const docsOfType = documents.filter(d => d.nature === nc);
+      newDocuments.push(...docsOfType);
+    });
+
+    setDocuments(renumeroteDocuments(newDocuments, dizaineCentaine));
+    showNotification('Ordre des catégories modifié et documents renumérotés', 'success');
+  };
+
   const forcerRenumerationParCategorie = () => {
     setModeNumerotation('categorie');
     if (documents.length > 0) {
@@ -3235,6 +3278,9 @@ export default function DocumentListingApp() {
                             label={natures.find(n => n.code === natureCode)?.label}
                             categoryColor={categoryColor}
                             isDragging={activeCategoryId === natureCode}
+                            dizaineIndex={categoriesPresentes.indexOf(natureCode)}
+                            dizaineOptionsCount={categoriesPresentes.length}
+                            onDizaineChange={modeNumerotation === 'dizaine' ? handleCategoryDizaineChange : null}
                           />
 
                           <DndContext
