@@ -278,6 +278,8 @@ export default function DocumentListingApp() {
   const [format, setFormat] = useState('');
   const [indice, setIndice] = useState('A');
   const [nom, setNom] = useState('');
+  // Numéro saisi à la main (vide = numérotation automatique comme d'habitude)
+  const [numeroManuel, setNumeroManuel] = useState('');
   const [documents, setDocuments] = useState([]);
 
   // Revalider la nature sélectionnée si la liste des natures change (ex : suppression de NDC)
@@ -301,7 +303,7 @@ export default function DocumentListingApp() {
     emetteur,
     nature,
     etat,
-    numero: '(auto)',
+    numero: numeroManuel,
     zone,
     niveau: niveauCoupe,
     niveaucoupe: niveauCoupe,
@@ -334,7 +336,7 @@ export default function DocumentListingApp() {
       if (fieldErrors.nature) setFieldErrors(prev => ({ ...prev, nature: false }));
     },
     etat: (val) => setEtat(val),
-    numero: () => {}, // Readonly
+    numero: (val) => setNumeroManuel(val.toUpperCase()), // Vide = auto, sinon override manuel
     zone: (val) => setZone(val.toUpperCase()),
     niveau: (val) => setNiveauCoupe(val.toUpperCase()),
     niveaucoupe: (val) => setNiveauCoupe(val.toUpperCase()),
@@ -457,7 +459,9 @@ export default function DocumentListingApp() {
       const categoryBase = modeNumerotation === 'dizaine'
         ? dizaineCentaine * 100 + categoryIndex * 10 // 100, 110, 120...
         : (categoryIndex + 1) * 100; // 100, 200, 300...
-      const docsOfType = documents.filter(d => d.nature === natureCode);
+      // Ne pas compter les documents en numéro manuel : ils n'occupent pas de
+      // vraie place dans la séquence automatique, sinon on créerait un trou.
+      const docsOfType = documents.filter(d => d.nature === natureCode && !d.numeroManuel);
       return (categoryBase + docsOfType.length + 1).toString().padStart(3, '0'); // 101, 102, 103...
     } else {
       // Numérotation générale : numérotation continue sur tous les documents
@@ -475,9 +479,10 @@ export default function DocumentListingApp() {
       }
 
       // Compter tous les documents avant cette catégorie + documents dans cette catégorie
+      // (les documents en numéro manuel ne comptent pas, même raison qu'au-dessus)
       let numeroGlobal = 1;
       for (const cat of categoriesPresentes) {
-        const docsOfCat = documents.filter(d => d.nature === cat);
+        const docsOfCat = documents.filter(d => d.nature === cat && !d.numeroManuel);
         if (cat === natureCode) {
           // On est dans la catégorie du nouveau document
           numeroGlobal += docsOfCat.length;
@@ -545,14 +550,25 @@ export default function DocumentListingApp() {
     const renumbered = [];
 
     // Numérotation par catégorie avec centaines (1XX, 2XX, 3XX...) ou,
-    // en mode 'dizaine', par tranche de dix au sein d'une centaine choisie
+    // en mode 'dizaine', par tranche de dix au sein d'une centaine choisie.
+    // Les documents en numéro manuel gardent leur numéro figé et ne comptent
+    // pas dans la séquence automatique des autres documents de leur catégorie.
     categoriesPresentes.forEach((natureCode, categoryIndex) => {
       if (grouped[natureCode]) {
         const categoryBase = centaineDizaine !== null
           ? centaineDizaine * 100 + categoryIndex * 10 // 100, 110, 120...
           : (categoryIndex + 1) * 100; // 100, 200, 300...
-        grouped[natureCode].forEach((doc, docIndex) => {
-          const newNumero = (categoryBase + docIndex + 1).toString().padStart(3, '0'); // 101, 102, 103...
+        let autoIndex = 0;
+        grouped[natureCode].forEach((doc) => {
+          if (doc.numeroManuel) {
+            renumbered.push({
+              ...doc,
+              nomComplet: genererNomComplet(doc, doc.numero)
+            });
+            return;
+          }
+          autoIndex++;
+          const newNumero = (categoryBase + autoIndex).toString().padStart(3, '0'); // 101, 102, 103...
           renumbered.push({
             ...doc,
             numero: newNumero,
@@ -585,8 +601,12 @@ export default function DocumentListingApp() {
 
     if (editingDocId) {
       // Mode modification
+      const isNumeroManuel = numeroManuel.trim() !== '';
       const updatedDocs = documents.map(doc => {
         if (doc.id === editingDocId) {
+          // Numéro manuel saisi = override figé ; sinon on garde le numéro actuel du document
+          // (la renumérotation automatique s'en chargera si besoin, comme avant)
+          const numeroFinal = isNumeroManuel ? numeroManuel.trim() : doc.numero;
           const updatedDoc = {
             ...doc,
             affaire: affaire.toUpperCase(),
@@ -595,6 +615,8 @@ export default function DocumentListingApp() {
             emetteur: emetteur.toUpperCase(),
             nature: nature.toUpperCase(),
             etat: templateHasEtatField ? (etat || '').toUpperCase() : '',
+            numero: numeroFinal,
+            numeroManuel: isNumeroManuel,
             niveauCoupe: niveauCoupe.toUpperCase(),
             zone: zone.toUpperCase(),
             format,
@@ -606,7 +628,7 @@ export default function DocumentListingApp() {
               return acc;
             }, {})
           };
-          updatedDoc.nomComplet = genererNomComplet(updatedDoc, doc.numero);
+          updatedDoc.nomComplet = genererNomComplet(updatedDoc, numeroFinal);
           return updatedDoc;
         }
         return doc;
@@ -617,9 +639,11 @@ export default function DocumentListingApp() {
       saveDocumentsToStorage(renumberedDocs); // Sauvegarder après modification
       showNotification('Document modifié avec succès !', 'success');
       setEditingDocId(null);
+      setNumeroManuel('');
     } else {
       // Mode ajout
-      const numero = getNextNumber(nature);
+      const isNumeroManuel = numeroManuel.trim() !== '';
+      const numero = isNumeroManuel ? numeroManuel.trim() : getNextNumber(nature);
 
       const newDoc = {
         id: Date.now(),
@@ -630,6 +654,7 @@ export default function DocumentListingApp() {
         nature: nature.toUpperCase(),
         etat: templateHasEtatField ? (etat || '').toUpperCase() : '',
         numero,
+        numeroManuel: isNumeroManuel,
         niveauCoupe: niveauCoupe.toUpperCase(),
         zone: zone.toUpperCase(),
         format,
@@ -645,6 +670,7 @@ export default function DocumentListingApp() {
 
       // Générer le nom complet
       newDoc.nomComplet = genererNomComplet(newDoc, numero);
+      setNumeroManuel(''); // Ne pas répéter le même numéro manuel sur le document suivant
 
       const updatedDocs = [...documents, newDoc];
       setDocuments(updatedDocs);
@@ -700,6 +726,8 @@ export default function DocumentListingApp() {
       setFormat(docToEdit.format || '');
       setIndice(docToEdit.indice || '');
       setNom(docToEdit.nom || '');
+      // Ne pré-remplir que si ce document a déjà un numéro manuel ; sinon champ vide (auto)
+      setNumeroManuel(docToEdit.numeroManuel ? (docToEdit.numero || '') : '');
 
       // Charger les champs personnalisés
       if (currentTemplate && currentTemplate.customFields) {
@@ -808,6 +836,10 @@ export default function DocumentListingApp() {
         categoriesPresentes.forEach(natureCode => {
           const docsOfType = documents.filter(d => d.nature === natureCode);
           docsOfType.forEach(doc => {
+            if (doc.numeroManuel) {
+              renumbered.push({ ...doc, nomComplet: genererNomComplet(doc, doc.numero) });
+              return;
+            }
             const newNumero = numeroGlobal.toString().padStart(3, '0');
             renumbered.push({
               ...doc,
@@ -1573,6 +1605,10 @@ export default function DocumentListingApp() {
         categoriesPresentes.forEach(natureCode => {
           const docsOfType = documents.filter(d => d.nature === natureCode);
           docsOfType.forEach(doc => {
+            if (doc.numeroManuel) {
+              renumbered.push({ ...doc, nomComplet: genererNomComplet(doc, doc.numero) });
+              return;
+            }
             const newNumero = numeroGlobal.toString().padStart(3, '0');
             renumbered.push({
               ...doc,
@@ -1973,6 +2009,10 @@ export default function DocumentListingApp() {
       categoriesPresentes.forEach(natureCode => {
         const docsOfType = documents.filter(d => d.nature === natureCode);
         docsOfType.forEach(doc => {
+          if (doc.numeroManuel) {
+            renumbered.push({ ...doc, nomComplet: genererNomComplet(doc, doc.numero) });
+            return;
+          }
           const newNumero = numeroGlobal.toString().padStart(3, '0');
           renumbered.push({
             ...doc,
@@ -3217,6 +3257,7 @@ export default function DocumentListingApp() {
             <button
               onClick={() => {
                 setEditingDocId(null);
+                setNumeroManuel('');
                 showNotification('Modification annulée', 'info');
               }}
               className="w-full text-gray-700 bg-gray-200 hover:bg-gray-300 py-2 rounded-md flex items-center justify-center gap-2 mt-2"

@@ -87,8 +87,9 @@ const DynamicFormFieldComponent = ({
       minWidth: '110px',
     },
     numero: {
-      type: 'readonly',
-      minWidth: '50px',
+      type: 'text',
+      placeholder: '(auto)',
+      minWidth: '70px',
     },
     zone: {
       type: 'text',
@@ -225,7 +226,7 @@ const DynamicFormFieldComponent = ({
     );
   }
 
-  // Champ readonly (pour NUMERO)
+  // Champ readonly générique (non utilisé par NUMERO, qui est éditable depuis le retour utilisateur)
   if (config.type === 'readonly') {
     return (
       <div style={{ minWidth: config.minWidth }}>
