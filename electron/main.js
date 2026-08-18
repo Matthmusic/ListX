@@ -67,6 +67,7 @@ function createWindow() {
     height: 900,
     minWidth: 1000,
     minHeight: 700,
+    frame: false,
     title: 'ListX - Gestion de documents',
     icon: getIconPath(),
     backgroundColor: '#0f172a',
