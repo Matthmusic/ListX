@@ -79,13 +79,6 @@ function createWindow() {
     }
   });
 
-  // Forcer le th├¿me sombre de la barre de titre Windows (Windows 10/11)
-  if (process.platform === 'win32') {
-    // Utiliser l'API native Windows pour forcer le dark mode de la barre de titre
-    // DWMWA_USE_IMMERSIVE_DARK_MODE = 20
-    mainWindow.setBackgroundColor('#0f172a');
-  }
-
   // Charger l'app
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');

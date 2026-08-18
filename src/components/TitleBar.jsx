@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Minus, Square, Copy, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import listXLogo from '../assets/listX.svg';
+import listXLogo from '../assets/LX.svg';
 
 export default function TitleBar() {
   const { currentView, selectedClient, selectedProject, selectedListing } = useApp();
@@ -37,7 +37,7 @@ export default function TitleBar() {
 
   return (
     <div
-      className="flex items-center justify-between h-9 bg-gray-50 border-b border-gray-200 select-none"
+      className="relative z-[60] flex items-center justify-between h-9 bg-gray-50 border-b border-gray-200 select-none"
       style={{ WebkitAppRegion: 'drag' }}
       onDoubleClick={() => window.electronAPI.windowControls.toggleMaximize()}
     >

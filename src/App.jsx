@@ -32,31 +32,33 @@ function App() {
     <>
       <TitleBar />
 
-      {storageConfigured === null && (
-        // Afficher un loader pendant la vérification
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-slate-300 text-lg">Chargement de ListX...</p>
+      <div className="h-[calc(100vh-2.25rem)] overflow-auto">
+        {storageConfigured === null && (
+          // Afficher un loader pendant la vérification
+          <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-slate-300 text-lg">Chargement de ListX...</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {storageConfigured === false && (
-        // Si le stockage n'est pas configuré, afficher le sélecteur
-        <StorageFolderSelector onFolderSelected={handleFolderSelected} />
-      )}
+        {storageConfigured === false && (
+          // Si le stockage n'est pas configuré, afficher le sélecteur
+          <StorageFolderSelector onFolderSelected={handleFolderSelected} />
+        )}
 
-      {storageConfigured === true && (
-        // Application normale
-        <>
-          <UpdateNotification />
-          {currentView === 'clients' && <ClientsPage />}
-          {currentView === 'projects' && <ProjectsPage />}
-          {currentView === 'listings' && <ListingsPage />}
-          {currentView === 'editor' && <EditorWrapper />}
-        </>
-      )}
+        {storageConfigured === true && (
+          // Application normale
+          <>
+            <UpdateNotification />
+            {currentView === 'clients' && <ClientsPage />}
+            {currentView === 'projects' && <ProjectsPage />}
+            {currentView === 'listings' && <ListingsPage />}
+            {currentView === 'editor' && <EditorWrapper />}
+          </>
+        )}
+      </div>
     </>
   )
 }
