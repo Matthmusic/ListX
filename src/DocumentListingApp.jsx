@@ -144,14 +144,15 @@ function SortableCategory({ natureCode, label, categoryColor, isDragging, dizain
       <span className="flex-1">{natureCode} - {label}</span>
       {onDizaineChange && (
         <label
-          className="flex items-center gap-1 text-sm font-normal cursor-auto"
+          className="flex items-center gap-1.5 text-sm font-medium bg-white/70 backdrop-blur-sm px-2.5 py-1 rounded-full shadow-sm cursor-auto"
           onPointerDown={(e) => e.stopPropagation()}
+          title="Tranche de dizaine de cette catégorie"
         >
-          Dizaine :
+          <Hash size={13} className="opacity-70" />
           <select
             value={dizaineIndex}
             onChange={(e) => onDizaineChange(natureCode, Number(e.target.value))}
-            className="border border-gray-300 rounded px-1 py-0.5 text-sm text-gray-800 bg-white"
+            className="bg-transparent font-semibold focus:outline-none cursor-pointer"
           >
             {Array.from({ length: dizaineOptionsCount }, (_, i) => i).map(i => (
               <option key={i} value={i}>{i}</option>
@@ -3365,12 +3366,15 @@ export default function DocumentListingApp() {
                   Dizaine
                 </button>
                 {modeNumerotation === 'dizaine' && (
-                  <div className="flex items-center gap-2 mt-2 text-xs text-gray-700">
-                    <span>Centaine :</span>
+                  <div className="flex items-center justify-between gap-2 mt-2 px-2.5 py-1.5 bg-white rounded-lg border border-amber-200 shadow-sm">
+                    <span className="flex items-center gap-1 text-xs font-medium text-amber-800">
+                      <Hash size={12} />
+                      Centaine
+                    </span>
                     <select
                       value={dizaineCentaine}
                       onChange={(e) => forcerRenumerationParDizaine(Number(e.target.value))}
-                      className="border border-gray-300 rounded px-1.5 py-0.5 text-xs"
+                      className="border border-amber-300 rounded-md px-2 py-1 text-xs font-semibold text-amber-900 bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
                     >
                       {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(d => (
                         <option key={d} value={d}>{d}</option>
