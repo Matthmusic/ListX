@@ -117,7 +117,7 @@ function SortableDocument({ doc, categoryColor, templateHasEtatField, onEdit, on
 }
 
 // Composant SortableCategory pour le drag and drop des catégories avec dnd-kit
-function SortableCategory({ natureCode, label, categoryColor, isDragging, dizaineIndex, dizaineOptionsCount, onDizaineChange }) {
+function SortableCategory({ natureCode, label, categoryColor, isDragging, dizaineIndex, onDizaineChange }) {
   const {
     attributes,
     listeners,
@@ -132,21 +132,23 @@ function SortableCategory({ natureCode, label, categoryColor, isDragging, dizain
     opacity: isDragging ? 0.5 : 1,
   };
 
+  // En mode dizaine, l'ordre est piloté par le sélecteur (assignation libre,
+  // trous possibles) et non par le glisser-déposer : pas de listeners de drag.
+  const dragProps = onDizaineChange ? {} : { ...attributes, ...listeners };
+
   return (
     <h3
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
-      className={`font-semibold text-lg mb-2 ${categoryColor.tailwindText} ${categoryColor.tailwindBg} px-3 py-2 rounded cursor-move hover:opacity-90 transition-all flex items-center gap-2`}
+      {...dragProps}
+      className={`font-semibold text-lg mb-2 ${categoryColor.tailwindText} ${categoryColor.tailwindBg} px-3 py-2 rounded ${onDizaineChange ? '' : 'cursor-move'} hover:opacity-90 transition-all flex items-center gap-2`}
     >
-      <GripVertical size={20} className="text-gray-400" />
+      {!onDizaineChange && <GripVertical size={20} className="text-gray-400" />}
       <span className="flex-1">{natureCode} - {label}</span>
       {onDizaineChange && (
         <label
           className="flex items-center gap-1.5 text-sm font-medium bg-white/70 backdrop-blur-sm px-2.5 py-1 rounded-full shadow-sm cursor-auto"
-          onPointerDown={(e) => e.stopPropagation()}
-          title="Tranche de dizaine de cette catégorie"
+          title="Dizaine de cette catégorie (libre, des trous sont possibles)"
         >
           <Hash size={13} className="opacity-70" />
           <select
@@ -154,7 +156,7 @@ function SortableCategory({ natureCode, label, categoryColor, isDragging, dizain
             onChange={(e) => onDizaineChange(natureCode, Number(e.target.value))}
             className="bg-transparent font-semibold focus:outline-none cursor-pointer"
           >
-            {Array.from({ length: dizaineOptionsCount }, (_, i) => i).map(i => (
+            {Array.from({ length: 10 }, (_, i) => i).map(i => (
               <option key={i} value={i}>{i}</option>
             ))}
           </select>
@@ -227,7 +229,7 @@ const sanitizeForFilesystem = (value = '') => value.replace(/[\\/:*?"<>|]/g, '-'
 // 201,202 -> préfixe 02), les deux premiers chiffres en mode 'dizaine' (ex:
 // centaine=1, 3e catégorie -> 111,112 -> préfixe 11). Les catégories sans
 // documents ne génèrent aucune section (donc aucun dossier vide).
-const getSectionLayout = (docs = [], modeNumerotation = 'categorie', dizaineCentaine = 0) => {
+const getSectionLayout = (docs = [], modeNumerotation = 'categorie', dizaineCentaine = 0, dizaineParCategorie = {}) => {
   const categoriesPresentes = [];
   docs.forEach(doc => {
     if (doc?.nature && !categoriesPresentes.includes(doc.nature)) {
@@ -235,15 +237,23 @@ const getSectionLayout = (docs = [], modeNumerotation = 'categorie', dizaineCent
     }
   });
 
-  return categoriesPresentes.map((nature, index) => {
+  // En mode 'dizaine', la dizaine assignée (libre, peut laisser des trous)
+  // prime sur l'ordre d'apparition ; sinon on retombe sur la position.
+  const getDizaine = (nature) => dizaineParCategorie[nature] ?? categoriesPresentes.indexOf(nature);
+
+  const categoriesOrdonnees = modeNumerotation === 'dizaine'
+    ? [...categoriesPresentes].sort((a, b) => getDizaine(a) - getDizaine(b))
+    : categoriesPresentes;
+
+  return categoriesOrdonnees.map((nature) => {
     const def = ARBO_SECTION_DEFINITIONS.find(d => d.nature === nature);
     const root = def?.root || 'B - PIECES GRAPHIQUES';
     const label = def?.label || nature;
     const rootLetter = root.charAt(0);
 
     const prefixNumber = modeNumerotation === 'dizaine'
-      ? dizaineCentaine * 10 + index // ex: centaine=1, index=2 -> 12 (numéros 121,122...)
-      : index + 1; // ex: index=1 -> 2 (numéros 201,202... ou 'generale', ordre d'arrivée)
+      ? dizaineCentaine * 10 + getDizaine(nature) // ex: centaine=1, dizaine=2 -> 12 (numéros 121,122...)
+      : categoriesPresentes.indexOf(nature) + 1; // ex: index=1 -> 2 (numéros 201,202... ou 'generale', ordre d'arrivée)
 
     return {
       nature,
@@ -404,6 +414,10 @@ export default function DocumentListingApp() {
   // Chiffre des centaines choisi pour le mode 'dizaine' (chaque catégorie occupe
   // une tranche de dizaine au lieu d'une tranche de centaine, ex: centaine=1 -> 101,102,111,121...)
   const [dizaineCentaine, setDizaineCentaine] = useState(1);
+  // Assignation libre et indépendante de la dizaine par catégorie en mode 'dizaine'
+  // ({ NATURE_CODE: chiffreDesDizaines }) : contrairement à l'ordre d'apparition,
+  // ça permet de laisser des trous volontaires (ex: NOT=0, PLN=2, en sautant 1).
+  const [dizaineParCategorie, setDizaineParCategorie] = useState({});
 
   // État pour la version de l'app
   const [appVersion, setAppVersion] = useState('');
@@ -440,6 +454,63 @@ export default function DocumentListingApp() {
     return COLOR_PALETTE[index % COLOR_PALETTE.length];
   };
 
+  // Dizaine d'une catégorie en mode 'dizaine' : lit l'assignation libre
+  // (dizaineParCategorie) si elle existe, sinon retombe sur sa position
+  // dans l'ordre d'apparition (première utilisation, avant tout choix manuel).
+  const getDizaineDeCategorie = (natureCode, categoriesPresentes) => {
+    if (dizaineParCategorie[natureCode] !== undefined) {
+      return dizaineParCategorie[natureCode];
+    }
+    return categoriesPresentes.indexOf(natureCode);
+  };
+
+  // Ordonne des catégories présentes selon le mode actif : ordre d'apparition
+  // pour 'categorie'/'generale', ou tri par dizaine assignée pour 'dizaine'
+  // (indépendant de l'ordre d'apparition, peut laisser des trous volontaires).
+  const trierCategoriesParMode = (categoriesPresentes, centaineDizaine) => {
+    if (centaineDizaine === null) return categoriesPresentes;
+    return [...categoriesPresentes].sort(
+      (a, b) => getDizaineDeCategorie(a, categoriesPresentes) - getDizaineDeCategorie(b, categoriesPresentes)
+    );
+  };
+
+  // Renumérote docs en mode dizaine avec une assignation par catégorie fournie
+  // explicitement (plutôt que lue depuis dizaineParCategorie), pour éviter tout
+  // décalage avec un setDizaineParCategorie tout juste appelé dans le même
+  // gestionnaire (mise à jour d'état asynchrone).
+  const renumeroteAvecAssignationDizaine = (docs, centaine, assignation) => {
+    const categoriesPresentes = [];
+    docs.forEach(doc => {
+      if (!categoriesPresentes.includes(doc.nature)) {
+        categoriesPresentes.push(doc.nature);
+      }
+    });
+    const dizaineDe = (nc) => assignation[nc] ?? categoriesPresentes.indexOf(nc);
+    const categoriesOrdonnees = [...categoriesPresentes].sort((a, b) => dizaineDe(a) - dizaineDe(b));
+
+    const grouped = docs.reduce((acc, doc) => {
+      if (!acc[doc.nature]) acc[doc.nature] = [];
+      acc[doc.nature].push(doc);
+      return acc;
+    }, {});
+
+    const renumbered = [];
+    categoriesOrdonnees.forEach((nc) => {
+      const categoryBase = centaine * 100 + dizaineDe(nc) * 10;
+      let autoIndex = 0;
+      grouped[nc].forEach((doc) => {
+        if (doc.numeroManuel) {
+          renumbered.push({ ...doc, nomComplet: genererNomComplet(doc, doc.numero) });
+          return;
+        }
+        autoIndex++;
+        const newNumero = (categoryBase + autoIndex).toString().padStart(3, '0');
+        renumbered.push({ ...doc, numero: newNumero, nomComplet: genererNomComplet(doc, newNumero) });
+      });
+    });
+    return renumbered;
+  };
+
   const getNextNumber = (natureCode) => {
     if (modeNumerotation === 'categorie' || modeNumerotation === 'dizaine') {
       // Numérotation par catégorie avec centaines (1XX, 2XX, 3XX...) ou,
@@ -458,10 +529,9 @@ export default function DocumentListingApp() {
         categoriesPresentes.push(natureCode);
       }
 
-      const categoryIndex = categoriesPresentes.indexOf(natureCode);
       const categoryBase = modeNumerotation === 'dizaine'
-        ? dizaineCentaine * 100 + categoryIndex * 10 // 100, 110, 120...
-        : (categoryIndex + 1) * 100; // 100, 200, 300...
+        ? dizaineCentaine * 100 + getDizaineDeCategorie(natureCode, categoriesPresentes) * 10 // 100, 110, 120...
+        : (categoriesPresentes.indexOf(natureCode) + 1) * 100; // 100, 200, 300...
       // Ne pas compter les documents en numéro manuel : ils n'occupent pas de
       // vraie place dans la séquence automatique, sinon on créerait un trou.
       const docsOfType = documents.filter(d => d.nature === natureCode && !d.numeroManuel);
@@ -542,13 +612,17 @@ export default function DocumentListingApp() {
       return acc;
     }, {});
 
-    // Obtenir les catégories uniques dans l'ordre d'apparition
+    // Obtenir les catégories uniques dans l'ordre d'apparition, puis les
+    // ordonner par dizaine assignée en mode 'dizaine' (indépendant de l'ordre
+    // d'apparition — c'est ce qui réordonne physiquement les documents pour
+    // que l'affichage suive l'assignation choisie).
     const categoriesPresentes = [];
     docs.forEach(doc => {
       if (!categoriesPresentes.includes(doc.nature)) {
         categoriesPresentes.push(doc.nature);
       }
     });
+    const categoriesOrdonnees = trierCategoriesParMode(categoriesPresentes, centaineDizaine);
 
     const renumbered = [];
 
@@ -556,11 +630,11 @@ export default function DocumentListingApp() {
     // en mode 'dizaine', par tranche de dix au sein d'une centaine choisie.
     // Les documents en numéro manuel gardent leur numéro figé et ne comptent
     // pas dans la séquence automatique des autres documents de leur catégorie.
-    categoriesPresentes.forEach((natureCode, categoryIndex) => {
+    categoriesOrdonnees.forEach((natureCode) => {
       if (grouped[natureCode]) {
         const categoryBase = centaineDizaine !== null
-          ? centaineDizaine * 100 + categoryIndex * 10 // 100, 110, 120...
-          : (categoryIndex + 1) * 100; // 100, 200, 300...
+          ? centaineDizaine * 100 + getDizaineDeCategorie(natureCode, categoriesPresentes) * 10 // 100, 110, 120...
+          : (categoriesPresentes.indexOf(natureCode) + 1) * 100; // 100, 200, 300...
         let autoIndex = 0;
         grouped[natureCode].forEach((doc) => {
           if (doc.numeroManuel) {
@@ -1925,6 +1999,11 @@ export default function DocumentListingApp() {
 
     if (!over || active.id === over.id) return;
 
+    // En mode dizaine, l'ordre est piloté par l'assignation libre (le
+    // sélecteur ‹›), pas par le glisser-déposer : le drag est désactivé côté
+    // SortableCategory (pas de listeners), ce garde-fou est une sécurité.
+    if (modeNumerotation === 'dizaine') return;
+
     const draggedCategory = active.id.replace('category-', '');
     const targetCategory = over.id.replace('category-', '');
 
@@ -1956,30 +2035,18 @@ export default function DocumentListingApp() {
     showNotification('Ordre des catégories modifié et documents renumérotés', 'success');
   };
 
-  // Choix manuel de la tranche de dizaine d'une catégorie (mode 'dizaine') :
-  // équivaut à déplacer la catégorie à cette position, comme le glisser-déposer.
-  const handleCategoryDizaineChange = (natureCode, newIndex) => {
-    const categoriesPresentes = [];
-    documents.forEach(doc => {
-      if (!categoriesPresentes.includes(doc.nature)) {
-        categoriesPresentes.push(doc.nature);
-      }
-    });
+  // Choix manuel et libre de la dizaine d'une catégorie (mode 'dizaine').
+  // Assignation directe et indépendante des autres catégories : contrairement
+  // à un déplacement, ça permet de laisser des trous volontaires (ex: NOT=0,
+  // PLN=2, en sautant 1 pour pouvoir insérer autre chose plus tard).
+  const handleCategoryDizaineChange = (natureCode, nouvelleDizaine) => {
+    const assignationMiseAJour = { ...dizaineParCategorie, [natureCode]: nouvelleDizaine };
+    setDizaineParCategorie(assignationMiseAJour);
 
-    const oldIndex = categoriesPresentes.indexOf(natureCode);
-    const clampedIndex = Math.max(0, Math.min(newIndex, categoriesPresentes.length - 1));
-    if (oldIndex === -1 || oldIndex === clampedIndex) return;
-
-    const reorderedCategories = arrayMove(categoriesPresentes, oldIndex, clampedIndex);
-
-    const newDocuments = [];
-    reorderedCategories.forEach(nc => {
-      const docsOfType = documents.filter(d => d.nature === nc);
-      newDocuments.push(...docsOfType);
-    });
-
-    setDocuments(renumeroteDocuments(newDocuments, dizaineCentaine));
-    showNotification('Ordre des catégories modifié et documents renumérotés', 'success');
+    if (documents.length > 0) {
+      setDocuments(renumeroteAvecAssignationDizaine(documents, dizaineCentaine, assignationMiseAJour));
+    }
+    showNotification('Dizaine mise à jour et documents renumérotés', 'success');
   };
 
   const forcerRenumerationParCategorie = () => {
@@ -1995,8 +2062,27 @@ export default function DocumentListingApp() {
   const forcerRenumerationParDizaine = (centaine = dizaineCentaine) => {
     setModeNumerotation('dizaine');
     setDizaineCentaine(centaine);
+
+    // Complète l'assignation avec les catégories pas encore assignées
+    // (première activation du mode, ou nouvelle catégorie apparue depuis) :
+    // elles récupèrent leur position d'apparition comme valeur par défaut,
+    // modifiable ensuite librement via le sélecteur de chaque catégorie.
+    const categoriesPresentes = [];
+    documents.forEach(doc => {
+      if (!categoriesPresentes.includes(doc.nature)) {
+        categoriesPresentes.push(doc.nature);
+      }
+    });
+    const assignationComplete = { ...dizaineParCategorie };
+    categoriesPresentes.forEach((nc, index) => {
+      if (assignationComplete[nc] === undefined) {
+        assignationComplete[nc] = index;
+      }
+    });
+    setDizaineParCategorie(assignationComplete);
+
     if (documents.length > 0) {
-      setDocuments(renumeroteDocuments(documents, centaine));
+      setDocuments(renumeroteAvecAssignationDizaine(documents, centaine, assignationComplete));
     }
     showNotification('Mode numérotation par dizaine activé', 'success');
   };
@@ -2041,7 +2127,7 @@ export default function DocumentListingApp() {
   };
 
   const genererArborescence = () => {
-    const sectionLayout = getSectionLayout(documents, modeNumerotation, dizaineCentaine);
+    const sectionLayout = getSectionLayout(documents, modeNumerotation, dizaineCentaine, dizaineParCategorie);
     const docsByNature = documents.reduce((acc, doc) => {
       if (!doc?.nature) return acc;
       if (!acc[doc.nature]) acc[doc.nature] = [];
@@ -2122,7 +2208,7 @@ export default function DocumentListingApp() {
       showNotification('Création de l\'arborescence en cours...', 'info');
 
       // Grouper les documents par nature
-     const sectionLayout = getSectionLayout(documents, modeNumerotation, dizaineCentaine);
+     const sectionLayout = getSectionLayout(documents, modeNumerotation, dizaineCentaine, dizaineParCategorie);
 
       const rootHandles = new Map();
       for (const root of ARBO_ROOTS_ORDER) {
@@ -2476,6 +2562,9 @@ export default function DocumentListingApp() {
         if (listingData.settings.dizaineCentaine !== undefined) {
           setDizaineCentaine(listingData.settings.dizaineCentaine);
         }
+        if (listingData.settings.dizaineParCategorie !== undefined) {
+          setDizaineParCategorie(listingData.settings.dizaineParCategorie);
+        }
       }
 
       // Charger l'historique des champs
@@ -2641,6 +2730,9 @@ export default function DocumentListingApp() {
               if (listing.settings.dizaineCentaine !== undefined) {
                 setDizaineCentaine(listing.settings.dizaineCentaine);
               }
+              if (listing.settings.dizaineParCategorie !== undefined) {
+                setDizaineParCategorie(listing.settings.dizaineParCategorie);
+              }
               if (listing.settings.categoriesOrder) {
                 setCategoriesOrder(listing.settings.categoriesOrder);
               }
@@ -2681,6 +2773,9 @@ export default function DocumentListingApp() {
           }
           if (data.settings.dizaineCentaine !== undefined) {
             setDizaineCentaine(data.settings.dizaineCentaine);
+          }
+          if (data.settings.dizaineParCategorie !== undefined) {
+            setDizaineParCategorie(data.settings.dizaineParCategorie);
           }
           if (data.settings.categoriesOrder) {
             setCategoriesOrder(data.settings.categoriesOrder);
@@ -2770,6 +2865,7 @@ export default function DocumentListingApp() {
           settings: {
             modeNumerotation,
             dizaineCentaine,
+            dizaineParCategorie,
             categoriesOrder,
           },
           // Sauvegarder le nom de la template associée
@@ -2791,7 +2887,7 @@ export default function DocumentListingApp() {
         if (!data.affaires) data.affaires = {};
         data.affaires[listingKey] = docsToSave;
         data.lastAffaire = listingKey;
-        data.settings = { modeNumerotation, dizaineCentaine, categoriesOrder };
+        data.settings = { modeNumerotation, dizaineCentaine, dizaineParCategorie, categoriesOrder };
         data.templateName = currentTemplate?.name || null;
 
         localStorage.setItem('affairesData', JSON.stringify(data));
@@ -2802,9 +2898,9 @@ export default function DocumentListingApp() {
   // useEffect pour sauvegarder les paramètres
   useEffect(() => {
     const data = JSON.parse(localStorage.getItem('affairesData') || '{}');
-    data.settings = { modeNumerotation, dizaineCentaine, categoriesOrder };
+    data.settings = { modeNumerotation, dizaineCentaine, dizaineParCategorie, categoriesOrder };
     localStorage.setItem('affairesData', JSON.stringify(data));
-  }, [modeNumerotation, dizaineCentaine, categoriesOrder]);
+  }, [modeNumerotation, dizaineCentaine, dizaineParCategorie, categoriesOrder]);
 
   // useEffect pour sauvegarder la template quand elle change
   useEffect(() => {
@@ -3397,8 +3493,7 @@ export default function DocumentListingApp() {
                             label={natures.find(n => n.code === natureCode)?.label}
                             categoryColor={categoryColor}
                             isDragging={activeCategoryId === natureCode}
-                            dizaineIndex={categoriesPresentes.indexOf(natureCode)}
-                            dizaineOptionsCount={categoriesPresentes.length}
+                            dizaineIndex={getDizaineDeCategorie(natureCode, categoriesPresentes)}
                             onDizaineChange={modeNumerotation === 'dizaine' ? handleCategoryDizaineChange : null}
                           />
 
