@@ -220,12 +220,13 @@ const sanitizeForFilesystem = (value = '') => value.replace(/[\\/:*?"<>|]/g, '-'
 
 // Construit la liste des sections (une par catégorie réellement présente
 // dans les documents, dans leur ordre d'apparition — le même ordre que celui
-// utilisé pour la numérotation). Le préfixe numérique de chaque section
-// correspond à la partie stable du numéro de cette catégorie dans le mode de
-// numérotation actif : le chiffre des centaines en mode 'categorie'/'generale'
-// (ex: 201,202 -> préfixe 2), les deux premiers chiffres en mode 'dizaine'
-// (ex: centaine=1, 3e catégorie -> 111,112 -> préfixe 11). Les catégories
-// sans documents ne génèrent aucune section (donc aucun dossier vide).
+// utilisé pour la numérotation, y compris en mode 'generale'). Le préfixe
+// numérique de chaque section (toujours 2 chiffres, ex: "B01", "B02") reflète
+// la partie stable du numéro de cette catégorie dans le mode de numérotation
+// actif : le chiffre des centaines en mode 'categorie'/'generale' (ex:
+// 201,202 -> préfixe 02), les deux premiers chiffres en mode 'dizaine' (ex:
+// centaine=1, 3e catégorie -> 111,112 -> préfixe 11). Les catégories sans
+// documents ne génèrent aucune section (donc aucun dossier vide).
 const getSectionLayout = (docs = [], modeNumerotation = 'categorie', dizaineCentaine = 0) => {
   const categoriesPresentes = [];
   docs.forEach(doc => {
@@ -242,12 +243,12 @@ const getSectionLayout = (docs = [], modeNumerotation = 'categorie', dizaineCent
 
     const prefixNumber = modeNumerotation === 'dizaine'
       ? dizaineCentaine * 10 + index // ex: centaine=1, index=2 -> 12 (numéros 121,122...)
-      : index + 1; // ex: index=1 -> 2 (numéros 201,202...)
+      : index + 1; // ex: index=1 -> 2 (numéros 201,202... ou 'generale', ordre d'arrivée)
 
     return {
       nature,
       root,
-      sectionCode: `${rootLetter}${prefixNumber}`,
+      sectionCode: `${rootLetter}${String(prefixNumber).padStart(2, '0')}`,
       label,
     };
   });
@@ -2062,7 +2063,12 @@ export default function DocumentListingApp() {
       lines.push(root);
 
       sectionsForRoot.forEach((section) => {
-        lines.push(`|-- ${section.sectionCode} - ${section.label}`);
+        // La notice (NOT) n'a pas de sous-dossier dédié : ses documents
+        // apparaissent directement sous le root, un cran plus haut.
+        const isNotice = section.nature === 'NOT';
+        if (!isNotice) {
+          lines.push(`|-- ${section.sectionCode} - ${section.label}`);
+        }
 
         const docsForSection = docsByNature[section.nature];
         if (!docsForSection || docsForSection.length === 0) {
@@ -2076,7 +2082,9 @@ export default function DocumentListingApp() {
         });
 
         sortedDocs.forEach((doc, index) => {
-          const docIndex = `${section.sectionCode}.${String(index + 1).padStart(2, '0')}`;
+          const docIndex = isNotice
+            ? String(index + 1).padStart(2, '0')
+            : `${section.sectionCode}.${String(index + 1).padStart(2, '0')}`;
           const parts = [docIndex];
           const numero = (doc.numero || '').toString().trim();
           if (numero) {
@@ -2084,7 +2092,7 @@ export default function DocumentListingApp() {
           }
           const docLabel = (doc.nom && doc.nom.trim() !== '') ? doc.nom : (doc.nomComplet || 'SANS NOM');
           parts.push(docLabel);
-          lines.push(`|   |-- ${parts.join(' - ')}`);
+          lines.push(`${isNotice ? '|--' : '|   |--'} ${parts.join(' - ')}`);
         });
       });
     });
@@ -2128,6 +2136,12 @@ export default function DocumentListingApp() {
       for (const section of sectionLayout) {
         const rootHandle = rootHandles.get(section.root);
         if (!rootHandle) continue;
+        // La notice (NOT) va directement à la racine de son root, sans
+        // sous-dossier dédié : c'est la seule catégorie de ce root.
+        if (section.nature === 'NOT') {
+          sectionHandles.set(section.nature, rootHandle);
+          continue;
+        }
         const sectionDirName = `${section.sectionCode} - ${section.label}`;
         const sectionHandle = await rootHandle.getDirectoryHandle(sectionDirName, { create: true });
         sectionHandles.set(section.nature, sectionHandle);
