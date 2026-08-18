@@ -16,11 +16,10 @@ import {
   sortableKeyboardCoordinates,
   useSortable,
   horizontalListSortingStrategy,
-  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { TemplateContext, DEFAULT_FIELDS } from "../context/TemplateContext";
-import { X, GripVertical, Save, Trash2, Download, Upload, Plus, Edit2, ArrowDown, ArrowUp, ChevronUp, ChevronDown, ChevronRight, Settings } from "lucide-react";
+import { X, Save, Trash2, Download, Upload, Plus, Edit2, ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Settings } from "lucide-react";
 import { mergeFormFieldsOrder } from "../utils/filename";
 
 // CHAMPS SYSTÈME NON-SUPPRIMABLES EN ZONE 2
@@ -158,11 +157,12 @@ const AvailableFieldItem = ({ field, isCustom, onEdit, onRemove, onAddToZones })
 };
 
 // COMPOSANT POUR UN CHAMP DANS LES ZONES ACTIVES (DISPLAY OU FILENAME)
-// Liste verticale (une ligne par champ) plutôt qu'un nuage de pastilles qui
-// wrap : la cible de drop ne bouge plus de ligne pendant le glisser. Les
-// flèches monter/descendre permettent un ajustement d'une position sans
-// avoir à viser un drag précis.
-const ActiveFieldItem = ({ field, isCustom, isSystem, zoneColor = "blue", onRemove, onMoveUp, onMoveDown, isFirst, isLast, index }) => {
+// Le jeton EST le segment du nom de fichier final : une seule ligne
+// horizontale, sans retour à la ligne (donc pas de cible qui bouge pendant
+// le drag), et les jetons sont séparés par le vrai séparateur " - " du nom
+// généré plutôt qu'une flèche décorative — ce qu'on édite ici, c'est
+// littéralement le nom de fichier, pas une liste abstraite de champs.
+const ActiveFieldItem = ({ field, isCustom, isSystem, zoneColor = "blue", onRemove, onMoveUp, onMoveDown, isFirst, isLast }) => {
   const {
     attributes,
     listeners,
@@ -175,7 +175,7 @@ const ActiveFieldItem = ({ field, isCustom, isSystem, zoneColor = "blue", onRemo
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.3 : 1,
+    opacity: isDragging ? 0.4 : 1,
   };
 
   const colorClasses = {
@@ -184,6 +184,7 @@ const ActiveFieldItem = ({ field, isCustom, isSystem, zoneColor = "blue", onRemo
   };
 
   const hoverClass = zoneColor === "blue" ? "hover:border-indigo-400" : "hover:border-emerald-400";
+  const labelColor = isSystem ? "text-orange-700" : isCustom ? "text-purple-700" : "text-gray-800";
 
   const realId = field.realId || field.id;
   const displayLabel = field.displayLabel || field.label || realId;
@@ -191,60 +192,47 @@ const ActiveFieldItem = ({ field, isCustom, isSystem, zoneColor = "blue", onRemo
   return (
     <div
       ref={setNodeRef}
+      {...attributes}
+      {...listeners}
       style={style}
-      className={`w-full flex items-center gap-2.5 p-2.5 bg-white rounded-lg border transition-colors ${
+      className={`group flex items-center gap-0.5 pl-0.5 pr-1 py-1 bg-white rounded-md border cursor-grab active:cursor-grabbing transition-colors flex-shrink-0 ${
         isDragging ? colorClasses[zoneColor] : `border-gray-200 ${hoverClass}`
       }`}
     >
-      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 text-gray-500 text-[10px] font-bold flex-shrink-0">
-        {index}
-      </span>
-
-      <span
-        {...attributes}
-        {...listeners}
-        className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 flex-shrink-0"
-        title="Glisser pour réorganiser"
+      <button
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={() => onMoveUp(realId)}
+        disabled={isFirst}
+        className="p-0.5 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-0 disabled:pointer-events-none transition-colors"
+        title="Déplacer vers la gauche"
       >
-        <GripVertical className="w-4 h-4" />
-      </span>
+        <ChevronLeft className="w-3.5 h-3.5" />
+      </button>
 
-      <span
-        className={`px-2 py-1 rounded text-xs font-bold whitespace-nowrap flex-1 ${
-          isSystem ? "bg-orange-100 text-orange-800" :
-          isCustom ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"
-        }`}
-      >
+      <span className={`px-1 text-xs font-bold whitespace-nowrap ${labelColor}`}>
         {displayLabel}
       </span>
 
-      <div className="flex gap-0.5 flex-shrink-0">
+      <button
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={() => onMoveDown(realId)}
+        disabled={isLast}
+        className="p-0.5 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-0 disabled:pointer-events-none transition-colors"
+        title="Déplacer vers la droite"
+      >
+        <ChevronRight className="w-3.5 h-3.5" />
+      </button>
+
+      {onRemove && !isSystem && (
         <button
-          onClick={() => onMoveUp(realId)}
-          disabled={isFirst}
-          className="p-1.5 rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
-          title="Monter d'une position"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => onRemove(realId)}
+          className="p-0.5 rounded text-gray-300 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+          title="Retirer de cette zone"
         >
-          <ChevronUp className="w-3.5 h-3.5" />
+          <X className="w-3.5 h-3.5" />
         </button>
-        <button
-          onClick={() => onMoveDown(realId)}
-          disabled={isLast}
-          className="p-1.5 rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
-          title="Descendre d'une position"
-        >
-          <ChevronDown className="w-3.5 h-3.5" />
-        </button>
-        {onRemove && !isSystem && (
-          <button
-            onClick={() => onRemove(realId)}
-            className="p-1.5 hover:bg-red-50 rounded text-red-500 hover:text-red-600 transition-colors"
-            title="Retirer de cette zone"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        )}
-      </div>
+      )}
     </div>
   );
 };
@@ -1239,55 +1227,44 @@ export const FieldSettingsModal = ({ onClose }) => {
                         Copier vers le nom de fichier
                       </button>
                     </div>
-                    {displayFields.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-y-1 mb-2">
-                        {displayFields.map((f, i) => (
-                          <div key={f.id} className="flex items-center">
-                            <span className="px-1.5 py-0.5 rounded bg-indigo-400/20 text-indigo-100 text-[11px] font-semibold whitespace-nowrap">
-                              {getFieldDisplayLabel(f.id)}
-                            </span>
-                            {i < displayFields.length - 1 && (
-                              <ChevronRight className="w-3 h-3 text-indigo-300/40 mx-0.5 flex-shrink-0" />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
                     <DisplayZoneContainer>
-                      <div className="flex flex-col gap-1.5">
-                        {displayFields.length === 0 ? (
-                          <div className="w-full text-center py-6 text-gray-400">
-                            <p className="font-bold text-xs">Glissez des champs ici</p>
-                            <p className="text-xs">Pour definir l'ordre du formulaire et des exports</p>
-                          </div>
-                        ) : (
+                      {displayFields.length === 0 ? (
+                        <div className="w-full text-center py-6 text-gray-400">
+                          <p className="font-bold text-xs">Glissez des champs ici</p>
+                          <p className="text-xs">Pour definir l'ordre du formulaire et des exports</p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center overflow-x-auto">
                           <SortableContext
                             items={displayFields.map(f => `display-${f.id}`)}
-                            strategy={verticalListSortingStrategy}
+                            strategy={horizontalListSortingStrategy}
                           >
                             {displayFields.map((field, index) => (
-                              <ActiveFieldItem
-                                key={`display-${field.id}`}
-                                field={{
-                                  ...field,
-                                  id: `display-${field.id}`,
-                                  realId: field.id,
-                                  displayLabel: getFieldDisplayLabel(field.id),
-                                }}
-                                isCustom={field.isCustom}
-                                isSystem={field.isSystem}
-                                zoneColor="blue"
-                                onRemove={handleRemoveFromDisplay}
-                                onMoveUp={(fieldId) => handleMoveFieldInDisplay(fieldId, 'up')}
-                                onMoveDown={(fieldId) => handleMoveFieldInDisplay(fieldId, 'down')}
-                                isFirst={index === 0}
-                                isLast={index === displayFields.length - 1}
-                                index={index + 1}
-                              />
+                              <div key={`display-${field.id}`} className="flex items-center flex-shrink-0">
+                                {index > 0 && (
+                                  <span className="text-indigo-200/40 text-xs font-mono px-1 select-none">-</span>
+                                )}
+                                <ActiveFieldItem
+                                  field={{
+                                    ...field,
+                                    id: `display-${field.id}`,
+                                    realId: field.id,
+                                    displayLabel: getFieldDisplayLabel(field.id),
+                                  }}
+                                  isCustom={field.isCustom}
+                                  isSystem={field.isSystem}
+                                  zoneColor="blue"
+                                  onRemove={handleRemoveFromDisplay}
+                                  onMoveUp={(fieldId) => handleMoveFieldInDisplay(fieldId, 'up')}
+                                  onMoveDown={(fieldId) => handleMoveFieldInDisplay(fieldId, 'down')}
+                                  isFirst={index === 0}
+                                  isLast={index === displayFields.length - 1}
+                                />
+                              </div>
                             ))}
                           </SortableContext>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </DisplayZoneContainer>
                   </div>
 
@@ -1309,54 +1286,43 @@ export const FieldSettingsModal = ({ onClose }) => {
                         Copier vers le formulaire
                       </button>
                     </div>
-                    {filenameFields.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-y-1 mb-2">
-                        {filenameFields.map((f, i) => (
-                          <div key={f.id} className="flex items-center">
-                            <span className="px-1.5 py-0.5 rounded bg-emerald-400/20 text-emerald-100 text-[11px] font-semibold whitespace-nowrap">
-                              {getFieldDisplayLabel(f.id)}
-                            </span>
-                            {i < filenameFields.length - 1 && (
-                              <ChevronRight className="w-3 h-3 text-emerald-300/40 mx-0.5 flex-shrink-0" />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
                     <FilenameZoneContainer>
-                      <div className="flex flex-col gap-1.5">
-                        {filenameFields.length === 0 ? (
-                          <div className="w-full text-center py-6 text-gray-400">
-                            <p className="font-bold text-xs">Glissez des champs ici</p>
-                            <p className="text-xs">Pour definir l'ordre du nom de fichier</p>
-                          </div>
-                        ) : (
+                      {filenameFields.length === 0 ? (
+                        <div className="w-full text-center py-6 text-gray-400">
+                          <p className="font-bold text-xs">Glissez des champs ici</p>
+                          <p className="text-xs">Pour definir l'ordre du nom de fichier</p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center overflow-x-auto">
                           <SortableContext
                             items={filenameFields.map(f => `filename-${f.id}`)}
-                            strategy={verticalListSortingStrategy}
+                            strategy={horizontalListSortingStrategy}
                           >
                             {filenameFields.map((field, index) => (
-                              <ActiveFieldItem
-                                key={`filename-${field.id}`}
-                                field={{
-                                  ...field,
-                                  id: `filename-${field.id}`,
-                                  realId: field.id,
-                                  displayLabel: getFieldDisplayLabel(field.id),
-                                }}
-                                isCustom={field.isCustom}
-                                zoneColor="green"
-                                onRemove={handleRemoveFromFilename}
-                                onMoveUp={(fieldId) => handleMoveFieldInFilename(fieldId, 'up')}
-                                onMoveDown={(fieldId) => handleMoveFieldInFilename(fieldId, 'down')}
-                                isFirst={index === 0}
-                                isLast={index === filenameFields.length - 1}
-                                index={index + 1}
-                              />
+                              <div key={`filename-${field.id}`} className="flex items-center flex-shrink-0">
+                                {index > 0 && (
+                                  <span className="text-emerald-200/40 text-xs font-mono px-1 select-none">-</span>
+                                )}
+                                <ActiveFieldItem
+                                  field={{
+                                    ...field,
+                                    id: `filename-${field.id}`,
+                                    realId: field.id,
+                                    displayLabel: getFieldDisplayLabel(field.id),
+                                  }}
+                                  isCustom={field.isCustom}
+                                  zoneColor="green"
+                                  onRemove={handleRemoveFromFilename}
+                                  onMoveUp={(fieldId) => handleMoveFieldInFilename(fieldId, 'up')}
+                                  onMoveDown={(fieldId) => handleMoveFieldInFilename(fieldId, 'down')}
+                                  isFirst={index === 0}
+                                  isLast={index === filenameFields.length - 1}
+                                />
+                              </div>
                             ))}
                           </SortableContext>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </FilenameZoneContainer>
 
                     {/* PRÃ‰VISUALISATION DES CHAMPS DU FORMULAIRE (FUSION ZONES 2 ET 3) */}
