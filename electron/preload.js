@@ -38,7 +38,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectStorageFolder: () => ipcRenderer.invoke('select-storage-folder'),
   checkSharedStorage: () => ipcRenderer.invoke('check-shared-storage'),
   readSharedData: () => ipcRenderer.invoke('read-shared-data'),
-  writeSharedData: (data) => ipcRenderer.invoke('write-shared-data', data)
+  writeSharedData: (data) => ipcRenderer.invoke('write-shared-data', data),
+
+  // Controles de la fenetre (titlebar custom)
+  windowControls: {
+    minimize: () => ipcRenderer.send('window-minimize'),
+    toggleMaximize: () => ipcRenderer.send('window-maximize-toggle'),
+    close: () => ipcRenderer.send('window-close'),
+    isMaximized: () => ipcRenderer.invoke('window-is-maximized'),
+    onMaximizedChange: (callback) => {
+      ipcRenderer.on('window-maximized-change', (event, isMax) => callback(isMax));
+    }
+  }
 });
 
 console.log('Preload script loaded - electronAPI exposed');

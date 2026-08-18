@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, nativeTheme } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, nativeTheme, Menu } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
@@ -67,6 +67,7 @@ function createWindow() {
     height: 900,
     minWidth: 1000,
     minHeight: 700,
+    frame: false,
     title: 'ListX - Gestion de documents',
     icon: getIconPath(),
     backgroundColor: '#0f172a',
@@ -77,13 +78,6 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js')
     }
   });
-
-  // Forcer le th├¿me sombre de la barre de titre Windows (Windows 10/11)
-  if (process.platform === 'win32') {
-    // Utiliser l'API native Windows pour forcer le dark mode de la barre de titre
-    // DWMWA_USE_IMMERSIVE_DARK_MODE = 20
-    mainWindow.setBackgroundColor('#0f172a');
-  }
 
   // Charger l'app
   if (isDev) {
@@ -118,6 +112,14 @@ function createWindow() {
     }
   });
 
+  mainWindow.on('maximize', () => {
+    mainWindow.webContents.send('window-maximized-change', true);
+  });
+
+  mainWindow.on('unmaximize', () => {
+    mainWindow.webContents.send('window-maximized-change', false);
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -136,7 +138,10 @@ if (!gotTheLock) {
     }
   });
 
-  app.whenReady().then(createWindow);
+  app.whenReady().then(() => {
+    Menu.setApplicationMenu(null);
+    createWindow();
+  });
 }
 
 app.on('window-all-closed', () => {
@@ -233,6 +238,31 @@ ipcMain.on('check-for-updates', () => {
 // Obtenir la version actuelle
 ipcMain.handle('get-app-version', () => {
   return app.getVersion();
+});
+
+// ==============================
+// CONTROLE DE LA FENETRE (titlebar custom)
+// ==============================
+
+ipcMain.on('window-minimize', () => {
+  mainWindow?.minimize();
+});
+
+ipcMain.on('window-maximize-toggle', () => {
+  if (!mainWindow) return;
+  if (mainWindow.isMaximized()) {
+    mainWindow.unmaximize();
+  } else {
+    mainWindow.maximize();
+  }
+});
+
+ipcMain.on('window-close', () => {
+  mainWindow?.close();
+});
+
+ipcMain.handle('window-is-maximized', () => {
+  return mainWindow?.isMaximized() ?? false;
 });
 
 // ==============================

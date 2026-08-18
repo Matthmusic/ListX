@@ -96,7 +96,7 @@ export default function UpdateNotification() {
   if (!show) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 max-w-md animate-slide-in">
+    <div className="fixed top-12 right-4 z-50 max-w-md animate-slide-in">
       <div className="bg-white rounded-lg shadow-2xl border-2 border-blue-900 overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-900 to-blue-700 px-4 py-3 flex items-center justify-between">

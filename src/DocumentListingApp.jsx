@@ -2683,7 +2683,7 @@ export default function DocumentListingApp() {
       <div className="relative z-10">
       {/* Notification Toast */}
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 ${isClosing ? 'animate-slide-out' : 'animate-slide-in'}`}>
+        <div className={`fixed top-12 right-4 z-50 ${isClosing ? 'animate-slide-out' : 'animate-slide-in'}`}>
           <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border-l-4 ${
             notification.type === 'success'
               ? 'bg-white border-green-500'
