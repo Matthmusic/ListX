@@ -2075,19 +2075,19 @@ export default function DocumentListingApp() {
           folderParts.push(sanitizedName);
           const folderName = folderParts.join(' - ');
 
-          const docDir = await sectionHandle.getDirectoryHandle(folderName, { create: true });
-
+          // Pas de sous-dossier par document : le .txt est écrit directement
+          // dans le dossier de la section (nature), un cran plus haut.
           const safeNameBase = (doc.nomComplet && doc.nomComplet.trim() !== '') ? doc.nomComplet : folderName;
           const safeFileName = `${sanitizeForFilesystem(safeNameBase) || 'document'}.txt`;
           const displayName = safeNameBase;
 
           try {
-            await docDir.getFileHandle(safeFileName, { create: false });
+            await sectionHandle.getFileHandle(safeFileName, { create: false });
             showNotification(`Fichier déjà présent pour ${displayName} (aucune écriture)`, 'warning');
           } catch (fileError) {
             if (fileError.name === 'NotFoundError') {
               try {
-                const fileHandle = await docDir.getFileHandle(safeFileName, { create: true });
+                const fileHandle = await sectionHandle.getFileHandle(safeFileName, { create: true });
                 const writable = await fileHandle.createWritable();
                 const contentLines = [
                   `DOSSIER : ${folderName}`,
