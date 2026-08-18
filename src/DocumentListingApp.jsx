@@ -983,7 +983,7 @@ export default function DocumentListingApp() {
       const titleCell = worksheet.getCell(1 + ROW_OFFSET, titleStartCol);
       titleCell.value = exportNomProjet.toUpperCase();
       titleCell.font = {
-        name: 'Cooper Black',
+        name: 'Calibri',
         size: 16,
         bold: true,
         color: { argb: 'FF1F4E79' }
@@ -1113,7 +1113,7 @@ export default function DocumentListingApp() {
       const subtitleCell = worksheet.getCell(currentRow, mergeStartCol);
       subtitleCell.value = exportNomListe.toUpperCase();
       subtitleCell.font = {
-        name: 'Cooper Black',
+        name: 'Calibri',
         size: 12,
         bold: true,
         color: { argb: 'FFFFFFFF' }
