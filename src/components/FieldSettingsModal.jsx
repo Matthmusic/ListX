@@ -16,10 +16,11 @@ import {
   sortableKeyboardCoordinates,
   useSortable,
   horizontalListSortingStrategy,
+  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { TemplateContext, DEFAULT_FIELDS } from "../context/TemplateContext";
-import { X, GripVertical, Save, Trash2, Download, Upload, Plus, Edit2, ArrowDown, ArrowUp, Settings } from "lucide-react";
+import { X, GripVertical, Save, Trash2, Download, Upload, Plus, Edit2, ArrowDown, ArrowUp, ChevronUp, ChevronDown, Settings } from "lucide-react";
 import { mergeFormFieldsOrder } from "../utils/filename";
 
 // CHAMPS SYSTÈME NON-SUPPRIMABLES EN ZONE 2
@@ -47,7 +48,7 @@ const AvailableZoneContainer = ({ children }) => {
   );
 };
 
-// COMPOSANT POUR LA ZONE 2 (FORMULAIRE/EXPORTS) - HORIZONTAL
+// COMPOSANT POUR LA ZONE 2 (FORMULAIRE/EXPORTS) - LISTE VERTICALE
 const DisplayZoneContainer = ({ children }) => {
   const { setNodeRef } = useDroppable({
     id: 'zone-display',
@@ -60,7 +61,7 @@ const DisplayZoneContainer = ({ children }) => {
   );
 };
 
-// COMPOSANT POUR LA ZONE 3 (NOM DE FICHIER) - HORIZONTAL
+// COMPOSANT POUR LA ZONE 3 (NOM DE FICHIER) - LISTE VERTICALE
 const FilenameZoneContainer = ({ children }) => {
   const { setNodeRef } = useDroppable({
     id: 'zone-filename',
@@ -157,7 +158,11 @@ const AvailableFieldItem = ({ field, isCustom, onEdit, onRemove, onAddToZones })
 };
 
 // COMPOSANT POUR UN CHAMP DANS LES ZONES ACTIVES (DISPLAY OU FILENAME)
-const ActiveFieldItem = ({ field, isCustom, isSystem, zoneColor = "blue", onRemove }) => {
+// Liste verticale (une ligne par champ) plutôt qu'un nuage de pastilles qui
+// wrap : la cible de drop ne bouge plus de ligne pendant le glisser. Les
+// flèches monter/descendre permettent un ajustement d'une position sans
+// avoir à viser un drag précis.
+const ActiveFieldItem = ({ field, isCustom, isSystem, zoneColor = "blue", onRemove, onMoveUp, onMoveDown, isFirst, isLast }) => {
   const {
     attributes,
     listeners,
@@ -186,15 +191,22 @@ const ActiveFieldItem = ({ field, isCustom, isSystem, zoneColor = "blue", onRemo
   return (
     <div
       ref={setNodeRef}
-      {...attributes}
-      {...listeners}
       style={style}
-      className={`group inline-flex items-center gap-2 p-2 pl-4 m-1 bg-white rounded-lg border-2 transition-colors cursor-grab active:cursor-grabbing ${
+      className={`flex items-center gap-2 p-2 bg-white rounded-lg border-2 transition-colors ${
         isDragging ? colorClasses[zoneColor] : `border-gray-300 ${hoverClass}`
       }`}
     >
       <span
-        className={`px-2 py-1 rounded text-xs font-bold whitespace-nowrap ${
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 flex-shrink-0"
+        title="Glisser pour réorganiser"
+      >
+        <GripVertical className="w-4 h-4" />
+      </span>
+
+      <span
+        className={`px-2 py-1 rounded text-xs font-bold whitespace-nowrap flex-1 ${
           isSystem ? "bg-orange-100 text-orange-800" :
           isCustom ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"
         }`}
@@ -202,18 +214,30 @@ const ActiveFieldItem = ({ field, isCustom, isSystem, zoneColor = "blue", onRemo
         {displayLabel}
       </span>
 
-      <div className="flex gap-1 overflow-hidden max-w-0 group-hover:max-w-[200px] transition-all duration-200 ease-in-out">
+      <div className="flex gap-0.5 flex-shrink-0">
+        <button
+          onClick={() => onMoveUp(realId)}
+          disabled={isFirst}
+          className="p-1 rounded text-gray-600 hover:bg-gray-100 disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          title="Monter d'une position"
+        >
+          <ChevronUp className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={() => onMoveDown(realId)}
+          disabled={isLast}
+          className="p-1 rounded text-gray-600 hover:bg-gray-100 disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          title="Descendre d'une position"
+        >
+          <ChevronDown className="w-3.5 h-3.5" />
+        </button>
         {onRemove && !isSystem && (
           <button
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove(realId);
-            }}
+            onClick={() => onRemove(realId)}
             className="p-1 hover:bg-red-100 rounded text-red-600"
             title="Retirer de cette zone"
           >
-            <X className="w-3 h-3" />
+            <X className="w-3.5 h-3.5" />
           </button>
         )}
       </div>
@@ -765,6 +789,29 @@ export const FieldSettingsModal = ({ onClose }) => {
     });
   };
 
+  // MONTER/DESCENDRE UN CHAMP D'UNE POSITION DANS UNE ZONE (alternative rapide
+  // au glisser-déposer, pour un ajustement d'une seule position)
+  const moveFieldInOrder = (order, fieldId, direction) => {
+    const index = order.indexOf(fieldId);
+    const targetIndex = index + (direction === 'up' ? -1 : 1);
+    if (index === -1 || targetIndex < 0 || targetIndex >= order.length) return order;
+    return arrayMove(order, index, targetIndex);
+  };
+
+  const handleMoveFieldInDisplay = (fieldId, direction) => {
+    setNewTemplate(prev => ({
+      ...prev,
+      fieldsOrderDisplay: moveFieldInOrder(prev.fieldsOrderDisplay, fieldId, direction)
+    }));
+  };
+
+  const handleMoveFieldInFilename = (fieldId, direction) => {
+    setNewTemplate(prev => ({
+      ...prev,
+      fieldsOrderFilename: moveFieldInOrder(prev.fieldsOrderFilename, fieldId, direction)
+    }));
+  };
+
   // AJOUTER UN CHAMP AUX ZONES 2 ET 3 (DEPUIS LA ZONE 1)
   const handleAddToZones = (fieldId) => {
     setNewTemplate(prev => {
@@ -1189,7 +1236,7 @@ export const FieldSettingsModal = ({ onClose }) => {
                       </button>
                     </div>
                     <DisplayZoneContainer>
-                      <div className="flex flex-wrap">
+                      <div className="flex flex-col gap-1.5">
                         {displayFields.length === 0 ? (
                           <div className="w-full text-center py-6 text-gray-400">
                             <p className="font-bold text-xs">Glissez des champs ici</p>
@@ -1198,9 +1245,9 @@ export const FieldSettingsModal = ({ onClose }) => {
                         ) : (
                           <SortableContext
                             items={displayFields.map(f => `display-${f.id}`)}
-                            strategy={horizontalListSortingStrategy}
+                            strategy={verticalListSortingStrategy}
                           >
-                            {displayFields.map((field) => (
+                            {displayFields.map((field, index) => (
                               <ActiveFieldItem
                                 key={`display-${field.id}`}
                                 field={{
@@ -1213,6 +1260,10 @@ export const FieldSettingsModal = ({ onClose }) => {
                                 isSystem={field.isSystem}
                                 zoneColor="blue"
                                 onRemove={handleRemoveFromDisplay}
+                                onMoveUp={(fieldId) => handleMoveFieldInDisplay(fieldId, 'up')}
+                                onMoveDown={(fieldId) => handleMoveFieldInDisplay(fieldId, 'down')}
+                                isFirst={index === 0}
+                                isLast={index === displayFields.length - 1}
                               />
                             ))}
                           </SortableContext>
@@ -1240,7 +1291,7 @@ export const FieldSettingsModal = ({ onClose }) => {
                       </button>
                     </div>
                     <FilenameZoneContainer>
-                      <div className="flex flex-wrap">
+                      <div className="flex flex-col gap-1.5">
                         {filenameFields.length === 0 ? (
                           <div className="w-full text-center py-6 text-gray-400">
                             <p className="font-bold text-xs">Glissez des champs ici</p>
@@ -1249,9 +1300,9 @@ export const FieldSettingsModal = ({ onClose }) => {
                         ) : (
                           <SortableContext
                             items={filenameFields.map(f => `filename-${f.id}`)}
-                            strategy={horizontalListSortingStrategy}
+                            strategy={verticalListSortingStrategy}
                           >
-                            {filenameFields.map((field) => (
+                            {filenameFields.map((field, index) => (
                               <ActiveFieldItem
                                 key={`filename-${field.id}`}
                                 field={{
@@ -1263,6 +1314,10 @@ export const FieldSettingsModal = ({ onClose }) => {
                                 isCustom={field.isCustom}
                                 zoneColor="green"
                                 onRemove={handleRemoveFromFilename}
+                                onMoveUp={(fieldId) => handleMoveFieldInFilename(fieldId, 'up')}
+                                onMoveDown={(fieldId) => handleMoveFieldInFilename(fieldId, 'down')}
+                                isFirst={index === 0}
+                                isLast={index === filenameFields.length - 1}
                               />
                             ))}
                           </SortableContext>
