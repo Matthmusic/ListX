@@ -2173,17 +2173,33 @@ export default function DocumentListingApp() {
       ajouterAffaireCSV(affaire);
       setShowAutocomplete(false);
       showNotification(`Affaire "${affaire}" ajoutée à la base de données !`, 'success');
+      propagerAffaireATousLesDocuments(affaire);
     }
   };
 
+  // Applique la valeur AFFAIRE à tous les documents déjà saisis dans le
+  // listing (le champ AFFAIRE est censé être commun à tout le listing).
+  const propagerAffaireATousLesDocuments = (nouvelleValeur) => {
+    if (!nouvelleValeur || nouvelleValeur.trim() === '' || documents.length === 0) return;
+    const hasDifferent = documents.some(d => d.affaire !== nouvelleValeur);
+    if (!hasDifferent) return;
+
+    const updated = documents.map(d => {
+      const updatedDoc = { ...d, affaire: nouvelleValeur };
+      updatedDoc.nomComplet = genererNomComplet(updatedDoc, d.numero);
+      return updatedDoc;
+    });
+    setDocuments(updated);
+    saveDocumentsToStorage(updated);
+    showNotification(`Affaire "${nouvelleValeur}" appliquée aux ${updated.length} document(s) du listing`, 'success');
+  };
+
   const chargerAffaire = (nomAffaire) => {
-    // Dans le contexte d'un listing, on ne charge PAS les documents d'une autre affaire
-    // On remplit juste le champ "AFFAIRE" avec la valeur sélectionnée
+    // On remplit le champ "AFFAIRE" avec la valeur sélectionnée et on la
+    // répercute sur les documents déjà saisis dans ce listing
     setAffaire(nomAffaire);
     setShowAutocomplete(false);
-
-    // Note: On ne modifie PAS lastAffaire ni les documents
-    // car on travaille dans un listing spécifique avec sa propre clé (currentListingKey)
+    propagerAffaireATousLesDocuments(nomAffaire);
   };
 
   const nouvelleAffaire = () => {
@@ -3077,7 +3093,10 @@ export default function DocumentListingApp() {
                             setShowAutocomplete(true);
                           }
                         }}
-                        onAffaireBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
+                        onAffaireBlur={() => {
+                          setTimeout(() => setShowAutocomplete(false), 200);
+                          propagerAffaireATousLesDocuments(affaire);
+                        }}
                         onAffaireSelect={chargerAffaire}
                         affaireExiste={affaireExiste()}
                         onAddAffaire={ajouterNouvelleAffaire}
