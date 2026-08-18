@@ -4,7 +4,7 @@ import { TemplateContext } from './context/TemplateContext';
 import { useApp } from './context/AppContext';
 import { useNatures } from './context/NaturesContext';
 import NaturesManagerModal from './components/NaturesManagerModal';
-import { generateFilename, getExportHeaders, getDocumentValues, mergeFormFieldsOrder } from './utils/filename';
+import { generateFilename, getExportHeaders, mergeFormFieldsOrder } from './utils/filename';
 import { FieldSettingsModal } from './components/FieldSettingsModal';
 import { DynamicFormField } from './components/DynamicFormField';
 import AffairesModal from './components/AffairesModal';
@@ -32,11 +32,8 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ExcelJS from 'exceljs';
 import listXLogo from './assets/listX.svg';
-import systemeIcon from './assets/systeme.png';
 import pdfIcon from './assets/pdf.png';
 import xlsIcon from './assets/xls.png';
-import arborescenceIcon from './assets/arborescence-des-fichiers.png';
-import exportIcon from './assets/exporter-le-fichier.png';
 import copierIcon from './assets/coller-le-presse-papiers (1).png';
 import creerIcon from './assets/nouveau-dossier.png';
 import numGenIcon from './assets/num-gen.svg';
@@ -407,6 +404,12 @@ export default function DocumentListingApp() {
   const [exportLogoClient, setExportLogoClient] = useState(null);
   const [exportLogoBE, setExportLogoBE] = useState(null);
   const [exportAfficherCategories, setExportAfficherCategories] = useState(false);
+  // Empêchent un double-clic de déclencher deux exports/créations concurrents
+  // (chaque action est asynchrone : chargement d'images, boîte de dialogue
+  // native, écriture sur le disque...).
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isGeneratingExcel, setIsGeneratingExcel] = useState(false);
+  const [isCreatingArborescence, setIsCreatingArborescence] = useState(false);
 
   // État pour le mode de numérotation actif ('categorie', 'generale' ou 'dizaine')
   const [modeNumerotation, setModeNumerotation] = useState('categorie');
@@ -428,8 +431,6 @@ export default function DocumentListingApp() {
   // État pour la modale de gestion des affaires
   const [showAffairesModal, setShowAffairesModal] = useState(false);
 
-  const phases = ['DIAG', 'APS', 'APD', 'AVP', 'PRO', 'DCE', 'ACT', 'EXE'];
-
   // Fonction pour afficher une notification
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
@@ -444,8 +445,6 @@ export default function DocumentListingApp() {
   };
 
   // natures provient du contexte NaturesContext
-
-  const formats = ['A0+', 'A0', 'A1', 'A2', 'A3', 'A4'];
 
   // Fonction pour obtenir la couleur d'une catégorie selon son ordre d'apparition
   const getCategoryColor = (natureCode, categoriesPresentes) => {
@@ -857,41 +856,16 @@ export default function DocumentListingApp() {
     saveDocumentsToStorage(renumberedDocs); // Sauvegarder après réorganisation
   };
 
-  const exporterCSV = () => {
-    const headers = ['Affaire', 'Phase', 'Lot', 'Émetteur', 'Nature', 'N° Document', 'Niveau Coupe', 'Zone', 'Format', 'Indice', 'Nom', 'Nom Complet Fichier'];
-    const rows = documents.map(d => [
-      d.affaire,
-      d.phase,
-      d.lot || '',
-      d.emetteur || '',
-      d.nature,
-      d.numero,
-      d.niveauCoupe || '',
-      d.zone || '',
-      d.format,
-      d.indice,
-      d.nom,
-      d.nomComplet
-    ]);
-
-    const csv = [
-      headers.join(';'),
-      ...rows.map(row => row.join(';'))
-    ].join('\n');
-
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `listing_${affaire}_${phase}_${Date.now()}.csv`;
-    link.click();
-  };
-
   const exporterExcel = async () => {
     // Validation
     if (!exportNomProjet || !exportNomListe) {
       showNotification('Veuillez renseigner le nom du projet et le nom de la liste', 'error');
       return;
     }
+
+    // Éviter qu'un double-clic ne lance deux générations en parallèle
+    if (isGeneratingExcel) return;
+    setIsGeneratingExcel(true);
 
     try {
       // Renuméroter les documents pour garantir l'ordre correct selon le mode actif
@@ -1309,9 +1283,6 @@ export default function DocumentListingApp() {
 
         const categoryLabels = naturesMap;
 
-        // Compteur de ligne pour toute la liste
-        let numeroLigne = 1;
-
         // Pour chaque catégorie présente
         categoriesPresentes.forEach(category => {
           // Ajouter la ligne de catégorie
@@ -1354,7 +1325,6 @@ export default function DocumentListingApp() {
             // Utiliser le template pour obtenir les valeurs dans l'ordre
             // Les champs système sont déjà gérés dans exportHeaders
             const rowData = exportHeaders.map(header => doc[header.field] || '');
-            numeroLigne++;
 
             // Couleur de fond selon la catégorie
             const bgColor = categoryColors[doc.nature] || 'FFFFFFFF';
@@ -1636,6 +1606,8 @@ export default function DocumentListingApp() {
     } catch (error) {
       console.error('Erreur lors de la génération de l\'Excel:', error);
       showNotification('Erreur lors de la génération de l\'Excel', 'error');
+    } finally {
+      setIsGeneratingExcel(false);
     }
   };
 
@@ -1661,6 +1633,10 @@ export default function DocumentListingApp() {
       showNotification('Veuillez renseigner le nom du projet et le nom de la liste', 'error');
       return;
     }
+
+    // Éviter qu'un double-clic ne lance deux générations en parallèle
+    if (isGeneratingPdf) return;
+    setIsGeneratingPdf(true);
 
     try {
       // Forcer la renumérotation des documents avant export selon le mode actif
@@ -1702,7 +1678,6 @@ export default function DocumentListingApp() {
 
       const doc = new jsPDF('landscape', 'mm', 'a4');
       const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
 
       // Obtenir les catégories présentes dans l'ordre d'apparition pour les couleurs
       const categoriesPresentes = [];
@@ -1726,7 +1701,7 @@ export default function DocumentListingApp() {
           if (logoClientData && logoClientData.startsWith('data:image')) {
             const img = new Image();
             img.src = logoClientData;
-            await new Promise((resolve, reject) => {
+            await new Promise((resolve) => {
               img.onload = () => {
                 try {
                   const maxWidth = 40;
@@ -1760,7 +1735,7 @@ export default function DocumentListingApp() {
           if (logoBEData && logoBEData.startsWith('data:image')) {
             const img = new Image();
             img.src = logoBEData;
-            await new Promise((resolve, reject) => {
+            await new Promise((resolve) => {
               img.onload = () => {
                 try {
                   const maxWidth = 40;
@@ -1905,7 +1880,7 @@ export default function DocumentListingApp() {
         });
       } else {
         // Sans catégories
-        tableData = documentsToExport.map((doc, index) => {
+        tableData = documentsToExport.map((doc) => {
           // Utiliser le template pour obtenir les valeurs dans l'ordre
           // Les champs système sont déjà gérés dans exportHeaders
           const rowData = exportHeaders.map(header => doc[header.field] || '');
@@ -1984,6 +1959,8 @@ export default function DocumentListingApp() {
     } catch (error) {
       console.error('Erreur génération PDF:', error);
       showNotification('Erreur lors de la génération du PDF : ' + error.message, 'error');
+    } finally {
+      setIsGeneratingPdf(false);
     }
   };
 
@@ -2204,6 +2181,11 @@ export default function DocumentListingApp() {
       return;
     }
 
+    // Éviter qu'un double-clic n'ouvre deux fois le sélecteur de dossier
+    // ou ne déclenche deux créations concurrentes sur le disque
+    if (isCreatingArborescence) return;
+    setIsCreatingArborescence(true);
+
     try {
       // Demander à l'utilisateur de sélectionner le dossier de base
       // (boîte de dialogue native, côté process principal — nécessaire pour
@@ -2308,27 +2290,8 @@ export default function DocumentListingApp() {
       }
     } catch (error) {
       showNotification('Erreur lors de la création : ' + error.message, 'error');
-    }
-  };
-
-  const getPhaseFolder = (p) => {
-    const mapping = {
-      'DIAG': '03 - DIAG',
-      'APS': '04 - APS',
-      'APD': '05 - APD',
-      'AVP': '06 - AVP',
-      'PRO': '07 - PRO',
-      'DCE': '08 - DCE',
-      'ACT': '09 - ACT'
-    };
-    return mapping[p] || '07 - PRO';
-  };
-
-  const toggleMode = () => {
-    const newMode = !useRanges;
-    setUseRanges(newMode);
-    if (documents.length > 0) {
-      setDocuments(renumeroteDocuments(documents));
+    } finally {
+      setIsCreatingArborescence(false);
     }
   };
 
@@ -2391,32 +2354,6 @@ export default function DocumentListingApp() {
     setAffaire(nomAffaire);
     setShowAutocomplete(false);
     propagerAffaireATousLesDocuments(nomAffaire);
-  };
-
-  const nouvelleAffaire = () => {
-    setDocuments([]);
-    setAffaire('');
-    setShowAutocomplete(false);
-  };
-
-  // Sauvegarder les affaires dans le CSV
-  const sauvegarderAffairesCSV = async (affaires) => {
-    const csv = affaires.join('\n');
-    try {
-      const handle = await window.showSaveFilePicker({
-        suggestedName: 'affaires.csv',
-        types: [{
-          description: 'CSV Files',
-          accept: { 'text/csv': ['.csv'] }
-        }]
-      });
-      const writable = await handle.createWritable();
-      await writable.write('\ufeff' + csv); // BOM UTF-8
-      await writable.close();
-    } catch (error) {
-      // Fallback si l'API File System n'est pas supportée
-      console.log('Utilisation du localStorage pour les affaires');
-    }
   };
 
   // Charger les affaires depuis le CSV
@@ -2976,6 +2913,8 @@ export default function DocumentListingApp() {
                 }, 400);
               }}
               className="ml-2 text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Fermer la notification"
+              title="Fermer"
             >
               <X size={18} />
             </button>
@@ -3074,6 +3013,8 @@ export default function DocumentListingApp() {
               <button
                 onClick={() => setShowExportPopup(false)}
                 className="text-gray-400 hover:text-gray-600"
+                aria-label="Fermer"
+                title="Fermer"
               >
                 <X size={24} />
               </button>
@@ -3226,17 +3167,19 @@ export default function DocumentListingApp() {
               </button>
               <button
                 onClick={genererPDF}
-                className="px-4 py-2 bg-gradient-to-br from-rose-600 to-rose-700 text-white rounded-md hover:from-rose-700 hover:to-rose-800 transition-colors flex items-center gap-2"
+                disabled={isGeneratingPdf}
+                className="px-4 py-2 bg-gradient-to-br from-rose-600 to-rose-700 text-white rounded-md hover:from-rose-700 hover:to-rose-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
               >
                 <img src={pdfIcon} alt="" className="w-5 h-5" />
-                Générer PDF
+                {isGeneratingPdf ? 'Génération…' : 'Générer PDF'}
               </button>
               <button
                 onClick={exporterExcel}
-                className="px-4 py-2 bg-gradient-to-br from-teal-600 to-teal-700 text-white rounded-md hover:from-teal-700 hover:to-teal-800 transition-colors flex items-center gap-2"
+                disabled={isGeneratingExcel}
+                className="px-4 py-2 bg-gradient-to-br from-teal-600 to-teal-700 text-white rounded-md hover:from-teal-700 hover:to-teal-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
               >
                 <img src={xlsIcon} alt="" className="w-5 h-5" />
-                Générer Excel
+                {isGeneratingExcel ? 'Génération…' : 'Générer Excel'}
               </button>
             </div>
           </div>
@@ -3439,6 +3382,34 @@ export default function DocumentListingApp() {
           )}
         </div>
 
+        {/* État vide : les actions ci-dessous (numérotation, arborescence, export)
+            n'ont de sens qu'avec des documents, mais importer un listing complet
+            est justement le moyen d'en obtenir sans les saisir un par un — cette
+            action reste donc accessible même quand la liste est encore vide. */}
+        {documents.length === 0 && (
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl shadow-lg p-6 mb-6">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <ListOrdered size={20} />
+                  Liste vide
+                </h2>
+                <p className="text-sm text-blue-200 mt-1">
+                  Ajoutez un document ci-dessus, ou importez un listing complet déjà exporté.
+                </p>
+              </div>
+              <button
+                onClick={importerListingComplet}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors flex-shrink-0"
+                title="Importer un listing"
+              >
+                <Download size={18} />
+                Importer un listing
+              </button>
+            </div>
+          </div>
+        )}
+
         {documents.length > 0 && (
           <div className="flex gap-4">
             {/* Barre d'actions verticale à droite */}
@@ -3613,12 +3584,13 @@ export default function DocumentListingApp() {
                   </button>
                   <button
                     onClick={creerArborescenceDossiers}
-                    className="group relative bg-gradient-to-br from-purple-600 to-purple-700 text-white flex-1 aspect-square rounded-lg hover:from-purple-700 hover:to-purple-800 shadow-md hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center gap-1 overflow-hidden"
+                    disabled={isCreatingArborescence}
+                    className="group relative bg-gradient-to-br from-purple-600 to-purple-700 text-white flex-1 aspect-square rounded-lg hover:from-purple-700 hover:to-purple-800 disabled:opacity-60 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center gap-1 overflow-hidden"
                     title="Créer arborescence"
                   >
                     <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-black/30 to-transparent"></div>
                     <img src={creerIcon} alt="" className="w-10 h-10 drop-shadow-lg relative z-10" />
-                    <span className="font-medium text-xs relative z-10">Créer</span>
+                    <span className="font-medium text-xs relative z-10">{isCreatingArborescence ? '…' : 'Créer'}</span>
                   </button>
                 </div>
               </div>

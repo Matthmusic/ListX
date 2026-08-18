@@ -1,7 +1,6 @@
-﻿import { useState, useContext, useEffect } from "react";
+﻿import { useState, useContext } from "react";
 import {
   DndContext,
-  closestCenter,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -243,12 +242,11 @@ export const FieldSettingsModal = ({ onClose }) => {
     useContext(TemplateContext);
 
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
-  const [templateToCustomize, setTemplateToCustomize] = useState(null);
   const [newTemplate, setNewTemplate] = useState({
     name: "Nouveau template",
     fieldsOrderDisplay: [],
     fieldsOrderFilename: [],
-    fieldsOrder: [], // COMPATIBILITÃ‰
+    fieldsOrder: [], // COMPATIBILITÉ
     fieldsLabels: {},
     activeFields: [],
     customFields: []
@@ -261,6 +259,7 @@ export const FieldSettingsModal = ({ onClose }) => {
   const [activeId, setActiveId] = useState(null);
   const [activeZone, setActiveZone] = useState(null); // 'available', 'display', 'filename'
   const [alertInfo, setAlertInfo] = useState(null);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const showAlert = (message, title = 'Information') => setAlertInfo({ message, title });
 
   // OUVRIR LA SOUS-MODAL DE PERSONNALISATION
@@ -287,12 +286,11 @@ export const FieldSettingsModal = ({ onClose }) => {
     if (templateCopy.name) {
       templateCopy.name = templateCopy.name.toUpperCase();
     }
-    setTemplateToCustomize(templateCopy);
     setNewTemplate(templateCopy);
     setShowCustomizeModal(true);
   };
 
-  // CRÃ‰ER UN Nouveau template
+  // CRÉER UN Nouveau template
   const handleCreateNewTemplate = () => {
     const emptyTemplate = {
       name: "Nouveau template",
@@ -303,7 +301,6 @@ export const FieldSettingsModal = ({ onClose }) => {
       activeFields: [],
       customFields: []
     };
-    setTemplateToCustomize(null);
     setNewTemplate(emptyTemplate);
     setShowCustomizeModal(true);
   };
@@ -315,7 +312,7 @@ export const FieldSettingsModal = ({ onClose }) => {
     })
   );
 
-  // OBTENIR TOUS LES CHAMPS (PAR DÃ‰FAUT + PERSONNALISÃ‰S)
+  // OBTENIR TOUS LES CHAMPS (PAR DÉFAUT + PERSONNALISÉS)
   const getAllFields = () => {
     const defaultFields = DEFAULT_FIELDS.map(f => ({
       ...f,
@@ -344,7 +341,7 @@ export const FieldSettingsModal = ({ onClose }) => {
     );
   };
 
-  // OBTENIR LES CHAMPS DISPONIBLES (NON UTILISÃ‰S DANS DISPLAY OU FILENAME)
+  // OBTENIR LES CHAMPS DISPONIBLES (NON UTILISÉS DANS DISPLAY OU FILENAME)
   const getAvailableFields = () => {
     const allFields = getAllFields();
     const displaySet = new Set(newTemplate.fieldsOrderDisplay || []);
@@ -352,7 +349,7 @@ export const FieldSettingsModal = ({ onClose }) => {
     return allFields.filter((field) => !displaySet.has(field.id) || !filenameSet.has(field.id));
   };
 
-  // OBTENIR LES CHAMPS DE LA ZONE DISPLAY ORDONNÃ‰S (AVEC CHAMPS SYSTÈME)
+  // OBTENIR LES CHAMPS DE LA ZONE DISPLAY ORDONNÉS (AVEC CHAMPS SYSTÈME)
   const getDisplayFieldsOrdered = () => {
     const allFields = [...getAllFields(), ...SYSTEM_FIELDS];
     return (newTemplate.fieldsOrderDisplay || [])
@@ -369,7 +366,7 @@ export const FieldSettingsModal = ({ onClose }) => {
       .filter(Boolean);
   };
 
-  // OBTENIR LES CHAMPS DE LA ZONE FILENAME ORDONNÃ‰S
+  // OBTENIR LES CHAMPS DE LA ZONE FILENAME ORDONNÉS
   const getFilenameFieldsOrdered = () => {
     const allFields = getAllFields();
     return (newTemplate.fieldsOrderFilename || [])
@@ -377,7 +374,7 @@ export const FieldSettingsModal = ({ onClose }) => {
       .filter(Boolean);
   };
 
-  // GÃ‰NÃ‰RER PRÃ‰VISUALISATION DU NOM DE FICHIER
+  // GÉNÉRER PRÉVISUALISATION DU NOM DE FICHIER
   const getFilenamePreview = () => {
     const filenameFields = getFilenameFieldsOrdered();
     if (filenameFields.length === 0) return "AUCUN_CHAMP.pdf";
@@ -420,7 +417,7 @@ export const FieldSettingsModal = ({ onClose }) => {
     const { active } = event;
     const draggedId = active.id;
 
-    // EXTRAIRE LE VRAI ID (ENLEVER LE PRÃ‰FIXE DE ZONE)
+    // EXTRAIRE LE VRAI ID (ENLEVER LE PRÉFIXE DE ZONE)
     let realId = draggedId;
     let zone = 'available';
 
@@ -452,7 +449,7 @@ export const FieldSettingsModal = ({ onClose }) => {
     const draggedId = active.id;
     const overId = over.id;
 
-    // EXTRAIRE LE VRAI ID (SANS PRÃ‰FIXE)
+    // EXTRAIRE LE VRAI ID (SANS PRÉFIXE)
     let activeId = draggedId;
     if (draggedId.startsWith('display-')) {
       activeId = draggedId.replace('display-', '');
@@ -462,7 +459,7 @@ export const FieldSettingsModal = ({ onClose }) => {
       activeId = draggedId.replace('available-', '');
     }
 
-    // EXTRAIRE LE VRAI ID DU OVER (SANS PRÃ‰FIXE)
+    // EXTRAIRE LE VRAI ID DU OVER (SANS PRÉFIXE)
     let realOverId = overId;
     if (overId.startsWith('display-')) {
       realOverId = overId.replace('display-', '');
@@ -502,7 +499,7 @@ export const FieldSettingsModal = ({ onClose }) => {
           return {
             ...prev,
             fieldsOrderDisplay: newDisplayOrder,
-            // SI LE CHAMP N'EST PLUS DANS AUCUNE ZONE, LE RETIRER DES ActifS
+            // SI LE CHAMP N'EST PLUS DANS AUCUNE ZONE, LE RETIRER DES ACTIFS
             activeFields: stillInFilename ? prev.activeFields : prev.activeFields.filter(f => f !== activeId)
           };
         });
@@ -515,7 +512,7 @@ export const FieldSettingsModal = ({ onClose }) => {
           return {
             ...prev,
             fieldsOrderFilename: newFilenameOrder,
-            // SI LE CHAMP N'EST PLUS DANS AUCUNE ZONE, LE RETIRER DES ActifS
+            // SI LE CHAMP N'EST PLUS DANS AUCUNE ZONE, LE RETIRER DES ACTIFS
             activeFields: stillInDisplay ? prev.activeFields : prev.activeFields.filter(f => f !== activeId)
           };
         });
@@ -524,7 +521,7 @@ export const FieldSettingsModal = ({ onClose }) => {
     // CAS 2: DROP SUR ZONE DISPLAY (FORMULAIRE/EXPORTS)
     else if (overId === 'zone-display') {
       if (previousZone === 'available') {
-        // AJOUTER Ã€ DISPLAY ET AUTOMATIQUEMENT Ã€ FILENAME AUSSI
+        // AJOUTER À DISPLAY ET AUTOMATIQUEMENT À FILENAME AUSSI
         setNewTemplate(prev => {
           const field = getAllFields().find(f => f.id === activeId);
           const newLabels = { ...prev.fieldsLabels };
@@ -553,13 +550,13 @@ export const FieldSettingsModal = ({ onClose }) => {
           return nextState;
         });
       }
-      // EMPÃŠCHER LE DÃ‰PLACEMENT DIRECT DE FILENAME VERS DISPLAY
+      // EMPÊCHER LE DÉPLACEMENT DIRECT DE FILENAME VERS DISPLAY
       // L'utilisateur doit passer par la zone disponible ou utiliser les boutons de copie
     }
     // CAS 3: DROP SUR ZONE FILENAME
     else if (overId === 'zone-filename') {
       if (previousZone === 'available') {
-        // AJOUTER Ã€ FILENAME ET AUTOMATIQUEMENT Ã€ DISPLAY AUSSI
+        // AJOUTER À FILENAME ET AUTOMATIQUEMENT À DISPLAY AUSSI
         setNewTemplate(prev => {
           const field = getAllFields().find(f => f.id === activeId);
           const newLabels = { ...prev.fieldsLabels };
@@ -603,12 +600,12 @@ export const FieldSettingsModal = ({ onClose }) => {
           return prev;
         });
       }
-      // EMPÃŠCHER LE DÃ‰PLACEMENT DIRECT DE DISPLAY VERS FILENAME pour les autres champs
+      // EMPÊCHER LE DÉPLACEMENT DIRECT DE DISPLAY VERS FILENAME pour les autres champs
       // L'utilisateur doit passer par la zone disponible ou utiliser les boutons de copie
     }
-    // CAS 4: DROP SUR UN CHAMP (RÃ‰ORGANISATION INTERNE)
+    // CAS 4: DROP SUR UN CHAMP (RÉORGANISATION INTERNE)
     else {
-      // DÃ‰TERMINER LA ZONE DU OVER EN FONCTION DU PRÃ‰FIXE
+      // DÉTERMINER LA ZONE DU OVER EN FONCTION DU PRÉFIXE
       let overZone = null;
       if (overId.startsWith('display-')) {
         overZone = 'display';
@@ -763,7 +760,7 @@ export const FieldSettingsModal = ({ onClose }) => {
       return {
         ...prev,
         fieldsOrderDisplay: newDisplayOrder,
-        // SI LE CHAMP N'EST PLUS DANS AUCUNE ZONE, LE RETIRER DES ActifS
+        // SI LE CHAMP N'EST PLUS DANS AUCUNE ZONE, LE RETIRER DES ACTIFS
         activeFields: stillInFilename ? prev.activeFields : prev.activeFields.filter(f => f !== fieldId)
       };
     });
@@ -778,7 +775,7 @@ export const FieldSettingsModal = ({ onClose }) => {
       return {
         ...prev,
         fieldsOrderFilename: newFilenameOrder,
-        // SI LE CHAMP N'EST PLUS DANS AUCUNE ZONE, LE RETIRER DES ActifS
+        // SI LE CHAMP N'EST PLUS DANS AUCUNE ZONE, LE RETIRER DES ACTIFS
         activeFields: stillInDisplay ? prev.activeFields : prev.activeFields.filter(f => f !== fieldId)
       };
     });
@@ -813,7 +810,7 @@ export const FieldSettingsModal = ({ onClose }) => {
       const field = getAllFields().find(f => f.id === fieldId);
       const newLabels = { ...prev.fieldsLabels };
 
-      // Ajouter le label si c'est un champ par dÃ©faut
+      // Ajouter le label si c'est un champ par défaut
       if (field && !field.isCustom && !newLabels[fieldId]) {
         newLabels[fieldId] = field.label;
       }
@@ -849,7 +846,7 @@ export const FieldSettingsModal = ({ onClose }) => {
 
     const fieldId = `CUSTOM_${newCustomFieldName.toUpperCase().replace(/\s+/g, '_')}`;
 
-    // VÃ‰RIFIER SI L'ID EXISTE DÃ‰JÃ€
+    // VÉRIFIER SI L'ID EXISTE DÉJÀ
     const allFields = getAllFields();
     if (allFields.find(f => f.id === fieldId)) {
       showAlert("Un champ avec ce nom existe déjà");
@@ -875,7 +872,7 @@ export const FieldSettingsModal = ({ onClose }) => {
     setShowAddCustomField(false);
   };
 
-  // Supprimer UN CHAMP PERSONNALISÃ‰
+  // Supprimer UN CHAMP PERSONNALISÉ
   const handleRemoveCustomField = (fieldId) => {
     setNewTemplate({
       ...newTemplate,
@@ -898,14 +895,14 @@ export const FieldSettingsModal = ({ onClose }) => {
 
   const handleSaveLabel = () => {
     if (editingField && editLabel.trim()) {
-      // METTRE Ã€ JOUR LE LABEL DANS FIELDSLABELS
+      // METTRE À JOUR LE LABEL DANS FIELDSLABELS
       setNewTemplate({
         ...newTemplate,
         fieldsLabels: {
           ...newTemplate.fieldsLabels,
           [editingField.id]: editLabel.trim().toUpperCase()
         },
-        // METTRE Ã€ JOUR AUSSI DANS CUSTOMFIELDS
+        // METTRE À JOUR AUSSI DANS CUSTOMFIELDS
         customFields: newTemplate.customFields.map(f =>
           f.id === editingField.id ? { ...f, label: editLabel.trim().toUpperCase() } : f
         )
@@ -923,24 +920,32 @@ export const FieldSettingsModal = ({ onClose }) => {
       return;
     }
 
-    // SYNCHRONISER fieldsOrder POUR COMPATIBILITÃ‰
+    // ÉVITER LES SOUMISSIONS EN DOUBLE (clic répété pendant l'await ci-dessous)
+    if (isSavingTemplate) return;
+    setIsSavingTemplate(true);
+
+    // SYNCHRONISER fieldsOrder POUR COMPATIBILITÉ
     const templateToSave = {
       ...newTemplate,
       name: newTemplate.name.toUpperCase(), // FORCER EN MAJUSCULES
-      fieldsOrder: newTemplate.fieldsOrderDisplay // UTILISER DISPLAY COMME RÃ‰FÃ‰RENCE
+      fieldsOrder: newTemplate.fieldsOrderDisplay // UTILISER DISPLAY COMME RÉFÉRENCE
     };
 
-    // Attendre la sauvegarde avant de confirmer : addTemplate() passe deja ce
-    // template en actif, mais sans await la confirmation pouvait s'afficher
-    // avant que le changement soit reellement propage.
-    await addTemplate(templateToSave);
-    showAlert("Template sauvegardé et appliqué !", 'Succès');
+    try {
+      // Attendre la sauvegarde avant de confirmer : addTemplate() passe deja ce
+      // template en actif, mais sans await la confirmation pouvait s'afficher
+      // avant que le changement soit reellement propage.
+      await addTemplate(templateToSave);
+      showAlert("Template sauvegardé et appliqué !", 'Succès');
+    } finally {
+      setIsSavingTemplate(false);
+    }
   };
 
   // Appliquer UN TEMPLATE
   const handleApplyTemplate = (template) => {
     applyTemplate(template.name); // PASSER LE Nom du template, PAS L'OBJET
-    // FERMER LA MODAL POUR REVENIR Ã€ LA PAGE PRINCIPALE
+    // FERMER LA MODAL POUR REVENIR À LA PAGE PRINCIPALE
     onClose();
   };
 
@@ -973,6 +978,7 @@ export const FieldSettingsModal = ({ onClose }) => {
             importTemplates(templatesUppercase);
             showAlert("Templates importés avec succès !", 'Succès');
           } catch (error) {
+            console.error('Erreur import templates:', error);
             showAlert("Erreur lors de l'import des templates", 'Erreur');
           }
         };
@@ -1017,6 +1023,8 @@ export const FieldSettingsModal = ({ onClose }) => {
           <button
             onClick={onClose}
             className="text-white/60 hover:text-white transition-colors"
+            aria-label="Fermer"
+            title="Fermer"
           >
             <X size={24} />
           </button>
@@ -1088,10 +1096,11 @@ export const FieldSettingsModal = ({ onClose }) => {
                       >
                         <Settings className="w-3.5 h-3.5" />
                       </button>
-                      {template.name !== "PAR DÃ‰FAUT" && (
+                      {template.name !== "PAR DÉFAUT" && (
                         <button
                           onClick={() => setShowDeleteConfirm(template.name)}
                           className="px-2 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-bold transition-colors"
+                          title="Supprimer ce template"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -1128,7 +1137,7 @@ export const FieldSettingsModal = ({ onClose }) => {
                 />
               </div>
 
-              {/* SYSTÃˆME DRAG-AND-DROP Ã€ 3 ZONES HORIZONTALES */}
+              {/* SYSTÈME DRAG-AND-DROP À 3 ZONES HORIZONTALES */}
               <DndContext
                 sensors={sensors}
                 collisionDetection={pointerWithin}
@@ -1145,7 +1154,7 @@ export const FieldSettingsModal = ({ onClose }) => {
                         </span>
                         Champs disponibles
                       </h3>
-                      {/* BOUTON AJOUTER CHAMP PERSONNALISÃ‰ */}
+                      {/* BOUTON AJOUTER CHAMP PERSONNALISÉ */}
                       {!showAddCustomField ? (
                         <button
                           onClick={() => setShowAddCustomField(true)}
@@ -1331,7 +1340,7 @@ export const FieldSettingsModal = ({ onClose }) => {
                       )}
                     </FilenameZoneContainer>
 
-                    {/* PRÃ‰VISUALISATION DES CHAMPS DU FORMULAIRE (FUSION ZONES 2 ET 3) */}
+                    {/* PRÉVISUALISATION DES CHAMPS DU FORMULAIRE (FUSION ZONES 2 ET 3) */}
                     <div className="mt-3 p-2.5 bg-white/5 rounded-lg border border-white/10">
                       <p className="text-xs font-bold text-white/60 mb-1.5 uppercase tracking-wide">Champs du formulaire</p>
                       <div className="flex flex-wrap gap-1">
@@ -1349,7 +1358,7 @@ export const FieldSettingsModal = ({ onClose }) => {
                       </div>
                     </div>
 
-                    {/* PRÃ‰VISUALISATION DU NOM DE FICHIER */}
+                    {/* PRÉVISUALISATION DU NOM DE FICHIER */}
                     <div className="mt-2 p-2.5 bg-white/5 rounded-lg border border-white/10">
                       <p className="text-xs font-bold text-white/60 mb-1 uppercase tracking-wide">Aperçu du nom de fichier</p>
                       <p className="text-xs font-mono text-white">{getFilenamePreview()}</p>
@@ -1376,10 +1385,11 @@ export const FieldSettingsModal = ({ onClose }) => {
               <div className="mt-3 flex justify-end">
                 <button
                   onClick={handleSaveTemplate}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-colors text-sm"
+                  disabled={isSavingTemplate}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/60 disabled:cursor-not-allowed text-white rounded-lg font-bold transition-colors text-sm"
                 >
                   <Save className="w-4 h-4" />
-                  Sauvegarder ce template
+                  {isSavingTemplate ? 'Sauvegarde…' : 'Sauvegarder ce template'}
                 </button>
               </div>
             </div>
@@ -1457,48 +1467,3 @@ export const FieldSettingsModal = ({ onClose }) => {
     </div>
   );
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
