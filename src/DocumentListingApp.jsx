@@ -221,15 +221,15 @@ const ARBO_ROOTS_ORDER = ['A - PIECES ECRITES', 'B - PIECES GRAPHIQUES'];
 const sanitizeForFilesystem = (value = '') => value.replace(/[\\/:*?"<>|]/g, '-').trim();
 
 // Construit la liste des sections (une par catégorie réellement présente
-// dans les documents, dans leur ordre d'apparition — le même ordre que celui
-// utilisé pour la numérotation, y compris en mode 'generale'). Le préfixe
+// dans les documents, dans l'ordre d'apparition (mode 'categorie'/'generale')
+// ou trié par dizaine assignée (mode 'dizaine', trous possibles). Le préfixe
 // numérique de chaque section (toujours 2 chiffres, ex: "B01", "B02") reflète
-// la partie stable du numéro de cette catégorie dans le mode de numérotation
-// actif : le chiffre des centaines en mode 'categorie'/'generale' (ex:
-// 201,202 -> préfixe 02), les deux premiers chiffres en mode 'dizaine' (ex:
-// centaine=1, 3e catégorie -> 111,112 -> préfixe 11). Les catégories sans
-// documents ne génèrent aucune section (donc aucun dossier vide).
-const getSectionLayout = (docs = [], modeNumerotation = 'categorie', dizaineCentaine = 0, dizaineParCategorie = {}) => {
+// le chiffre des centaines en mode 'categorie'/'generale' (ex: 201,202 ->
+// préfixe 02), ou directement la dizaine assignée à la catégorie en mode
+// 'dizaine' (la centaine n'apparaît pas dans le préfixe de dossier — ex:
+// dizaine=2 -> préfixe 02, quelle que soit la centaine choisie). Les
+// catégories sans documents ne génèrent aucune section (donc aucun dossier vide).
+const getSectionLayout = (docs = [], modeNumerotation = 'categorie', dizaineParCategorie = {}) => {
   const categoriesPresentes = [];
   docs.forEach(doc => {
     if (doc?.nature && !categoriesPresentes.includes(doc.nature)) {
@@ -252,7 +252,7 @@ const getSectionLayout = (docs = [], modeNumerotation = 'categorie', dizaineCent
     const rootLetter = root.charAt(0);
 
     const prefixNumber = modeNumerotation === 'dizaine'
-      ? dizaineCentaine * 10 + getDizaine(nature) // ex: centaine=1, dizaine=2 -> 12 (numéros 121,122...)
+      ? getDizaine(nature) // ex: dizaine=2 -> 02 (la centaine n'apparaît pas dans le préfixe de dossier)
       : categoriesPresentes.indexOf(nature) + 1; // ex: index=1 -> 2 (numéros 201,202... ou 'generale', ordre d'arrivée)
 
     return {
@@ -2127,7 +2127,7 @@ export default function DocumentListingApp() {
   };
 
   const genererArborescence = () => {
-    const sectionLayout = getSectionLayout(documents, modeNumerotation, dizaineCentaine, dizaineParCategorie);
+    const sectionLayout = getSectionLayout(documents, modeNumerotation, dizaineParCategorie);
     const docsByNature = documents.reduce((acc, doc) => {
       if (!doc?.nature) return acc;
       if (!acc[doc.nature]) acc[doc.nature] = [];
@@ -2208,7 +2208,7 @@ export default function DocumentListingApp() {
       showNotification('Création de l\'arborescence en cours...', 'info');
 
       // Grouper les documents par nature
-     const sectionLayout = getSectionLayout(documents, modeNumerotation, dizaineCentaine, dizaineParCategorie);
+     const sectionLayout = getSectionLayout(documents, modeNumerotation, dizaineParCategorie);
 
       const rootHandles = new Map();
       for (const root of ARBO_ROOTS_ORDER) {
