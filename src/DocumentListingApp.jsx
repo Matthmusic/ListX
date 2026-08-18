@@ -286,6 +286,8 @@ export default function DocumentListingApp() {
   // Numéro saisi à la main (vide = numérotation automatique comme d'habitude)
   const [numeroManuel, setNumeroManuel] = useState('');
   const [documents, setDocuments] = useState([]);
+  // Listing en attente d'un choix fusionner/remplacer après import (null = pas d'import en cours)
+  const [pendingImportListing, setPendingImportListing] = useState(null);
 
   // Revalider la nature sélectionnée si la liste des natures change (ex : suppression de NDC)
   useEffect(() => {
@@ -2385,6 +2387,97 @@ export default function DocumentListingApp() {
     }
   };
 
+  // Appliquer la fusion d'un listing importé avec les documents actuels
+  const appliquerFusionListing = (listingData) => {
+    try {
+      const fusionDocs = [...documents, ...listingData.documents];
+      setDocuments(fusionDocs);
+
+      // Fusionner les affaires
+      if (listingData.affairesList && Array.isArray(listingData.affairesList)) {
+        const fusionAffaires = [...new Set([...affairesList, ...listingData.affairesList])];
+        fusionAffaires.sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
+        setAffairesList(fusionAffaires);
+        setFilteredAffaires(fusionAffaires);
+        localStorage.setItem('affairesCSV', fusionAffaires.join('\n'));
+      }
+
+      // Fusionner l'historique des champs
+      if (listingData.fieldsHistory) {
+        const fusionHistory = { ...fieldsHistory };
+        Object.keys(listingData.fieldsHistory).forEach(affaireName => {
+          if (!fusionHistory[affaireName]) {
+            fusionHistory[affaireName] = {};
+          }
+          Object.keys(listingData.fieldsHistory[affaireName]).forEach(fieldName => {
+            if (!fusionHistory[affaireName][fieldName]) {
+              fusionHistory[affaireName][fieldName] = [];
+            }
+            // Fusionner les valeurs sans doublons
+            const existingValues = fusionHistory[affaireName][fieldName];
+            const newValues = listingData.fieldsHistory[affaireName][fieldName];
+            fusionHistory[affaireName][fieldName] = [...new Set([...existingValues, ...newValues])];
+          });
+        });
+        sauvegarderFieldsHistory(fusionHistory);
+      }
+
+      showNotification(`${listingData.documents.length} documents ajoutés avec succès ! (Total : ${fusionDocs.length})`, 'success');
+    } catch (error) {
+      console.error('Erreur lors de la fusion du listing:', error);
+      showNotification('Erreur lors de l\'import : fichier invalide', 'error');
+    } finally {
+      setPendingImportListing(null);
+    }
+  };
+
+  // Appliquer le remplacement complet par un listing importé
+  const appliquerRemplacementListing = (listingData) => {
+    try {
+      setDocuments(listingData.documents);
+
+      if (listingData.affaire) {
+        setAffaire(listingData.affaire);
+      }
+
+      if (listingData.categoriesOrder && Array.isArray(listingData.categoriesOrder)) {
+        setCategoriesOrder(listingData.categoriesOrder);
+      }
+
+      if (listingData.affairesList && Array.isArray(listingData.affairesList)) {
+        const affaires = listingData.affairesList;
+        affaires.sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
+        setAffairesList(affaires);
+        setFilteredAffaires(affaires);
+        localStorage.setItem('affairesCSV', affaires.join('\n'));
+      }
+
+      if (listingData.settings) {
+        if (listingData.settings.modeNumerotation !== undefined) {
+          setModeNumerotation(listingData.settings.modeNumerotation);
+        } else if (listingData.settings.useRanges !== undefined) {
+          // Rétro-compatibilité avec l'ancien système useRanges
+          setModeNumerotation('categorie');
+        }
+        if (listingData.settings.dizaineCentaine !== undefined) {
+          setDizaineCentaine(listingData.settings.dizaineCentaine);
+        }
+      }
+
+      // Charger l'historique des champs
+      if (listingData.fieldsHistory) {
+        sauvegarderFieldsHistory(listingData.fieldsHistory);
+      }
+
+      showNotification(`Listing importé avec succès ! (${listingData.documents.length} documents)`, 'success');
+    } catch (error) {
+      console.error('Erreur lors du remplacement du listing:', error);
+      showNotification('Erreur lors de l\'import : fichier invalide', 'error');
+    } finally {
+      setPendingImportListing(null);
+    }
+  };
+
   // Importer un listing complet
   const importerListingComplet = () => {
     const input = document.createElement('input');
@@ -2403,88 +2496,8 @@ export default function DocumentListingApp() {
           throw new Error('Format de listing invalide');
         }
 
-        // Demander à l'utilisateur : fusion ou remplacement
-        const action = confirm(
-          `Voulez-vous FUSIONNER ce listing avec vos documents actuels ?\n\n` +
-          `- OUI : Ajouter les ${listingData.documents.length} documents à la liste actuelle (${documents.length} documents)\n` +
-          `- NON : Remplacer complètement la liste actuelle\n\n` +
-          `Affaire importée : ${listingData.affaire || 'Non spécifiée'}`
-        );
-
-        if (action) {
-          // FUSION : Ajouter les documents importés aux documents existants
-          const fusionDocs = [...documents, ...listingData.documents];
-          setDocuments(fusionDocs);
-
-          // Fusionner les affaires
-          if (listingData.affairesList && Array.isArray(listingData.affairesList)) {
-            const fusionAffaires = [...new Set([...affairesList, ...listingData.affairesList])];
-            fusionAffaires.sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
-            setAffairesList(fusionAffaires);
-            setFilteredAffaires(fusionAffaires);
-            localStorage.setItem('affairesCSV', fusionAffaires.join('\n'));
-          }
-
-          // Fusionner l'historique des champs
-          if (listingData.fieldsHistory) {
-            const fusionHistory = { ...fieldsHistory };
-            Object.keys(listingData.fieldsHistory).forEach(affaireName => {
-              if (!fusionHistory[affaireName]) {
-                fusionHistory[affaireName] = {};
-              }
-              Object.keys(listingData.fieldsHistory[affaireName]).forEach(fieldName => {
-                if (!fusionHistory[affaireName][fieldName]) {
-                  fusionHistory[affaireName][fieldName] = [];
-                }
-                // Fusionner les valeurs sans doublons
-                const existingValues = fusionHistory[affaireName][fieldName];
-                const newValues = listingData.fieldsHistory[affaireName][fieldName];
-                fusionHistory[affaireName][fieldName] = [...new Set([...existingValues, ...newValues])];
-              });
-            });
-            sauvegarderFieldsHistory(fusionHistory);
-          }
-
-          showNotification(`${listingData.documents.length} documents ajoutés avec succès ! (Total : ${fusionDocs.length})`, 'success');
-        } else {
-          // REMPLACEMENT : Remplacer complètement
-          setDocuments(listingData.documents);
-
-          if (listingData.affaire) {
-            setAffaire(listingData.affaire);
-          }
-
-          if (listingData.categoriesOrder && Array.isArray(listingData.categoriesOrder)) {
-            setCategoriesOrder(listingData.categoriesOrder);
-          }
-
-          if (listingData.affairesList && Array.isArray(listingData.affairesList)) {
-            const affaires = listingData.affairesList;
-            affaires.sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
-            setAffairesList(affaires);
-            setFilteredAffaires(affaires);
-            localStorage.setItem('affairesCSV', affaires.join('\n'));
-          }
-
-          if (listingData.settings) {
-            if (listingData.settings.modeNumerotation !== undefined) {
-              setModeNumerotation(listingData.settings.modeNumerotation);
-            } else if (listingData.settings.useRanges !== undefined) {
-              // Rétro-compatibilité avec l'ancien système useRanges
-              setModeNumerotation('categorie');
-            }
-            if (listingData.settings.dizaineCentaine !== undefined) {
-              setDizaineCentaine(listingData.settings.dizaineCentaine);
-            }
-          }
-
-          // Charger l'historique des champs
-          if (listingData.fieldsHistory) {
-            sauvegarderFieldsHistory(listingData.fieldsHistory);
-          }
-
-          showNotification(`Listing importé avec succès ! (${listingData.documents.length} documents)`, 'success');
-        }
+        // Demander à l'utilisateur : fusion ou remplacement (popup stylée, cf. rendu JSX)
+        setPendingImportListing(listingData);
       } catch (error) {
         console.error('Erreur lors de l\'import du listing:', error);
         showNotification('Erreur lors de l\'import : fichier invalide', 'error');
@@ -2892,6 +2905,49 @@ export default function DocumentListingApp() {
               >
                 <Trash2 size={18} />
                 Vider la liste
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Choix fusionner/remplacer après import d'un listing complet */}
+      {pendingImportListing && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Importer le listing
+            </h3>
+            <div className="text-gray-600 space-y-2 mb-6">
+              <p>Voulez-vous fusionner ce listing avec vos documents actuels ?</p>
+              <p className="text-sm">
+                <strong>Fusionner</strong> : ajoute les {pendingImportListing.documents.length} document(s) importé(s) à la liste actuelle ({documents.length} document{documents.length > 1 ? 's' : ''}).
+              </p>
+              <p className="text-sm">
+                <strong>Remplacer</strong> : remplace complètement la liste actuelle.
+              </p>
+              <p className="text-sm text-gray-500">
+                Affaire importée : {pendingImportListing.affaire || 'Non spécifiée'}
+              </p>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setPendingImportListing(null)}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => appliquerRemplacementListing(pendingImportListing)}
+                className="px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors"
+              >
+                Remplacer
+              </button>
+              <button
+                onClick={() => appliquerFusionListing(pendingImportListing)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Fusionner
               </button>
             </div>
           </div>

@@ -156,10 +156,12 @@ export const TemplateProvider = ({ children }) => {
     }
   };
 
+  // Retourne { success, error } plutôt que d'afficher directement une alerte :
+  // ce contexte n'a pas d'UI propre, c'est à l'appelant d'afficher le message
+  // (avec sa propre popup stylée) si success vaut false.
   const deleteTemplate = async (templateName) => {
     if (templates.templates.length <= 1) {
-      alert("Vous ne pouvez pas supprimer le dernier template.");
-      return;
+      return { success: false, error: "Vous ne pouvez pas supprimer le dernier template." };
     }
 
     const filteredTemplates = templates.templates.filter((t) => t.name !== templateName);
@@ -171,6 +173,7 @@ export const TemplateProvider = ({ children }) => {
       currentTemplate: newCurrentTemplate,
     };
     await saveTemplates(newTemplates);
+    return { success: true };
   };
 
   const importTemplates = async (importedTemplates) => {

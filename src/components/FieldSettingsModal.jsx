@@ -19,6 +19,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { TemplateContext, DEFAULT_FIELDS } from "../context/TemplateContext";
+import AlertDialog from "./AlertDialog";
 import { X, Save, Trash2, Download, Upload, Plus, Edit2, ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Settings } from "lucide-react";
 import { mergeFormFieldsOrder } from "../utils/filename";
 
@@ -259,6 +260,8 @@ export const FieldSettingsModal = ({ onClose }) => {
   const [newCustomFieldName, setNewCustomFieldName] = useState("");
   const [activeId, setActiveId] = useState(null);
   const [activeZone, setActiveZone] = useState(null); // 'available', 'display', 'filename'
+  const [alertInfo, setAlertInfo] = useState(null);
+  const showAlert = (message, title = 'Information') => setAlertInfo({ message, title });
 
   // OUVRIR LA SOUS-MODAL DE PERSONNALISATION
   const handleOpenCustomize = (template) => {
@@ -840,7 +843,7 @@ export const FieldSettingsModal = ({ onClose }) => {
   // Ajouter un champ personnalise
   const handleAddCustomField = () => {
     if (!newCustomFieldName.trim()) {
-      alert("Veuillez entrer un nom pour le champ");
+      showAlert("Veuillez entrer un nom pour le champ");
       return;
     }
 
@@ -849,7 +852,7 @@ export const FieldSettingsModal = ({ onClose }) => {
     // VÃ‰RIFIER SI L'ID EXISTE DÃ‰JÃ€
     const allFields = getAllFields();
     if (allFields.find(f => f.id === fieldId)) {
-      alert("Un champ avec ce nom existe déjà");
+      showAlert("Un champ avec ce nom existe déjà");
       return;
     }
 
@@ -916,7 +919,7 @@ export const FieldSettingsModal = ({ onClose }) => {
   // puisque modifier un template pour ne pas l'utiliser derriere n'aurait pas de sens)
   const handleSaveTemplate = async () => {
     if (!newTemplate.name || newTemplate.name.trim() === "") {
-      alert("Veuillez entrer un nom pour le template");
+      showAlert("Veuillez entrer un nom pour le template");
       return;
     }
 
@@ -931,7 +934,7 @@ export const FieldSettingsModal = ({ onClose }) => {
     // template en actif, mais sans await la confirmation pouvait s'afficher
     // avant que le changement soit reellement propage.
     await addTemplate(templateToSave);
-    alert("Template sauvegardé et appliqué !");
+    showAlert("Template sauvegardé et appliqué !", 'Succès');
   };
 
   // Appliquer UN TEMPLATE
@@ -942,9 +945,12 @@ export const FieldSettingsModal = ({ onClose }) => {
   };
 
   // Supprimer UN TEMPLATE
-  const handleDeleteTemplate = (templateName) => {
-    deleteTemplate(templateName);
+  const handleDeleteTemplate = async (templateName) => {
+    const result = await deleteTemplate(templateName);
     setShowDeleteConfirm(null);
+    if (!result.success) {
+      showAlert(result.error, 'Erreur');
+    }
   };
 
   // Importer DES TEMPLATES
@@ -965,9 +971,9 @@ export const FieldSettingsModal = ({ onClose }) => {
               name: t.name ? t.name.toUpperCase() : t.name
             }));
             importTemplates(templatesUppercase);
-            alert("Templates importés avec succès !");
+            showAlert("Templates importés avec succès !", 'Succès');
           } catch (error) {
-            alert("Erreur lors de l'import des templates");
+            showAlert("Erreur lors de l'import des templates", 'Erreur');
           }
         };
         reader.readAsText(file);
@@ -1441,6 +1447,13 @@ export const FieldSettingsModal = ({ onClose }) => {
           </div>
         </div>
       )}
+
+      <AlertDialog
+        isOpen={!!alertInfo}
+        onClose={() => setAlertInfo(null)}
+        title={alertInfo?.title}
+        message={alertInfo?.message}
+      />
     </div>
   );
 };

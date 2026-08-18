@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, Download, Upload, Search, X } from 'lucide-react';
+import ConfirmDialog from './ConfirmDialog';
 
 export default function AffairesModal({ isOpen, onClose }) {
   const [affaires, setAffaires] = useState([]);
@@ -7,6 +8,7 @@ export default function AffairesModal({ isOpen, onClose }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [newAffaire, setNewAffaire] = useState('');
   const [notification, setNotification] = useState(null);
+  const [affaireASupprimer, setAffaireASupprimer] = useState(null);
 
   // Charger les affaires au montage et quand la modal s'ouvre
   useEffect(() => {
@@ -78,10 +80,6 @@ export default function AffairesModal({ isOpen, onClose }) {
   };
 
   const supprimerAffaire = (affaireASupprimer) => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer "${affaireASupprimer}" ?`)) {
-      return;
-    }
-
     const nouvellesAffaires = affaires.filter(a => a !== affaireASupprimer);
     if (sauvegarderAffaires(nouvellesAffaires)) {
       showNotification('Affaire supprimée avec succès', 'success');
@@ -155,6 +153,7 @@ export default function AffairesModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-32">
       {/* Overlay */}
       <div
@@ -282,7 +281,7 @@ export default function AffairesModal({ isOpen, onClose }) {
                     >
                       <span className="text-white font-medium">{affaire}</span>
                       <button
-                        onClick={() => supprimerAffaire(affaire)}
+                        onClick={() => setAffaireASupprimer(affaire)}
                         className="text-red-400 hover:text-red-300 p-2 hover:bg-red-500/20 rounded-lg transition-colors"
                         title="Supprimer"
                       >
@@ -307,5 +306,16 @@ export default function AffairesModal({ isOpen, onClose }) {
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      isOpen={!!affaireASupprimer}
+      onClose={() => setAffaireASupprimer(null)}
+      onConfirm={() => supprimerAffaire(affaireASupprimer)}
+      title="Supprimer l'affaire"
+      message={`Êtes-vous sûr de vouloir supprimer "${affaireASupprimer}" ?`}
+      confirmText="Supprimer"
+      isDestructive
+    />
+    </>
   );
 }

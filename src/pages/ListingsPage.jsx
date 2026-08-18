@@ -5,6 +5,7 @@ import { getProjectListings, createListing, renameListing, deleteListing, duplic
 import AppLayout from '../components/AppLayout';
 import InputDialog from '../components/InputDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
+import AlertDialog from '../components/AlertDialog';
 import VersionBadge from '../components/VersionBadge';
 import listXLogo from '../assets/listX.svg';
 
@@ -15,6 +16,8 @@ export default function ListingsPage() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedListing, setSelectedListing] = useState(null);
+  const [alertInfo, setAlertInfo] = useState(null);
+  const showAlert = (message, title = 'Information') => setAlertInfo({ message, title });
 
   useEffect(() => {
     if (selectedClient && selectedProject) {
@@ -58,7 +61,7 @@ export default function ListingsPage() {
   const handleExportListing = async (listing) => {
     const exportData = await exportListing(selectedClient.id, selectedProject.id, listing.id);
     if (!exportData) {
-      alert('Erreur lors de l\'export du listing');
+      showAlert('Erreur lors de l\'export du listing', 'Erreur');
       return;
     }
 
@@ -94,10 +97,10 @@ export default function ListingsPage() {
 
           if (result.success) {
             await loadListings();
-            alert(`Listing "${result.name}" importé avec succès !\n${result.documentCount} document(s) inclus.`);
+            showAlert(`Listing "${result.name}" importé avec succès !\n${result.documentCount} document(s) inclus.`, 'Import réussi');
           }
         } catch (error) {
-          alert('Erreur lors de l\'import : ' + error.message);
+          showAlert('Erreur lors de l\'import : ' + error.message, 'Erreur');
         }
       };
       reader.readAsText(file);
@@ -298,6 +301,13 @@ export default function ListingsPage() {
         message={`Êtes-vous sûr de vouloir supprimer "${selectedListing?.name}" ? Cette action est irréversible.`}
         confirmText="Supprimer"
         isDestructive
+      />
+
+      <AlertDialog
+        isOpen={!!alertInfo}
+        onClose={() => setAlertInfo(null)}
+        title={alertInfo?.title}
+        message={alertInfo?.message}
       />
 
       <VersionBadge />

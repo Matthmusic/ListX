@@ -5,6 +5,7 @@ import { getAllClients, createClient, renameClient, deleteClient, exportClient, 
 import AppLayout from '../components/AppLayout';
 import InputDialog from '../components/InputDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
+import AlertDialog from '../components/AlertDialog';
 import VersionBadge from '../components/VersionBadge';
 import listXLogo from '../assets/listX.svg';
 
@@ -15,6 +16,8 @@ export default function ClientsPage() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
+  const [alertInfo, setAlertInfo] = useState(null);
+  const showAlert = (message, title = 'Information') => setAlertInfo({ message, title });
 
   useEffect(() => {
     loadClients();
@@ -57,7 +60,7 @@ export default function ClientsPage() {
   const handleExportClient = async (client) => {
     const exportData = await exportClient(client.id);
     if (!exportData) {
-      alert('Erreur lors de l\'export du client');
+      showAlert('Erreur lors de l\'export du client', 'Erreur');
       return;
     }
 
@@ -93,10 +96,10 @@ export default function ClientsPage() {
 
           if (result.success) {
             await loadClients();
-            alert(`Client "${result.name}" importé avec succès !\n${result.projectCount} projet(s) inclus.`);
+            showAlert(`Client "${result.name}" importé avec succès !\n${result.projectCount} projet(s) inclus.`, 'Import réussi');
           }
         } catch (error) {
-          alert('Erreur lors de l\'import : ' + error.message);
+          showAlert('Erreur lors de l\'import : ' + error.message, 'Erreur');
         }
       };
       reader.readAsText(file);
@@ -264,6 +267,13 @@ export default function ClientsPage() {
         message={`Êtes-vous sûr de vouloir supprimer "${selectedClient?.name}" ? Tous les projets et listings associés seront également supprimés.`}
         confirmText="Supprimer"
         isDestructive
+      />
+
+      <AlertDialog
+        isOpen={!!alertInfo}
+        onClose={() => setAlertInfo(null)}
+        title={alertInfo?.title}
+        message={alertInfo?.message}
       />
 
       <VersionBadge />

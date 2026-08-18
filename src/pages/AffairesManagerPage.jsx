@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Trash2, Download, Upload, Search, X, ChevronLeft } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import AppLayout from '../components/AppLayout';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function AffairesManagerPage() {
   const { navigateToClients } = useApp();
@@ -10,6 +11,7 @@ export default function AffairesManagerPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [newAffaire, setNewAffaire] = useState('');
   const [notification, setNotification] = useState(null);
+  const [affaireASupprimer, setAffaireASupprimer] = useState(null);
 
   // Charger les affaires au montage
   useEffect(() => {
@@ -79,10 +81,6 @@ export default function AffairesManagerPage() {
   };
 
   const supprimerAffaire = (affaireASupprimer) => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer "${affaireASupprimer}" ?`)) {
-      return;
-    }
-
     const nouvellesAffaires = affaires.filter(a => a !== affaireASupprimer);
     if (sauvegarderAffaires(nouvellesAffaires)) {
       showNotification('Affaire supprimée avec succès', 'success');
@@ -279,7 +277,7 @@ export default function AffairesManagerPage() {
                   >
                     <span className="text-white font-medium">{affaire}</span>
                     <button
-                      onClick={() => supprimerAffaire(affaire)}
+                      onClick={() => setAffaireASupprimer(affaire)}
                       className="text-red-300 hover:text-red-100 p-2 hover:bg-red-500/20 rounded-lg transition-colors"
                       title="Supprimer"
                     >
@@ -292,6 +290,16 @@ export default function AffairesManagerPage() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={!!affaireASupprimer}
+        onClose={() => setAffaireASupprimer(null)}
+        onConfirm={() => supprimerAffaire(affaireASupprimer)}
+        title="Supprimer l'affaire"
+        message={`Êtes-vous sûr de vouloir supprimer "${affaireASupprimer}" ?`}
+        confirmText="Supprimer"
+        isDestructive
+      />
     </AppLayout>
   );
 }
