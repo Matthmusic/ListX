@@ -218,44 +218,39 @@ const ARBO_ROOTS_ORDER = ['A - PIECES ECRITES', 'B - PIECES GRAPHIQUES'];
 
 const sanitizeForFilesystem = (value = '') => value.replace(/[\\/:*?"<>|]/g, '-').trim();
 
-const getSectionLayout = (docs = []) => {
-  const layout = [...ARBO_SECTION_DEFINITIONS];
-  const handledNatures = new Set(layout.map(def => def.nature));
-  const extraNatures = [];
-
+// Construit la liste des sections (une par catégorie réellement présente
+// dans les documents, dans leur ordre d'apparition — le même ordre que celui
+// utilisé pour la numérotation). Le préfixe numérique de chaque section
+// correspond à la partie stable du numéro de cette catégorie dans le mode de
+// numérotation actif : le chiffre des centaines en mode 'categorie'/'generale'
+// (ex: 201,202 -> préfixe 2), les deux premiers chiffres en mode 'dizaine'
+// (ex: centaine=1, 3e catégorie -> 111,112 -> préfixe 11). Les catégories
+// sans documents ne génèrent aucune section (donc aucun dossier vide).
+const getSectionLayout = (docs = [], modeNumerotation = 'categorie', dizaineCentaine = 0) => {
+  const categoriesPresentes = [];
   docs.forEach(doc => {
-    const nature = doc?.nature;
-    if (nature && !handledNatures.has(nature)) {
-      handledNatures.add(nature);
-      extraNatures.push(nature);
+    if (doc?.nature && !categoriesPresentes.includes(doc.nature)) {
+      categoriesPresentes.push(doc.nature);
     }
   });
 
-  if (extraNatures.length === 0) {
-    return layout;
-  }
+  return categoriesPresentes.map((nature, index) => {
+    const def = ARBO_SECTION_DEFINITIONS.find(d => d.nature === nature);
+    const root = def?.root || 'B - PIECES GRAPHIQUES';
+    const label = def?.label || nature;
+    const rootLetter = root.charAt(0);
 
-  const baseBIndices = layout
-    .filter(def => def.root === 'B - PIECES GRAPHIQUES')
-    .map(def => {
-      const match = def.sectionCode.match(/^B(\d+)$/);
-      return match ? parseInt(match[1], 10) : 0;
-    })
-    .filter(Boolean);
+    const prefixNumber = modeNumerotation === 'dizaine'
+      ? dizaineCentaine * 10 + index // ex: centaine=1, index=2 -> 12 (numéros 121,122...)
+      : index + 1; // ex: index=1 -> 2 (numéros 201,202...)
 
-  let nextIndex = baseBIndices.length > 0 ? Math.max(...baseBIndices) + 1 : 1;
-
-  extraNatures.sort().forEach((nature) => {
-    layout.push({
+    return {
       nature,
-      root: 'B - PIECES GRAPHIQUES',
-      sectionCode: `B${String(nextIndex)}`,
-      label: nature,
-    });
-    nextIndex += 1;
+      root,
+      sectionCode: `${rootLetter}${prefixNumber}`,
+      label,
+    };
   });
-
-  return layout;
 };
 
 export default function DocumentListingApp() {
@@ -2040,7 +2035,7 @@ export default function DocumentListingApp() {
   };
 
   const genererArborescence = () => {
-    const sectionLayout = getSectionLayout(documents);
+    const sectionLayout = getSectionLayout(documents, modeNumerotation, dizaineCentaine);
     const docsByNature = documents.reduce((acc, doc) => {
       if (!doc?.nature) return acc;
       if (!acc[doc.nature]) acc[doc.nature] = [];
@@ -2114,7 +2109,7 @@ export default function DocumentListingApp() {
       showNotification('Création de l\'arborescence en cours...', 'info');
 
       // Grouper les documents par nature
-     const sectionLayout = getSectionLayout(documents);
+     const sectionLayout = getSectionLayout(documents, modeNumerotation, dizaineCentaine);
 
       const rootHandles = new Map();
       for (const root of ARBO_ROOTS_ORDER) {
