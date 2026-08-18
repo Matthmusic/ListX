@@ -115,7 +115,7 @@ export default function ExportPreview({
 
                     {/* Zone titre */}
                     <div className="flex-1 flex items-center justify-center px-4">
-                      <h1 className="text-lg font-bold text-blue-900 text-center" style={{ fontFamily: 'Cooper Black, serif' }}>
+                      <h1 className="text-lg font-bold text-blue-900 text-center" style={{ fontFamily: 'Helvetica, Arial, sans-serif' }}>
                         {exportNomProjet || 'NOM DU PROJET'}
                       </h1>
                     </div>
@@ -139,7 +139,7 @@ export default function ExportPreview({
                     <div className="w-24 px-2 text-xs font-bold border-r border-white/30">
                       {exportDateListe ? new Date(exportDateListe).toLocaleDateString('fr-FR') : ''}
                     </div>
-                    <div className="flex-1 text-center font-bold text-sm" style={{ fontFamily: 'Cooper Black, serif' }}>
+                    <div className="flex-1 text-center font-bold text-sm" style={{ fontFamily: 'Helvetica, Arial, sans-serif' }}>
                       {exportNomListe || 'NOM DE LA LISTE'}
                     </div>
                     <div className="w-24 px-2 text-xs font-bold text-right">
