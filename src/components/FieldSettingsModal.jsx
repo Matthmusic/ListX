@@ -42,7 +42,7 @@ const AvailableZoneContainer = ({ children }) => {
   });
 
   return (
-    <div ref={setNodeRef} className="bg-white/5 backdrop-blur-sm rounded-lg p-2 border-2 border-dashed border-white/30 min-h-[80px]">
+    <div ref={setNodeRef} className="bg-white/5 rounded-xl p-2.5 border border-white/15 min-h-[80px]">
       {children}
     </div>
   );
@@ -55,7 +55,7 @@ const DisplayZoneContainer = ({ children }) => {
   });
 
   return (
-    <div ref={setNodeRef} className="bg-blue-500/10 backdrop-blur-sm rounded-lg p-2 border-2 border-dashed border-blue-400/50 min-h-[80px]">
+    <div ref={setNodeRef} className="bg-indigo-500/10 rounded-xl p-2.5 border border-indigo-400/30 min-h-[80px]">
       {children}
     </div>
   );
@@ -68,7 +68,7 @@ const FilenameZoneContainer = ({ children }) => {
   });
 
   return (
-    <div ref={setNodeRef} className="bg-green-500/10 backdrop-blur-sm rounded-lg p-2 border-2 border-dashed border-green-400/50 min-h-[80px]">
+    <div ref={setNodeRef} className="bg-emerald-500/10 rounded-xl p-2.5 border border-emerald-400/30 min-h-[80px]">
       {children}
     </div>
   );
@@ -162,7 +162,7 @@ const AvailableFieldItem = ({ field, isCustom, onEdit, onRemove, onAddToZones })
 // wrap : la cible de drop ne bouge plus de ligne pendant le glisser. Les
 // flèches monter/descendre permettent un ajustement d'une position sans
 // avoir à viser un drag précis.
-const ActiveFieldItem = ({ field, isCustom, isSystem, zoneColor = "blue", onRemove, onMoveUp, onMoveDown, isFirst, isLast }) => {
+const ActiveFieldItem = ({ field, isCustom, isSystem, zoneColor = "blue", onRemove, onMoveUp, onMoveDown, isFirst, isLast, index }) => {
   const {
     attributes,
     listeners,
@@ -179,11 +179,11 @@ const ActiveFieldItem = ({ field, isCustom, isSystem, zoneColor = "blue", onRemo
   };
 
   const colorClasses = {
-    blue: "border-blue-500 shadow-lg",
-    green: "border-green-500 shadow-lg"
+    blue: "border-indigo-500 shadow-lg",
+    green: "border-emerald-500 shadow-lg"
   };
 
-  const hoverClass = zoneColor === "blue" ? "hover:border-blue-400" : "hover:border-green-400";
+  const hoverClass = zoneColor === "blue" ? "hover:border-indigo-400" : "hover:border-emerald-400";
 
   const realId = field.realId || field.id;
   const displayLabel = field.displayLabel || field.label || realId;
@@ -192,14 +192,18 @@ const ActiveFieldItem = ({ field, isCustom, isSystem, zoneColor = "blue", onRemo
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 p-2 bg-white rounded-lg border-2 transition-colors ${
-        isDragging ? colorClasses[zoneColor] : `border-gray-300 ${hoverClass}`
+      className={`w-full flex items-center gap-2.5 p-2.5 bg-white rounded-lg border transition-colors ${
+        isDragging ? colorClasses[zoneColor] : `border-gray-200 ${hoverClass}`
       }`}
     >
+      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 text-gray-500 text-[10px] font-bold flex-shrink-0">
+        {index}
+      </span>
+
       <span
         {...attributes}
         {...listeners}
-        className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 flex-shrink-0"
+        className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 flex-shrink-0"
         title="Glisser pour réorganiser"
       >
         <GripVertical className="w-4 h-4" />
@@ -218,7 +222,7 @@ const ActiveFieldItem = ({ field, isCustom, isSystem, zoneColor = "blue", onRemo
         <button
           onClick={() => onMoveUp(realId)}
           disabled={isFirst}
-          className="p-1 rounded text-gray-600 hover:bg-gray-100 disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          className="p-1.5 rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
           title="Monter d'une position"
         >
           <ChevronUp className="w-3.5 h-3.5" />
@@ -226,7 +230,7 @@ const ActiveFieldItem = ({ field, isCustom, isSystem, zoneColor = "blue", onRemo
         <button
           onClick={() => onMoveDown(realId)}
           disabled={isLast}
-          className="p-1 rounded text-gray-600 hover:bg-gray-100 disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          className="p-1.5 rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
           title="Descendre d'une position"
         >
           <ChevronDown className="w-3.5 h-3.5" />
@@ -234,7 +238,7 @@ const ActiveFieldItem = ({ field, isCustom, isSystem, zoneColor = "blue", onRemo
         {onRemove && !isSystem && (
           <button
             onClick={() => onRemove(realId)}
-            className="p-1 hover:bg-red-100 rounded text-red-600"
+            className="p-1.5 hover:bg-red-50 rounded text-red-500 hover:text-red-600 transition-colors"
             title="Retirer de cette zone"
           >
             <X className="w-3.5 h-3.5" />
@@ -1137,15 +1141,15 @@ export const FieldSettingsModal = ({ onClose }) => {
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
               >
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {/* Zone 1 - Champs disponibles */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-                        <span className="bg-gray-200 rounded-full w-6 h-6 flex items-center justify-center text-xs">
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <span className="bg-white/15 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">
                           {availableFields.length}
                         </span>
-                        Zone 1 - Champs disponibles
+                        Champs disponibles
                       </h3>
                       {/* BOUTON AJOUTER CHAMP PERSONNALISÃ‰ */}
                       {!showAddCustomField ? (
@@ -1220,21 +1224,26 @@ export const FieldSettingsModal = ({ onClose }) => {
                   {/* Zone 2 - Formulaire et exports */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-                        <span className="bg-blue-200 rounded-full w-6 h-6 flex items-center justify-center text-xs">
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <span className="bg-indigo-400/30 text-indigo-100 rounded-full w-6 h-6 flex items-center justify-center text-xs">
                           {displayFields.length}
                         </span>
-                        Zone 2 - Exports (Excel/PDF)
+                        Ordre du formulaire et des exports
                       </h3>
                       <button
                         onClick={handleCopyDisplayToFilename}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold transition-colors text-xs"
-                        title="Copier cet ordre vers la zone 3"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 text-indigo-100 rounded-lg font-medium transition-colors text-xs"
+                        title="Copier cet ordre vers le nom de fichier"
                       >
                         <ArrowDown className="w-3.5 h-3.5" />
-                        Copier l'ordre en bas
+                        Copier vers le nom de fichier
                       </button>
                     </div>
+                    {displayFields.length > 0 && (
+                      <p className="text-[11px] text-indigo-200/70 mb-1.5 truncate">
+                        {displayFields.map(f => getFieldDisplayLabel(f.id)).join('  →  ')}
+                      </p>
+                    )}
                     <DisplayZoneContainer>
                       <div className="flex flex-col gap-1.5">
                         {displayFields.length === 0 ? (
@@ -1264,6 +1273,7 @@ export const FieldSettingsModal = ({ onClose }) => {
                                 onMoveDown={(fieldId) => handleMoveFieldInDisplay(fieldId, 'down')}
                                 isFirst={index === 0}
                                 isLast={index === displayFields.length - 1}
+                                index={index + 1}
                               />
                             ))}
                           </SortableContext>
@@ -1275,21 +1285,26 @@ export const FieldSettingsModal = ({ onClose }) => {
                   {/* Zone 3 - Nom de fichier */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-                        <span className="bg-green-200 rounded-full w-6 h-6 flex items-center justify-center text-xs">
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <span className="bg-emerald-400/30 text-emerald-100 rounded-full w-6 h-6 flex items-center justify-center text-xs">
                           {filenameFields.length}
                         </span>
-                        Zone 3 - Nom de fichier
+                        Ordre du nom de fichier
                       </h3>
                       <button
                         onClick={handleCopyFilenameToDisplay}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold transition-colors text-xs"
-                        title="Copier cet ordre vers la zone 2"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 text-emerald-100 rounded-lg font-medium transition-colors text-xs"
+                        title="Copier cet ordre vers le formulaire et les exports"
                       >
                         <ArrowUp className="w-3.5 h-3.5" />
-                        Copier l'ordre en haut
+                        Copier vers le formulaire
                       </button>
                     </div>
+                    {filenameFields.length > 0 && (
+                      <p className="text-[11px] text-emerald-200/70 mb-1.5 truncate">
+                        {filenameFields.map(f => getFieldDisplayLabel(f.id)).join('  →  ')}
+                      </p>
+                    )}
                     <FilenameZoneContainer>
                       <div className="flex flex-col gap-1.5">
                         {filenameFields.length === 0 ? (
@@ -1318,6 +1333,7 @@ export const FieldSettingsModal = ({ onClose }) => {
                                 onMoveDown={(fieldId) => handleMoveFieldInFilename(fieldId, 'down')}
                                 isFirst={index === 0}
                                 isLast={index === filenameFields.length - 1}
+                                index={index + 1}
                               />
                             ))}
                           </SortableContext>
@@ -1326,27 +1342,27 @@ export const FieldSettingsModal = ({ onClose }) => {
                     </FilenameZoneContainer>
 
                     {/* PRÃ‰VISUALISATION DES CHAMPS DU FORMULAIRE (FUSION ZONES 2 ET 3) */}
-                    <div className="mt-2 p-2 bg-amber-500/20 backdrop-blur-sm rounded-lg border border-amber-400/50">
-                      <p className="text-xs font-bold text-amber-200 mb-1">Champs du formulaire :</p>
+                    <div className="mt-3 p-2.5 bg-white/5 rounded-lg border border-white/10">
+                      <p className="text-xs font-bold text-white/60 mb-1.5 uppercase tracking-wide">Champs du formulaire</p>
                       <div className="flex flex-wrap gap-1">
                         {mergeFormFieldsOrder(newTemplate).filter(f => f !== 'NOM' && newTemplate.activeFields.includes(f)).map((fieldId) => {
                           const label = newTemplate.fieldsLabels[fieldId] || fieldId;
                           return (
-                            <span key={fieldId} className="px-2 py-0.5 bg-amber-400/30 text-amber-100 text-xs rounded font-medium border border-amber-400/50">
+                            <span key={fieldId} className="px-2 py-0.5 bg-white/10 text-white/80 text-xs rounded font-medium border border-white/10">
                               {label}
                             </span>
                           );
                         })}
-                        <span className="px-2 py-0.5 bg-amber-400/30 text-amber-100 text-xs rounded font-medium border border-amber-400/50">
+                        <span className="px-2 py-0.5 bg-white/10 text-white/80 text-xs rounded font-medium border border-white/10">
                           NOM
                         </span>
                       </div>
                     </div>
 
                     {/* PRÃ‰VISUALISATION DU NOM DE FICHIER */}
-                    <div className="mt-2 p-2 bg-purple-500/20 backdrop-blur-sm rounded-lg border border-purple-400/50">
-                      <p className="text-xs font-bold text-purple-200 mb-0.5">Aperçu du nom de fichier :</p>
-                      <p className="text-xs font-mono text-purple-100">{getFilenamePreview()}</p>
+                    <div className="mt-2 p-2.5 bg-white/5 rounded-lg border border-white/10">
+                      <p className="text-xs font-bold text-white/60 mb-1 uppercase tracking-wide">Aperçu du nom de fichier</p>
+                      <p className="text-xs font-mono text-white">{getFilenamePreview()}</p>
                     </div>
                   </div>
                 </div>
