@@ -2199,39 +2199,27 @@ export default function DocumentListingApp() {
       return;
     }
 
+    if (!window.electronAPI?.arborescence) {
+      showNotification('Création de dossiers indisponible hors de l\'application', 'error');
+      return;
+    }
+
     try {
       // Demander à l'utilisateur de sélectionner le dossier de base
-      const directoryHandle = await window.showDirectoryPicker({
-        mode: 'readwrite'
-      });
+      // (boîte de dialogue native, côté process principal — nécessaire pour
+      // pouvoir ouvrir ce dossier dans l'explorateur une fois terminé).
+      const selection = await window.electronAPI.arborescence.selectFolder();
+      if (!selection.success) {
+        if (!selection.canceled) {
+          showNotification('Erreur lors de la sélection du dossier : ' + selection.error, 'error');
+        }
+        return;
+      }
+      const basePath = selection.path;
 
       showNotification('Création de l\'arborescence en cours...', 'info');
 
-      // Grouper les documents par nature
-     const sectionLayout = getSectionLayout(documents, modeNumerotation, dizaineParCategorie);
-
-      const rootHandles = new Map();
-      for (const root of ARBO_ROOTS_ORDER) {
-        const hasSection = sectionLayout.some(section => section.root === root);
-        if (!hasSection) continue;
-        const rootHandle = await directoryHandle.getDirectoryHandle(root, { create: true });
-        rootHandles.set(root, rootHandle);
-      }
-
-      const sectionHandles = new Map();
-      for (const section of sectionLayout) {
-        const rootHandle = rootHandles.get(section.root);
-        if (!rootHandle) continue;
-        // La notice (NOT) va directement à la racine de son root, sans
-        // sous-dossier dédié : c'est la seule catégorie de ce root.
-        if (section.nature === 'NOT') {
-          sectionHandles.set(section.nature, rootHandle);
-          continue;
-        }
-        const sectionDirName = `${section.sectionCode} - ${section.label}`;
-        const sectionHandle = await rootHandle.getDirectoryHandle(sectionDirName, { create: true });
-        sectionHandles.set(section.nature, sectionHandle);
-      }
+      const sectionLayout = getSectionLayout(documents, modeNumerotation, dizaineParCategorie);
 
       const docsByNature = documents.reduce((acc, doc) => {
         if (!doc?.nature) return acc;
@@ -2240,14 +2228,19 @@ export default function DocumentListingApp() {
         return acc;
       }, {});
 
-      for (const section of sectionLayout) {
-        const sectionHandle = sectionHandles.get(section.nature);
-        if (!sectionHandle) continue;
+      // Construire le plan de création (dossiers + fichiers), envoyé tel quel
+      // au process principal qui fait le vrai travail sur le disque.
+      const plan = [];
 
+      sectionLayout.forEach((section) => {
         const docsForSection = docsByNature[section.nature];
-        if (!docsForSection || docsForSection.length === 0) {
-          continue;
-        }
+        if (!docsForSection || docsForSection.length === 0) return;
+
+        // La notice (NOT) va directement à la racine de son root, sans
+        // sous-dossier dédié : c'est la seule catégorie de ce root.
+        const folderSegments = section.nature === 'NOT'
+          ? [section.root]
+          : [section.root, `${section.sectionCode} - ${section.label}`];
 
         const sortedDocs = [...docsForSection].sort((a, b) => {
           const numeroA = (a.numero || '').toString();
@@ -2255,8 +2248,7 @@ export default function DocumentListingApp() {
           return numeroA.localeCompare(numeroB, 'fr', { numeric: true, sensitivity: 'base' });
         });
 
-        for (let index = 0; index < sortedDocs.length; index++) {
-          const doc = sortedDocs[index];
+        sortedDocs.forEach((doc, index) => {
           const docIndex = `${section.sectionCode}.${String(index + 1).padStart(2, '0')}`;
           const numero = sanitizeForFilesystem((doc.numero || '').toString());
           const rawName = (doc.nom && doc.nom.trim() !== '') ? doc.nom : (doc.nomComplet || 'SANS NOM');
@@ -2272,44 +2264,50 @@ export default function DocumentListingApp() {
           // dans le dossier de la section (nature), un cran plus haut.
           const safeNameBase = (doc.nomComplet && doc.nomComplet.trim() !== '') ? doc.nomComplet : folderName;
           const safeFileName = `${sanitizeForFilesystem(safeNameBase) || 'document'}.txt`;
-          const displayName = safeNameBase;
+          const contentLines = [
+            `DOSSIER : ${folderName}`,
+            `NOM COMPLET : ${doc.nomComplet || 'Non renseigné'}`,
+            `NATURE : ${doc.nature || 'Non renseigné'}`,
+            `INDICE : ${doc.indice || 'Non renseigné'}`,
+            `FORMAT : ${doc.format || 'Non renseigné'}`,
+            `PHASE : ${doc.phase || 'Non renseignée'}`,
+            `AFFAIRE : ${doc.affaire || 'Non renseignée'}`
+          ];
 
-          try {
-            await sectionHandle.getFileHandle(safeFileName, { create: false });
-            showNotification(`Fichier déjà présent pour ${displayName} (aucune écriture)`, 'warning');
-          } catch (fileError) {
-            if (fileError.name === 'NotFoundError') {
-              try {
-                const fileHandle = await sectionHandle.getFileHandle(safeFileName, { create: true });
-                const writable = await fileHandle.createWritable();
-                const contentLines = [
-                  `DOSSIER : ${folderName}`,
-                  `NOM COMPLET : ${doc.nomComplet || 'Non renseigné'}`,
-                  `NATURE : ${doc.nature || 'Non renseigné'}`,
-                  `INDICE : ${doc.indice || 'Non renseigné'}`,
-                  `FORMAT : ${doc.format || 'Non renseigné'}`,
-                  `PHASE : ${doc.phase || 'Non renseignée'}`,
-                  `AFFAIRE : ${doc.affaire || 'Non renseignée'}`
-                ];
-                await writable.write(contentLines.join('\n'));
-                await writable.close();
-              } catch (writeError) {
-                showNotification(`Impossible d'écrire le fichier pour ${displayName} : ${writeError.message}`, 'error');
-              }
-            } else {
-              showNotification(`Impossible de vérifier le fichier pour ${displayName} : ${fileError.message}`, 'error');
-            }
-          }
-        }
+          plan.push({
+            folderSegments,
+            fileName: safeFileName,
+            content: contentLines.join('\n'),
+            displayName: safeNameBase,
+          });
+        });
+      });
+
+      const result = await window.electronAPI.arborescence.createFiles(basePath, plan);
+      if (!result.success) {
+        showNotification('Erreur lors de la création : ' + result.error, 'error');
+        return;
       }
 
-      showNotification('Arborescence créée avec succès !', 'success');
+      if (result.errors.length > 0) {
+        showNotification(
+          `${result.errors.length} fichier(s) n'ont pas pu être créés (ex: ${result.errors[0].name} — ${result.errors[0].message})`,
+          'error'
+        );
+      }
+
+      const resume = result.skipped.length > 0
+        ? `Arborescence créée : ${result.created.length} fichier(s), ${result.skipped.length} déjà présent(s)`
+        : `Arborescence créée avec succès ! (${result.created.length} fichier(s))`;
+      showNotification(resume, 'success');
+
+      // Ouvrir le dossier de destination dans l'explorateur
+      const openResult = await window.electronAPI.arborescence.openFolder(basePath);
+      if (!openResult.success) {
+        showNotification('Arborescence créée, mais impossible d\'ouvrir le dossier : ' + openResult.error, 'warning');
+      }
     } catch (error) {
-      if (error.name === 'AbortError') {
-        showNotification('Création annulée', 'info');
-      } else {
-        showNotification('Erreur lors de la création : ' + error.message, 'error');
-      }
+      showNotification('Erreur lors de la création : ' + error.message, 'error');
     }
   };
 

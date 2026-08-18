@@ -49,6 +49,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onMaximizedChange: (callback) => {
       ipcRenderer.on('window-maximized-change', (event, isMax) => callback(isMax));
     }
+  },
+
+  // Arborescence de documents (creation cote process principal + ouverture)
+  arborescence: {
+    selectFolder: () => ipcRenderer.invoke('select-arborescence-folder'),
+    createFiles: (basePath, plan) => ipcRenderer.invoke('create-arborescence-files', { basePath, plan }),
+    openFolder: (folderPath) => ipcRenderer.invoke('open-folder', folderPath),
   }
 });
 

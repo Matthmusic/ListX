@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, nativeTheme, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, nativeTheme, Menu, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
@@ -272,6 +272,88 @@ ipcMain.on('window-close', () => {
 
 ipcMain.handle('window-is-maximized', () => {
   return mainWindow?.isMaximized() ?? false;
+});
+
+// ==============================
+// ARBORESCENCE DE DOCUMENTS
+// ==============================
+// Cote process principal (plutot que l'API navigateur showDirectoryPicker,
+// qui ne donne pas de chemin reel exploitable) afin de pouvoir ouvrir le
+// dossier de destination dans l'explorateur une fois la creation terminee.
+
+// Choisir le dossier de destination via la boite de dialogue native
+ipcMain.handle('select-arborescence-folder', async () => {
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory', 'createDirectory'],
+      title: 'Selectionner le dossier de destination',
+      buttonLabel: 'Selectionner',
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return { success: false, canceled: true };
+    }
+
+    return { success: true, path: result.filePaths[0] };
+  } catch (error) {
+    console.error('Erreur selection dossier arborescence:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Creer les dossiers/fichiers de l'arborescence. plan = tableau de
+// { folderSegments: string[], fileName: string, content: string }
+ipcMain.handle('create-arborescence-files', async (event, { basePath, plan }) => {
+  const created = [];
+  const skipped = [];
+  const errors = [];
+
+  if (!basePath || !Array.isArray(plan)) {
+    return { success: false, error: 'Parametres invalides' };
+  }
+
+  for (const entry of plan) {
+    try {
+      const segments = Array.isArray(entry.folderSegments) ? entry.folderSegments : [];
+      // Securite minimale : rejeter tout segment qui tenterait de sortir du dossier de base
+      if (segments.some((s) => s.includes('..')) || (entry.fileName || '').includes('..')) {
+        errors.push({ name: entry.fileName || 'fichier', message: 'Chemin invalide' });
+        continue;
+      }
+
+      const folderPath = path.join(basePath, ...segments);
+      fs.mkdirSync(folderPath, { recursive: true });
+
+      const filePath = path.join(folderPath, entry.fileName);
+      if (fs.existsSync(filePath)) {
+        skipped.push(entry.displayName || entry.fileName);
+        continue;
+      }
+
+      fs.writeFileSync(filePath, entry.content || '', 'utf8');
+      created.push(entry.displayName || entry.fileName);
+    } catch (error) {
+      console.error('Erreur creation fichier arborescence:', error);
+      errors.push({ name: entry.displayName || entry.fileName || 'fichier', message: error.message });
+    }
+  }
+
+  return { success: true, created, skipped, errors };
+});
+
+// Ouvrir un dossier dans l'explorateur de fichiers
+ipcMain.handle('open-folder', async (event, folderPath) => {
+  try {
+    const result = await shell.openPath(folderPath);
+    // shell.openPath resout avec une chaine d'erreur (vide si succes), pas une exception
+    if (result) {
+      return { success: false, error: result };
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur ouverture dossier:', error);
+    return { success: false, error: error.message };
+  }
 });
 
 // ==============================
