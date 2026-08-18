@@ -103,6 +103,7 @@ function createWindow() {
   // Afficher la fen├¬tre quand elle est pr├¬te
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    mainWindow.focus();
 
     // V├®rifier les mises ├á jour au d├®marrage (seulement en prod)
     if (!isDev) {
@@ -110,6 +111,14 @@ function createWindow() {
         autoUpdater.checkForUpdates();
       }, 3000);
     }
+  });
+
+  // Resynchroniser le focus clavier du contenu web a chaque reprise de focus
+  // de la fenetre (bug connu Electron/Windows : show() seul ne transfere pas
+  // toujours le focus clavier OS vers le renderer, notamment apres un cycle
+  // perte/reprise de focus type alt-tab)
+  mainWindow.on('focus', () => {
+    mainWindow.webContents.focus();
   });
 
   mainWindow.on('maximize', () => {
