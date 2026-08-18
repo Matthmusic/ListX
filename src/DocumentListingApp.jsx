@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import { Plus, Download, Trash2, FolderTree, GripVertical, X, CheckCircle, AlertCircle, Info, FileText, ListOrdered, FileDown, Edit, Settings, Upload, ListChecks } from 'lucide-react';
+import { Plus, Download, Trash2, FolderTree, GripVertical, X, CheckCircle, AlertCircle, Info, FileText, ListOrdered, FileDown, Edit, Settings, Upload, ListChecks, Hash } from 'lucide-react';
 import { TemplateContext } from './context/TemplateContext';
 import { useApp } from './context/AppContext';
 import { useNatures } from './context/NaturesContext';
@@ -375,8 +375,12 @@ export default function DocumentListingApp() {
   const [exportLogoBE, setExportLogoBE] = useState(null);
   const [exportAfficherCategories, setExportAfficherCategories] = useState(false);
 
-  // État pour le mode de numérotation actif ('categorie' ou 'generale')
+  // État pour le mode de numérotation actif ('categorie', 'generale' ou 'dizaine')
   const [modeNumerotation, setModeNumerotation] = useState('categorie');
+
+  // Chiffre des centaines choisi pour le mode 'dizaine' (chaque catégorie occupe
+  // une tranche de dizaine au lieu d'une tranche de centaine, ex: centaine=1 -> 101,102,111,121...)
+  const [dizaineCentaine, setDizaineCentaine] = useState(1);
 
   // État pour la version de l'app
   const [appVersion, setAppVersion] = useState('');
@@ -414,8 +418,10 @@ export default function DocumentListingApp() {
   };
 
   const getNextNumber = (natureCode) => {
-    if (modeNumerotation === 'categorie') {
-      // Numérotation par catégorie avec centaines : 1XX, 2XX, 3XX...
+    if (modeNumerotation === 'categorie' || modeNumerotation === 'dizaine') {
+      // Numérotation par catégorie avec centaines (1XX, 2XX, 3XX...) ou,
+      // en mode 'dizaine', par tranche de dix au sein d'une centaine choisie
+      // (centaine=1 -> 101,102... puis 111,112... puis 121,122...)
       // Obtenir les catégories uniques dans l'ordre d'apparition
       const categoriesPresentes = [];
       documents.forEach(doc => {
@@ -430,7 +436,9 @@ export default function DocumentListingApp() {
       }
 
       const categoryIndex = categoriesPresentes.indexOf(natureCode);
-      const categoryBase = (categoryIndex + 1) * 100; // 100, 200, 300...
+      const categoryBase = modeNumerotation === 'dizaine'
+        ? dizaineCentaine * 100 + categoryIndex * 10 // 100, 110, 120...
+        : (categoryIndex + 1) * 100; // 100, 200, 300...
       const docsOfType = documents.filter(d => d.nature === natureCode);
       return (categoryBase + docsOfType.length + 1).toString().padStart(3, '0'); // 101, 102, 103...
     } else {
@@ -496,7 +504,12 @@ export default function DocumentListingApp() {
     return nomBase;
   };
 
-  const renumeroteDocuments = (docs) => {
+  // centaineDizaine: si fourni (non null), numérote par tranche de dix au sein
+  // de cette centaine (mode 'dizaine') plutôt que par tranche de cent (mode
+  // 'categorie'). Paramètre explicite plutôt que lu depuis modeNumerotation
+  // pour éviter tout décalage avec un setModeNumerotation appelé juste avant
+  // dans le même gestionnaire (mise à jour d'état asynchrone).
+  const renumeroteDocuments = (docs, centaineDizaine = null) => {
     const grouped = docs.reduce((acc, doc) => {
       if (!acc[doc.nature]) acc[doc.nature] = [];
       acc[doc.nature].push(doc);
@@ -513,10 +526,13 @@ export default function DocumentListingApp() {
 
     const renumbered = [];
 
-    // Numérotation par catégorie avec centaines : 1XX, 2XX, 3XX...
+    // Numérotation par catégorie avec centaines (1XX, 2XX, 3XX...) ou,
+    // en mode 'dizaine', par tranche de dix au sein d'une centaine choisie
     categoriesPresentes.forEach((natureCode, categoryIndex) => {
       if (grouped[natureCode]) {
-        const categoryBase = (categoryIndex + 1) * 100; // 100, 200, 300...
+        const categoryBase = centaineDizaine !== null
+          ? centaineDizaine * 100 + categoryIndex * 10 // 100, 110, 120...
+          : (categoryIndex + 1) * 100; // 100, 200, 300...
         grouped[natureCode].forEach((doc, docIndex) => {
           const newNumero = (categoryBase + docIndex + 1).toString().padStart(3, '0'); // 101, 102, 103...
           renumbered.push({
@@ -578,7 +594,7 @@ export default function DocumentListingApp() {
         return doc;
       });
 
-      const renumberedDocs = renumeroteDocuments(updatedDocs);
+      const renumberedDocs = renumeroteDocuments(updatedDocs, modeNumerotation === 'dizaine' ? dizaineCentaine : null);
       setDocuments(renumberedDocs);
       saveDocumentsToStorage(renumberedDocs); // Sauvegarder après modification
       showNotification('Document modifié avec succès !', 'success');
@@ -686,7 +702,7 @@ export default function DocumentListingApp() {
 
   const supprimerDocument = (id) => {
     const filtered = documents.filter(d => d.id !== id);
-    const renumberedDocs = renumeroteDocuments(filtered);
+    const renumberedDocs = renumeroteDocuments(filtered, modeNumerotation === 'dizaine' ? dizaineCentaine : null);
     setDocuments(renumberedDocs);
     saveDocumentsToStorage(renumberedDocs); // Sauvegarder après suppression
   };
@@ -711,7 +727,7 @@ export default function DocumentListingApp() {
     const newIndex = documents.findIndex(d => d.id === over.id);
 
     const reorderedDocs = arrayMove(documents, oldIndex, newIndex);
-    const renumberedDocs = renumeroteDocuments(reorderedDocs);
+    const renumberedDocs = renumeroteDocuments(reorderedDocs, modeNumerotation === 'dizaine' ? dizaineCentaine : null);
     setDocuments(renumberedDocs);
     saveDocumentsToStorage(renumberedDocs); // Sauvegarder après réorganisation
   };
@@ -755,8 +771,11 @@ export default function DocumentListingApp() {
     try {
       // Renuméroter les documents pour garantir l'ordre correct selon le mode actif
       let documentsToExport;
-      if (modeNumerotation === 'categorie') {
-        documentsToExport = renumeroteDocuments(documents);
+      if (modeNumerotation === 'categorie' || modeNumerotation === 'dizaine') {
+        documentsToExport = renumeroteDocuments(
+          documents,
+          modeNumerotation === 'dizaine' ? dizaineCentaine : null
+        );
       } else {
         // Numérotation générale pour l'export
         const categoriesPresentes = [];
@@ -1517,8 +1536,11 @@ export default function DocumentListingApp() {
     try {
       // Forcer la renumérotation des documents avant export selon le mode actif
       let documentsToExport;
-      if (modeNumerotation === 'categorie') {
-        documentsToExport = renumeroteDocuments(documents);
+      if (modeNumerotation === 'categorie' || modeNumerotation === 'dizaine') {
+        documentsToExport = renumeroteDocuments(
+          documents,
+          modeNumerotation === 'dizaine' ? dizaineCentaine : null
+        );
       } else {
         // Numérotation générale pour l'export
         const categoriesPresentes = [];
@@ -1866,7 +1888,7 @@ export default function DocumentListingApp() {
     });
 
     // Renuméroter avec le nouvel ordre
-    setDocuments(renumeroteDocuments(newDocuments));
+    setDocuments(renumeroteDocuments(newDocuments, modeNumerotation === 'dizaine' ? dizaineCentaine : null));
     showNotification('Ordre des catégories modifié et documents renumérotés', 'success');
   };
 
@@ -1878,6 +1900,15 @@ export default function DocumentListingApp() {
     } else {
       showNotification('Mode numérotation par catégorie activé', 'success');
     }
+  };
+
+  const forcerRenumerationParDizaine = (centaine = dizaineCentaine) => {
+    setModeNumerotation('dizaine');
+    setDizaineCentaine(centaine);
+    if (documents.length > 0) {
+      setDocuments(renumeroteDocuments(documents, centaine));
+    }
+    showNotification('Mode numérotation par dizaine activé', 'success');
   };
 
   const forcerRenumerationGenerale = () => {
@@ -2335,6 +2366,9 @@ export default function DocumentListingApp() {
               // Rétro-compatibilité avec l'ancien système useRanges
               setModeNumerotation('categorie');
             }
+            if (listingData.settings.dizaineCentaine !== undefined) {
+              setDizaineCentaine(listingData.settings.dizaineCentaine);
+            }
           }
 
           // Charger l'historique des champs
@@ -2470,6 +2504,9 @@ export default function DocumentListingApp() {
               if (listing.settings.modeNumerotation !== undefined) {
                 setModeNumerotation(listing.settings.modeNumerotation);
               }
+              if (listing.settings.dizaineCentaine !== undefined) {
+                setDizaineCentaine(listing.settings.dizaineCentaine);
+              }
               if (listing.settings.categoriesOrder) {
                 setCategoriesOrder(listing.settings.categoriesOrder);
               }
@@ -2507,6 +2544,9 @@ export default function DocumentListingApp() {
           } else if (data.settings.useRanges !== undefined) {
             // Rétro-compatibilité avec l'ancien système useRanges
             setModeNumerotation('categorie');
+          }
+          if (data.settings.dizaineCentaine !== undefined) {
+            setDizaineCentaine(data.settings.dizaineCentaine);
           }
           if (data.settings.categoriesOrder) {
             setCategoriesOrder(data.settings.categoriesOrder);
@@ -2595,6 +2635,7 @@ export default function DocumentListingApp() {
           documents: docsToSave,
           settings: {
             modeNumerotation,
+            dizaineCentaine,
             categoriesOrder,
           },
           // Sauvegarder le nom de la template associée
@@ -2616,7 +2657,7 @@ export default function DocumentListingApp() {
         if (!data.affaires) data.affaires = {};
         data.affaires[listingKey] = docsToSave;
         data.lastAffaire = listingKey;
-        data.settings = { modeNumerotation, categoriesOrder };
+        data.settings = { modeNumerotation, dizaineCentaine, categoriesOrder };
         data.templateName = currentTemplate?.name || null;
 
         localStorage.setItem('affairesData', JSON.stringify(data));
@@ -2627,9 +2668,9 @@ export default function DocumentListingApp() {
   // useEffect pour sauvegarder les paramètres
   useEffect(() => {
     const data = JSON.parse(localStorage.getItem('affairesData') || '{}');
-    data.settings = { modeNumerotation, categoriesOrder };
+    data.settings = { modeNumerotation, dizaineCentaine, categoriesOrder };
     localStorage.setItem('affairesData', JSON.stringify(data));
-  }, [modeNumerotation, categoriesOrder]);
+  }, [modeNumerotation, dizaineCentaine, categoriesOrder]);
 
   // useEffect pour sauvegarder la template quand elle change
   useEffect(() => {
@@ -3249,6 +3290,29 @@ export default function DocumentListingApp() {
                     <span className="font-medium text-xs relative z-10">Générale</span>
                   </button>
                 </div>
+                <button
+                  onClick={() => forcerRenumerationParDizaine()}
+                  className={`group relative w-full mt-2 flex items-center justify-center gap-2 py-2 rounded-lg text-white text-xs font-medium transition-all duration-200 ${modeNumerotation === 'dizaine' ? 'bg-gradient-to-br from-amber-700 to-amber-800 ring-2 ring-amber-300' : 'bg-gradient-to-br from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800'}`}
+                  title="Numérotation par dizaine (une tranche de dix par catégorie)"
+                >
+                  {modeNumerotation === 'dizaine' && <CheckCircle size={14} className="text-green-300" />}
+                  <Hash size={16} />
+                  Dizaine
+                </button>
+                {modeNumerotation === 'dizaine' && (
+                  <div className="flex items-center gap-2 mt-2 text-xs text-gray-700">
+                    <span>Centaine :</span>
+                    <select
+                      value={dizaineCentaine}
+                      onChange={(e) => forcerRenumerationParDizaine(Number(e.target.value))}
+                      className="border border-gray-300 rounded px-1.5 py-0.5 text-xs"
+                    >
+                      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(d => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* Encart Arborescence */}
