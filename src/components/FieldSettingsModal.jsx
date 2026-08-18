@@ -106,7 +106,7 @@ const AvailableFieldItem = ({ field, isCustom, onEdit, onRemove, onAddToZones })
       }`}
     >
       <span className={`px-2 py-1 rounded text-xs font-bold whitespace-nowrap ${
-        isCustom ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-white'
+        isCustom ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
       }`}>
         {displayLabel}
       </span>
@@ -1001,7 +1001,7 @@ export const FieldSettingsModal = ({ onClose }) => {
       />
 
       {/* Modal */}
-      <div className="relative bg-black/40 backdrop-blur-md border border-white/20 rounded-2xl shadow-2xl max-w-5xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="relative bg-black/40 backdrop-blur-md border border-white/20 rounded-2xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-white/20 flex items-center justify-between">
           <div>
@@ -1234,7 +1234,7 @@ export const FieldSettingsModal = ({ onClose }) => {
                           <p className="text-xs">Pour definir l'ordre du formulaire et des exports</p>
                         </div>
                       ) : (
-                        <div className="flex items-center overflow-x-auto">
+                        <div className="flex items-center overflow-x-auto hide-scrollbar">
                           <SortableContext
                             items={displayFields.map(f => `display-${f.id}`)}
                             strategy={horizontalListSortingStrategy}
@@ -1293,7 +1293,7 @@ export const FieldSettingsModal = ({ onClose }) => {
                           <p className="text-xs">Pour definir l'ordre du nom de fichier</p>
                         </div>
                       ) : (
-                        <div className="flex items-center overflow-x-auto">
+                        <div className="flex items-center overflow-x-auto hide-scrollbar">
                           <SortableContext
                             items={filenameFields.map(f => `filename-${f.id}`)}
                             strategy={horizontalListSortingStrategy}

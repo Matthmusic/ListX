@@ -4,6 +4,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Masque la scrollbar tout en gardant le défilement fonctionnel
+   (utilisé pour les bandeaux horizontaux de champs réordonnables) */
+.hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Edge legacy */
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chromium/Electron */
+}
+
 /* Background animé avec vagues */
 .wave-background {
   position: fixed;
