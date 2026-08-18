@@ -1298,7 +1298,7 @@ export default function DocumentListingApp() {
               };
               cell.alignment = {
                 vertical: 'middle',
-                horizontal: 'center'
+                horizontal: exportHeaders[index]?.field === 'nomComplet' ? 'left' : 'center'
               };
               cell.border = {
                 top: { style: 'thin', color: { argb: 'FF000000' } },
@@ -1345,7 +1345,7 @@ export default function DocumentListingApp() {
             };
             cell.alignment = {
               vertical: 'middle',
-              horizontal: 'center'
+              horizontal: exportHeaders[index]?.field === 'nomComplet' ? 'left' : 'center'
             };
             cell.border = {
               top: { style: 'thin', color: { argb: 'FF000000' } },
