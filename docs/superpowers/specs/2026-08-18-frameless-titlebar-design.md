@@ -71,9 +71,11 @@ Cohérence avec l'existant : nettoyage des listeners via `electronAPI.removeAllL
 | `currentView` | Titre affiché |
 |---|---|
 | `clients` | « ListX » |
-| `projects` | « ListX — {selectedClient.nom} » |
-| `listings` | « ListX — {selectedClient.nom} / {selectedProject.nom} » |
-| `editor` | « ListX — {selectedListing?.nom ?? 'Nouvelle liste'} » |
+| `projects` | « ListX — {selectedClient.name} » |
+| `listings` | « ListX — {selectedClient.name} / {selectedProject.name} » |
+| `editor` | « ListX — {selectedListing?.name ?? 'Nouvelle liste'} » |
+
+(Vérifié dans `src/services/storageService.js` : les objets client/projet/listing exposent tous `.name`, pas `.nom`.)
 
 ## Edge cases
 
