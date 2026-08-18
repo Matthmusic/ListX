@@ -4,7 +4,7 @@
   "app": {
     "id": "listx",
     "name": "ListX",
-    "version": "1.3.20",
+    "version": "1.3.21",
     "description": {
       "short": "Générateur de listings de documents techniques pour bureaux d'études",
       "long": "ListX est une application desktop professionnelle de génération et gestion de listings de documents techniques. Elle permet de créer rapidement des inventaires de fichiers avec organisation hiérarchique (clients/projets/listings), système de templates personnalisables, numérotation automatique intelligente, et exports PDF et Excel professionnels avec logos personnalisables. Parfaite pour la documentation de projets industriels et techniques avec gestion d'arborescence de dossiers."
@@ -72,9 +72,24 @@
   },
   "installation": {
     "type": "installer",
-    "downloadUrl": "https://github.com/Matthmusic/ListX/releases/latest/download/ListX-Setup-1.3.20.exe"
+    "downloadUrl": "https://github.com/Matthmusic/ListX/releases/latest/download/ListX-Setup-1.3.21.exe"
   },
   "changelog": {
+    "1.3.21": {
+      "date": "2026-08-18",
+      "changes": [
+        "Nouvelle fenêtre personnalisée (barre de titre custom, sans cadre natif)",
+        "Correction d'un bug de focus clavier bloquant la saisie tant que la fenêtre n'était pas quittée puis reprise",
+        "Numérotation par dizaine : assignation libre et indépendante par catégorie (trous possibles)",
+        "Création réelle de l'arborescence de dossiers sur le disque, avec ouverture automatique du dossier une fois terminée",
+        "Saisie manuelle du numéro de document (override ponctuel de la numérotation automatique)",
+        "Remplacement des alertes et confirmations natives par des popups stylées cohérentes avec l'application",
+        "Refonte de l'éditeur de champs de template (sélecteur horizontal, glisser-déposer amélioré)",
+        "Corrections des exports PDF/Excel (polices, alignement, bordures et centrage date/indice)",
+        "Correction : l'import d'un listing complet est désormais accessible même sur une liste vide",
+        "Nettoyage de code mort et corrections diverses de fiabilité"
+      ]
+    },
     "1.3.20": {
       "date": "2026-05-11",
       "changes": [
