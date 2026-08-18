@@ -20,7 +20,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { TemplateContext, DEFAULT_FIELDS } from "../context/TemplateContext";
-import { X, GripVertical, Save, Trash2, Download, Upload, Plus, Edit2, ArrowDown, ArrowUp, ChevronUp, ChevronDown, Settings } from "lucide-react";
+import { X, GripVertical, Save, Trash2, Download, Upload, Plus, Edit2, ArrowDown, ArrowUp, ChevronUp, ChevronDown, ChevronRight, Settings } from "lucide-react";
 import { mergeFormFieldsOrder } from "../utils/filename";
 
 // CHAMPS SYSTÈME NON-SUPPRIMABLES EN ZONE 2
@@ -1013,7 +1013,7 @@ export const FieldSettingsModal = ({ onClose }) => {
       />
 
       {/* Modal */}
-      <div className="relative bg-black/40 backdrop-blur-md border border-white/20 rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="relative bg-black/40 backdrop-blur-md border border-white/20 rounded-2xl shadow-2xl max-w-5xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-white/20 flex items-center justify-between">
           <div>
@@ -1240,9 +1240,18 @@ export const FieldSettingsModal = ({ onClose }) => {
                       </button>
                     </div>
                     {displayFields.length > 0 && (
-                      <p className="text-[11px] text-indigo-200/70 mb-1.5 truncate">
-                        {displayFields.map(f => getFieldDisplayLabel(f.id)).join('  →  ')}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-y-1 mb-2">
+                        {displayFields.map((f, i) => (
+                          <div key={f.id} className="flex items-center">
+                            <span className="px-1.5 py-0.5 rounded bg-indigo-400/20 text-indigo-100 text-[11px] font-semibold whitespace-nowrap">
+                              {getFieldDisplayLabel(f.id)}
+                            </span>
+                            {i < displayFields.length - 1 && (
+                              <ChevronRight className="w-3 h-3 text-indigo-300/40 mx-0.5 flex-shrink-0" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     )}
                     <DisplayZoneContainer>
                       <div className="flex flex-col gap-1.5">
@@ -1301,9 +1310,18 @@ export const FieldSettingsModal = ({ onClose }) => {
                       </button>
                     </div>
                     {filenameFields.length > 0 && (
-                      <p className="text-[11px] text-emerald-200/70 mb-1.5 truncate">
-                        {filenameFields.map(f => getFieldDisplayLabel(f.id)).join('  →  ')}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-y-1 mb-2">
+                        {filenameFields.map((f, i) => (
+                          <div key={f.id} className="flex items-center">
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-400/20 text-emerald-100 text-[11px] font-semibold whitespace-nowrap">
+                              {getFieldDisplayLabel(f.id)}
+                            </span>
+                            {i < filenameFields.length - 1 && (
+                              <ChevronRight className="w-3 h-3 text-emerald-300/40 mx-0.5 flex-shrink-0" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     )}
                     <FilenameZoneContainer>
                       <div className="flex flex-col gap-1.5">
