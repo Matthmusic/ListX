@@ -873,8 +873,9 @@ export const FieldSettingsModal = ({ onClose }) => {
     setEditLabel("");
   };
 
-  // Sauvegarder le template
-  const handleSaveTemplate = () => {
+  // Sauvegarder le template (et le passer automatiquement en template actif,
+  // puisque modifier un template pour ne pas l'utiliser derriere n'aurait pas de sens)
+  const handleSaveTemplate = async () => {
     if (!newTemplate.name || newTemplate.name.trim() === "") {
       alert("Veuillez entrer un nom pour le template");
       return;
@@ -887,8 +888,11 @@ export const FieldSettingsModal = ({ onClose }) => {
       fieldsOrder: newTemplate.fieldsOrderDisplay // UTILISER DISPLAY COMME RÃ‰FÃ‰RENCE
     };
 
-    addTemplate(templateToSave);
-    alert("Template sauvegardé !");
+    // Attendre la sauvegarde avant de confirmer : addTemplate() passe deja ce
+    // template en actif, mais sans await la confirmation pouvait s'afficher
+    // avant que le changement soit reellement propage.
+    await addTemplate(templateToSave);
+    alert("Template sauvegardé et appliqué !");
   };
 
   // Appliquer UN TEMPLATE
