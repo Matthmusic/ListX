@@ -1,12 +1,10 @@
-import { useEffect, useRef } from 'react';
-import { ChevronLeft } from 'lucide-react';
+import { useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { loadListing } from '../services/storageService';
 import DocumentListingApp from '../DocumentListingApp';
 
 export default function EditorWrapper() {
   const { selectedClient, selectedProject, selectedListing, navigateToListings } = useApp();
-  const saveTimeoutRef = useRef(null);
 
   useEffect(() => {
     // Charger les données du listing au montage si on édite un listing existant
@@ -93,36 +91,11 @@ export default function EditorWrapper() {
     return null;
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 relative overflow-hidden">
-      {/* Background animé avec vagues */}
-      <div className="wave-background">
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
-
-      {/* Éditeur de listing avec bouton retour */}
-      <div className="relative z-10">
-        {/* Bouton retour positionné pour s'aligner avec la section titre.
-            Pas de z-index propre : le parent (z-10) suffit à le placer
-            au-dessus du fond animé, et ça évite qu'il passe devant les
-            popups de DocumentListingApp (export, confirmations...). */}
-        <div className="absolute left-8 right-8" style={{ top: 'calc(2rem + 5rem + 1.5rem)' }}>
-          <div className="max-w-7xl mx-auto">
-            <div className="relative text-center">
-              <button
-                onClick={handleBackClick}
-                className="absolute left-0 top-0 flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-xl hover:bg-white/20 transition-all duration-200 shadow-lg"
-              >
-                <ChevronLeft className="w-5 h-5" />
-                Retour aux listings
-              </button>
-            </div>
-          </div>
-        </div>
-        <DocumentListingApp />
-      </div>
-    </div>
-  );
+  // DocumentListingApp a déjà son propre fond animé et sa propre mise en
+  // page pleine page : pas besoin d'un wrapper ici avec un second fond et
+  // un bouton retour positionné en absolu depuis l'extérieur (fragile —
+  // ça dépendait d'un calc() deviné à la main et rivalisait avec le fond
+  // fixed de DocumentListingApp pour l'empilement/les clics). Le bouton
+  // vit maintenant dans le flux normal de DocumentListingApp lui-même.
+  return <DocumentListingApp onBack={handleBackClick} />;
 }

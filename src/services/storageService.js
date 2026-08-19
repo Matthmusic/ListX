@@ -95,7 +95,42 @@ export async function getAllClients() {
     name: client.name,
     createdAt: client.createdAt,
     projectCount: Object.keys(client.projects || {}).length,
+    logo: client.logo || null,
   }));
+}
+
+/**
+ * Récupère les listings les plus récemment ouverts, tous clients/projets
+ * confondus (triés par updatedAt décroissant — ce champ est mis à jour
+ * aussi bien à la sauvegarde qu'à l'ouverture d'un listing dans l'éditeur).
+ * Chaque entrée inclut le client et le projet associés, prêts à être passés
+ * tels quels à navigateToEditor() pour un accès direct sans navigation.
+ * @param {number} limit - Nombre maximum de listings à retourner
+ * @returns {Array} Liste des listings récents, du plus récent au plus ancien
+ */
+export async function getRecentListings(limit = 3) {
+  const data = await loadData();
+  const recent = [];
+
+  Object.entries(data.clients || {}).forEach(([clientId, client]) => {
+    Object.entries(client.projects || {}).forEach(([projectId, project]) => {
+      Object.entries(project.listings || {}).forEach(([listingId, listing]) => {
+        recent.push({
+          id: listingId,
+          name: listing.name,
+          createdAt: listing.createdAt,
+          updatedAt: listing.updatedAt,
+          documentCount: listing.documents?.length || 0,
+          client: { id: clientId, name: client.name },
+          project: { id: projectId, name: project.name },
+        });
+      });
+    });
+  });
+
+  recent.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
+
+  return recent.slice(0, limit);
 }
 
 /**
@@ -137,6 +172,29 @@ export async function renameClient(clientId, newName) {
   }
 
   data.clients[clientId].name = newName;
+  return await saveData(data);
+}
+
+/**
+ * Définit ou retire le logo d'un client (affiché sur sa card à la place
+ * de l'icône générique). Stocké en data URI directement dans data.json,
+ * comme le reste des données de l'app — pas de fichier séparé à gérer.
+ * @param {string} clientId - ID du client
+ * @param {string|null} logoDataUrl - Data URI de l'image (ou null pour retirer le logo)
+ * @returns {boolean} Succès de l'opération
+ */
+export async function updateClientLogo(clientId, logoDataUrl) {
+  const data = await loadData();
+
+  if (!data.clients[clientId]) {
+    return false;
+  }
+
+  if (logoDataUrl) {
+    data.clients[clientId].logo = logoDataUrl;
+  } else {
+    delete data.clients[clientId].logo;
+  }
   return await saveData(data);
 }
 
@@ -510,6 +568,7 @@ export async function exportClient(clientId) {
     data: {
       name: client.name,
       createdAt: client.createdAt,
+      logo: client.logo || null,
       projects: client.projects || {},
     },
   };
@@ -532,6 +591,7 @@ export async function importClient(clientData) {
   data.clients[newId] = {
     name: clientData.data.name,
     createdAt: new Date().toISOString(),
+    ...(clientData.data.logo ? { logo: clientData.data.logo } : {}),
     projects: clientData.data.projects || {},
   };
 

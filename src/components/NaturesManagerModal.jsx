@@ -12,6 +12,7 @@ export default function NaturesManagerModal({ isOpen, onClose, documents = [] })
   const [newCode, setNewCode] = useState('');
   const [newLabel, setNewLabel] = useState('');
   const [newError, setNewError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const working = localNatures ?? natures;
 
@@ -67,6 +68,10 @@ export default function NaturesManagerModal({ isOpen, onClose, documents = [] })
   const handleSave = async () => {
     const errs = validate(working);
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+
+    // ÉVITER LES SOUMISSIONS EN DOUBLE (clic répété pendant l'await ci-dessous)
+    if (isSaving) return;
+    setIsSaving(true);
     setSaveError('');
     try {
       await updateNatures(working);
@@ -78,6 +83,8 @@ export default function NaturesManagerModal({ isOpen, onClose, documents = [] })
       onClose();
     } catch {
       setSaveError('Erreur lors de la sauvegarde. Veuillez réessayer.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -94,91 +101,104 @@ export default function NaturesManagerModal({ isOpen, onClose, documents = [] })
   const hasErrors = Object.keys(errors).length > 0;
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-32">
+      {/* Overlay */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={handleCancel}
+      />
+
+      {/* Modal */}
+      <div className="relative bg-gradient-to-b from-slate-800 to-slate-950 border border-white/20 rounded-2xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-gray-200">
+        <div className="px-6 py-4 border-b border-white/20 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-gray-800">Gestion des natures de document</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Ajoutez, renommez ou supprimez des natures</p>
+            <h2 className="text-2xl font-bold text-white">Gestion des natures de document</h2>
+            <p className="text-sm text-blue-200 mt-1">Ajoutez, renommez ou supprimez des natures</p>
           </div>
-          <button onClick={handleCancel} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <X size={20} />
+          <button
+            onClick={handleCancel}
+            className="text-white/60 hover:text-white transition-colors"
+            aria-label="Fermer"
+            title="Fermer"
+          >
+            <X size={24} />
           </button>
         </div>
 
-        {/* Liste */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-2">
-          {/* En-têtes colonnes */}
-          <div className="grid grid-cols-[80px_1fr_32px] gap-2 px-1">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Code</span>
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Libellé</span>
-          </div>
-
-          {working.map((nature, index) => {
-            const isUsed = usedCodes.has(nature.code);
-            const isOriginal = originalCodes.has(nature.code);
-            const errorKey = nature.code || `__${index}`;
-            return (
-              <div key={nature.code || index} className="space-y-1">
-                <div className="grid grid-cols-[80px_1fr_32px] gap-2 items-center">
-                  <input
-                    type="text"
-                    value={nature.code}
-                    onChange={(e) => handleChange(index, 'code', e.target.value)}
-                    maxLength={5}
-                    readOnly={isOriginal}
-                    title={isOriginal ? 'Le code ne peut pas être modifié après création' : undefined}
-                    className={`px-2 py-1.5 border rounded text-xs font-mono font-semibold uppercase ${
-                      isOriginal ? 'bg-gray-50 text-gray-500 cursor-default' : ''
-                    } ${errors[errorKey] ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
-                    placeholder="CODE"
-                  />
-                  <input
-                    type="text"
-                    value={nature.label}
-                    onChange={(e) => handleChange(index, 'label', e.target.value)}
-                    className={`px-2 py-1.5 border rounded text-xs ${
-                      errors[errorKey] ? 'border-red-400 bg-red-50' : 'border-gray-300'
-                    }`}
-                    placeholder="Libellé"
-                  />
-                  <button
-                    onClick={() => handleDelete(index)}
-                    disabled={isUsed}
-                    title={isUsed ? 'Nature utilisée dans des documents — supprimez ces documents d\'abord' : 'Supprimer'}
-                    className={`flex items-center justify-center w-8 h-8 rounded transition-colors ${
-                      isUsed
-                        ? 'text-gray-300 cursor-not-allowed'
-                        : 'text-red-400 hover:text-red-600 hover:bg-red-50'
-                    }`}
+        {/* Contenu */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {working.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+              {working.map((nature, index) => {
+                const isUsed = usedCodes.has(nature.code);
+                const isOriginal = originalCodes.has(nature.code);
+                const errorKey = nature.code || `__${index}`;
+                return (
+                  <div
+                    key={nature.code || index}
+                    className="bg-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/10"
                   >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-                {errors[errorKey] && (
-                  <p className="text-xs text-red-500 pl-1">{errors[errorKey]}</p>
-                )}
-                {isUsed && (
-                  <p className="text-xs text-amber-500 flex items-center gap-1 pl-1">
-                    <AlertTriangle size={11} /> Utilisée dans {documents.filter(d => d.nature === nature.code).length} document(s)
-                  </p>
-                )}
-              </div>
-            );
-          })}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={nature.code}
+                        onChange={(e) => handleChange(index, 'code', e.target.value)}
+                        maxLength={5}
+                        readOnly={isOriginal}
+                        title={isOriginal ? 'Le code ne peut pas être modifié après création' : undefined}
+                        className={`w-20 flex-shrink-0 px-2 py-1.5 border rounded-lg text-xs font-mono font-semibold uppercase text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                          isOriginal ? 'bg-white/50 text-gray-500 cursor-default' : 'bg-white/90'
+                        } ${errors[errorKey] ? 'border-red-400' : 'border-white/30'}`}
+                        placeholder="CODE"
+                      />
+                      <input
+                        type="text"
+                        value={nature.label}
+                        onChange={(e) => handleChange(index, 'label', e.target.value)}
+                        className={`flex-1 min-w-0 px-2 py-1.5 bg-white/90 border rounded-lg text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                          errors[errorKey] ? 'border-red-400' : 'border-white/30'
+                        }`}
+                        placeholder="Libellé"
+                      />
+                      <button
+                        onClick={() => handleDelete(index)}
+                        disabled={isUsed}
+                        title={isUsed ? 'Nature utilisée dans des documents — supprimez ces documents d\'abord' : 'Supprimer'}
+                        className={`flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 transition-colors ${
+                          isUsed
+                            ? 'text-white/20 cursor-not-allowed'
+                            : 'text-red-300 hover:text-red-200 hover:bg-red-500/20'
+                        }`}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                    {errors[errorKey] && (
+                      <p className="text-xs text-red-300 mt-1.5 pl-1">{errors[errorKey]}</p>
+                    )}
+                    {isUsed && (
+                      <p className="text-xs text-amber-300 flex items-center gap-1 mt-1.5 pl-1">
+                        <AlertTriangle size={11} /> Utilisée dans {documents.filter(d => d.nature === nature.code).length} document(s)
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
-          {/* Ligne d'ajout */}
-          <div className="pt-3 border-t border-gray-100 space-y-1.5">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Ajouter une nature</p>
-            <div className="grid grid-cols-[80px_1fr_32px] gap-2 items-center">
+          {/* Ajouter une nature */}
+          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+            <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide mb-3">Ajouter une nature</p>
+            <div className="flex gap-2">
               <input
                 type="text"
                 value={newCode}
                 onChange={(e) => { setNewCode(e.target.value); setNewError(''); }}
                 maxLength={5}
-                className={`px-2 py-1.5 border rounded text-xs font-mono font-semibold uppercase ${
-                  newError ? 'border-red-400 bg-red-50' : 'border-gray-300'
+                className={`w-24 flex-shrink-0 px-3 py-2 bg-white/90 border rounded-lg text-sm font-mono font-semibold uppercase text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                  newError ? 'border-red-400' : 'border-white/30'
                 }`}
                 placeholder="CODE"
                 onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
@@ -187,29 +207,29 @@ export default function NaturesManagerModal({ isOpen, onClose, documents = [] })
                 type="text"
                 value={newLabel}
                 onChange={(e) => { setNewLabel(e.target.value); setNewError(''); }}
-                className={`px-2 py-1.5 border rounded text-xs ${
-                  newError ? 'border-red-400 bg-red-50' : 'border-gray-300'
+                className={`flex-1 px-3 py-2 bg-white/90 border rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                  newError ? 'border-red-400' : 'border-white/30'
                 }`}
                 placeholder="Libellé de la nature"
                 onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
               />
               <button
                 onClick={handleAdd}
-                className="flex items-center justify-center w-8 h-8 rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-                title="Ajouter"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-950 transition-colors shadow-md flex-shrink-0"
               >
-                <Plus size={15} />
+                <Plus size={16} />
+                Ajouter
               </button>
             </div>
-            {newError && <p className="text-xs text-red-500 pl-1">{newError}</p>}
+            {newError && <p className="text-xs text-red-300 mt-2">{newError}</p>}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-3 p-5 border-t border-gray-200">
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-white/20">
           <div className="flex-1">
             {saveError && (
-              <p className="text-xs text-red-600 flex items-center gap-1">
+              <p className="text-xs text-red-300 flex items-center gap-1">
                 <AlertTriangle size={12} /> {saveError}
               </p>
             )}
@@ -217,20 +237,20 @@ export default function NaturesManagerModal({ isOpen, onClose, documents = [] })
           <div className="flex items-center gap-3">
             <button
               onClick={handleCancel}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+              className="px-4 py-2 text-sm text-blue-200 hover:text-white transition-colors"
             >
               Annuler
             </button>
             <button
               onClick={handleSave}
-              disabled={hasErrors}
+              disabled={hasErrors || isSaving}
               className={`px-5 py-2 text-sm font-medium rounded-lg transition-colors ${
-                hasErrors
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                hasErrors || isSaving
+                  ? 'bg-white/10 text-white/40 cursor-not-allowed'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
               }`}
             >
-              Enregistrer
+              {isSaving ? 'Sauvegarde…' : 'Enregistrer'}
             </button>
           </div>
         </div>

@@ -162,7 +162,7 @@ export default function AffairesModal({ isOpen, onClose }) {
       />
 
       {/* Modal */}
-      <div className="relative bg-black/40 backdrop-blur-md border border-white/20 rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="relative bg-gradient-to-b from-slate-800 to-slate-950 border border-white/20 rounded-2xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
         {/* Notification */}
         {notification && (
           <div className={`absolute top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg ${
@@ -183,15 +183,19 @@ export default function AffairesModal({ isOpen, onClose }) {
           <button
             onClick={onClose}
             className="text-white/60 hover:text-white transition-colors"
+            aria-label="Fermer"
+            title="Fermer"
           >
             <X size={24} />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        {/* Content : colonne flex pleine hauteur, pour que la liste (flex-1
+            plus bas) s'étende jusqu'au bas de la modale au lieu de rester
+            cantonnée à une hauteur fixe avec sa propre scrollbar interne */}
+        <div className="flex-1 overflow-hidden p-6 flex flex-col min-h-0">
           {/* Actions principales */}
-          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 mb-6 border border-white/10">
+          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 mb-6 border border-white/10 flex-shrink-0">
             <div className="flex flex-wrap gap-3 mb-4">
               <button
                 onClick={importerCSV}
@@ -239,7 +243,7 @@ export default function AffairesModal({ isOpen, onClose }) {
           </div>
 
           {/* Barre de recherche et statistiques */}
-          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 mb-6 border border-white/10">
+          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 mb-6 border border-white/10 flex-shrink-0">
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" size={20} />
@@ -254,6 +258,8 @@ export default function AffairesModal({ isOpen, onClose }) {
                   <button
                     onClick={() => setSearchTerm('')}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    aria-label="Effacer la recherche"
+                    title="Effacer la recherche"
                   >
                     <X size={20} />
                   </button>
@@ -266,8 +272,8 @@ export default function AffairesModal({ isOpen, onClose }) {
           </div>
 
           {/* Liste des affaires */}
-          <div className="bg-white/5 backdrop-blur-sm rounded-xl overflow-hidden border border-white/10">
-            <div className="max-h-[400px] overflow-y-auto">
+          <div className="bg-white/5 backdrop-blur-sm rounded-xl overflow-hidden border border-white/10 flex-1 min-h-0">
+            <div className="h-full overflow-y-auto">
               {filteredAffaires.length === 0 ? (
                 <div className="p-12 text-center text-blue-200">
                   {searchTerm ? 'Aucune affaire ne correspond à votre recherche' : 'Aucune affaire enregistrée'}

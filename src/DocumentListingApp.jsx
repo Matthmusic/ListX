@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import { Plus, Download, Trash2, FolderTree, GripVertical, X, CheckCircle, AlertCircle, Info, FileText, ListOrdered, FileDown, Edit, Settings, Upload, ListChecks, Hash } from 'lucide-react';
+import { Plus, Download, Trash2, FolderTree, GripVertical, X, CheckCircle, AlertCircle, Info, FileText, ListOrdered, FileDown, Edit, Settings, Upload, ListChecks, Hash, ChevronLeft } from 'lucide-react';
 import { TemplateContext } from './context/TemplateContext';
 import { useApp } from './context/AppContext';
 import { useNatures } from './context/NaturesContext';
@@ -261,7 +261,7 @@ const getSectionLayout = (docs = [], modeNumerotation = 'categorie', dizaineParC
   });
 };
 
-export default function DocumentListingApp() {
+export default function DocumentListingApp({ onBack } = {}) {
   // Import du contexte des templates
   const { currentTemplate, applyTemplate, allTemplates } = useContext(TemplateContext);
   const { selectedClient, selectedProject, selectedListing } = useApp();
@@ -591,9 +591,10 @@ export default function DocumentListingApp() {
 
     const nomBase = parts.join('_');
 
-    // Ajouter le nom avec " - " au lieu de "_"
+    // Séparateur "_" pour rester cohérent avec generateFilename() et
+    // limiter la longueur des noms de fichiers générés
     if (doc.nom && doc.nom.trim() !== '') {
-      return `${nomBase} - ${doc.nom}`;
+      return `${nomBase}_${doc.nom}`;
     }
 
     return nomBase;
@@ -3192,8 +3193,21 @@ export default function DocumentListingApp() {
           <img src={listXLogo} alt="ListX" className="h-20" />
         </div>
 
-        {/* Titre principal avec bouton retour (depuis EditorWrapper) */}
+        {/* Titre principal avec bouton retour. Le bouton vit ici, dans le
+            flux normal de ce composant, plutôt que dans un wrapper externe
+            positionné en absolu avec un calc() deviné à la main : cette
+            section a un vrai contenu (donc une vraie hauteur) et aucun
+            élément position:fixed ne peut se glisser devant lui ici. */}
         <div id="editor-title-section" className="relative text-center mb-12">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="absolute left-0 top-0 flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-xl hover:bg-white/20 transition-all duration-200 shadow-lg"
+            >
+              <ChevronLeft className="w-5 h-5" />
+              Retour aux listings
+            </button>
+          )}
           {selectedClient && selectedProject && selectedListing && (
             <p className="text-sm text-blue-300 mb-2">
               {selectedClient.name} / {selectedProject.name}

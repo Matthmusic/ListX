@@ -139,7 +139,7 @@ export function generateFilename(document, template) {
     })
     .filter(Boolean); // Supprimer les valeurs null/undefined
 
-  const separator = ' - ';
+  const separator = '_';
   const prefix = parts.join(separator);
   const descriptionValue = hasDescription ? (document.nom || '') : '';
 

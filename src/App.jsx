@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useApp } from './context/AppContext'
 import TitleBar from './components/TitleBar'
 import UpdateNotification from './components/UpdateNotification'
@@ -12,6 +12,7 @@ import { isStorageConfigured } from './services/storageService'
 function App() {
   const { currentView } = useApp()
   const [storageConfigured, setStorageConfigured] = useState(null)
+  const scrollContainerRef = useRef(null)
 
   // Vérifier si le stockage est configuré au démarrage
   useEffect(() => {
@@ -21,6 +22,17 @@ function App() {
     };
     checkStorage();
   }, []);
+
+  // Remonter en haut à chaque changement de vue : ce conteneur est partagé
+  // par toutes les pages (elles ne remontent pas, seul leur contenu change),
+  // donc sans ça la position de scroll d'une page reste appliquée à la
+  // suivante — un raccourci de navigation direct (ex: card "Derniers
+  // listings ouverts" plus bas dans une page déjà scrollée) peut alors
+  // laisser l'éditeur affiché avec son bouton "Retour" caché au-dessus
+  // de la zone visible, sans aucune erreur.
+  useEffect(() => {
+    scrollContainerRef.current?.scrollTo(0, 0);
+  }, [currentView]);
 
   // Callback quand l'utilisateur sélectionne un dossier
   const handleFolderSelected = (path) => {
@@ -32,7 +44,7 @@ function App() {
     <>
       <TitleBar />
 
-      <div className="h-[calc(100vh-2.25rem)] overflow-auto">
+      <div ref={scrollContainerRef} className="h-[calc(100vh-2.25rem)] overflow-auto">
         {storageConfigured === null && (
           // Afficher un loader pendant la vérification
           <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">

@@ -344,14 +344,16 @@ ipcMain.handle('create-arborescence-files', async (event, { basePath, plan }) =>
 // Ouvrir un dossier dans l'explorateur de fichiers
 ipcMain.handle('open-folder', async (event, folderPath) => {
   try {
+    console.log('[open-folder] Ouverture demandee pour :', folderPath, '- existe sur le disque :', fs.existsSync(folderPath));
     const result = await shell.openPath(folderPath);
     // shell.openPath resout avec une chaine d'erreur (vide si succes), pas une exception
+    console.log('[open-folder] Resultat brut de shell.openPath (vide = succes) :', JSON.stringify(result));
     if (result) {
       return { success: false, error: result };
     }
     return { success: true };
   } catch (error) {
-    console.error('Erreur ouverture dossier:', error);
+    console.error('[open-folder] Exception :', error);
     return { success: false, error: error.message };
   }
 });

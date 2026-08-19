@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 
-export default function InputDialog({ isOpen, onClose, onConfirm, title, label, placeholder, initialValue = '', confirmText = 'Confirmer', cancelText = 'Annuler' }) {
+export default function InputDialog({ isOpen, onClose, onConfirm, title, label, placeholder, initialValue = '', confirmText = 'Confirmer', cancelText = 'Annuler', extraTop = null }) {
   const [value, setValue] = useState(initialValue);
 
   useEffect(() => {
@@ -37,6 +37,7 @@ export default function InputDialog({ isOpen, onClose, onConfirm, title, label, 
 
           {/* Content */}
           <div className="p-6">
+            {extraTop}
             <label className="block text-sm font-medium text-gray-900 mb-2">
               {label}
             </label>

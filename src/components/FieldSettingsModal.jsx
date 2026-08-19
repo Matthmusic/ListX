@@ -159,7 +159,7 @@ const AvailableFieldItem = ({ field, isCustom, onEdit, onRemove, onAddToZones })
 // COMPOSANT POUR UN CHAMP DANS LES ZONES ACTIVES (DISPLAY OU FILENAME)
 // Le jeton EST le segment du nom de fichier final : une seule ligne
 // horizontale, sans retour à la ligne (donc pas de cible qui bouge pendant
-// le drag), et les jetons sont séparés par le vrai séparateur " - " du nom
+// le drag), et les jetons sont séparés par le vrai séparateur "_" du nom
 // généré plutôt qu'une flèche décorative — ce qu'on édite ici, c'est
 // littéralement le nom de fichier, pas une liste abstraite de champs.
 const ActiveFieldItem = ({ field, isCustom, isSystem, zoneColor = "blue", onRemove, onMoveUp, onMoveDown, isFirst, isLast }) => {
@@ -380,7 +380,7 @@ export const FieldSettingsModal = ({ onClose }) => {
     if (filenameFields.length === 0) return "AUCUN_CHAMP.pdf";
 
     const hasDescription = filenameFields.some(f => f.id === 'DESCRIPTION');
-    const separator = ' - ';
+    const separator = '_';
     const baseParts = filenameFields
       .filter(f => f.id !== 'DESCRIPTION')
       .map(f => f.id)
@@ -1013,7 +1013,7 @@ export const FieldSettingsModal = ({ onClose }) => {
       />
 
       {/* Modal */}
-      <div className="relative bg-black/40 backdrop-blur-md border border-white/20 rounded-2xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="relative bg-gradient-to-b from-slate-800 to-slate-950 border border-white/20 rounded-2xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-white/20 flex items-center justify-between">
           <div>
@@ -1257,7 +1257,7 @@ export const FieldSettingsModal = ({ onClose }) => {
                             {displayFields.map((field, index) => (
                               <div key={`display-${field.id}`} className="flex items-center flex-shrink-0">
                                 {index > 0 && (
-                                  <span className="text-indigo-200/40 text-xs font-mono px-1 select-none">-</span>
+                                  <span className="text-indigo-200/40 text-xs font-mono px-1 select-none">_</span>
                                 )}
                                 <ActiveFieldItem
                                   field={{
@@ -1316,7 +1316,7 @@ export const FieldSettingsModal = ({ onClose }) => {
                             {filenameFields.map((field, index) => (
                               <div key={`filename-${field.id}`} className="flex items-center flex-shrink-0">
                                 {index > 0 && (
-                                  <span className="text-emerald-200/40 text-xs font-mono px-1 select-none">-</span>
+                                  <span className="text-emerald-200/40 text-xs font-mono px-1 select-none">_</span>
                                 )}
                                 <ActiveFieldItem
                                   field={{
