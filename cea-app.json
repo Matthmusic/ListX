@@ -4,7 +4,7 @@
   "app": {
     "id": "listx",
     "name": "ListX",
-    "version": "1.3.21",
+    "version": "1.3.22",
     "description": {
       "short": "Générateur de listings de documents techniques pour bureaux d'études",
       "long": "ListX est une application desktop professionnelle de génération et gestion de listings de documents techniques. Elle permet de créer rapidement des inventaires de fichiers avec organisation hiérarchique (clients/projets/listings), système de templates personnalisables, numérotation automatique intelligente, et exports PDF et Excel professionnels avec logos personnalisables. Parfaite pour la documentation de projets industriels et techniques avec gestion d'arborescence de dossiers."
@@ -72,9 +72,20 @@
   },
   "installation": {
     "type": "installer",
-    "downloadUrl": "https://github.com/Matthmusic/ListX/releases/latest/download/ListX-Setup-1.3.21.exe"
+    "downloadUrl": "https://github.com/Matthmusic/ListX/releases/latest/download/ListX-Setup-1.3.22.exe"
   },
   "changelog": {
+    "1.3.22": {
+      "date": "2026-08-19",
+      "changes": [
+        "Page Gestion des clients : section \"Derniers listings ouverts\" (accès direct aux 3 derniers listings modifiés) et tri alphabétique des clients",
+        "Logos personnalisables pour les clients (upload, redimensionnement automatique, export/import)",
+        "Harmonisation visuelle des modales Affaires, Natures de document et Paramètres des champs (largeur, thème, fond opaque)",
+        "Séparateur des noms de fichiers générés simplifié (\"_\" au lieu de \" - \") pour réduire leur longueur",
+        "Correction du bouton \"Retour aux listings\" de l'éditeur, inopérant depuis le raccourci \"Derniers listings ouverts\"",
+        "Diverses corrections de fiabilité (double-soumission, accessibilité)"
+      ]
+    },
     "1.3.21": {
       "date": "2026-08-18",
       "changes": [
